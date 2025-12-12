@@ -1,0 +1,71 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+path/.venv/
+path/venv/
+path/ENV/
+path/env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Streamlit
+path/.streamlit/secrets.toml
+path/.streamlit/config.toml
+
+# AWS
+.aws/
+*.pem
+
+# Environment Variables
+.env
+.env.local
+
+# Logs
+*.log
+
+# Generated Files
+agent-spec-*.md
+*.pdf
+
+# Cache
+.cache/
+*.cache
+
+# UV
+path/uv.lock
+
+# Checkpoint files
+checkpoint*
+
+# Temporary files
+*.tmp
+*.bak
+
+PATH_old.md
+CASE.md
