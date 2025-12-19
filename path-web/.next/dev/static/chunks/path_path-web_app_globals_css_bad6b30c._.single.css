@@ -712,6 +712,10 @@
     height: calc(var(--spacing) * 11);
   }
 
+  .h-\[88px\] {
+    height: 88px;
+  }
+
   .h-\[calc\(100\%-1px\)\] {
     height: calc(100% - 1px);
   }
