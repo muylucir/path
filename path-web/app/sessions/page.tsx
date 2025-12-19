@@ -46,7 +46,6 @@ export default function SessionsPage() {
       const session = await response.json();
 
       // Store in sessionStorage
-      sessionStorage.setItem("currentStep", "3");
       sessionStorage.setItem("formData", JSON.stringify({
         painPoint: session.pain_point,
         inputType: session.input_type,
@@ -74,8 +73,8 @@ export default function SessionsPage() {
         next_steps: session.next_steps,
       }));
 
-      // Navigate to home (will show step 3)
-      router.push("/");
+      // Navigate to results page
+      router.push("/results");
     } catch (error) {
       console.error("Error loading session:", error);
     }
