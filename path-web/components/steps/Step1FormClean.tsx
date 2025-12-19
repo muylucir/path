@@ -151,7 +151,7 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="트리거 타입을 선택하세요" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="w-[400px]">
                 {INPUT_TYPES.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
