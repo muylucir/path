@@ -84,7 +84,11 @@ export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsPr
         </TabsContent>
 
         <TabsContent value="spec" className="mt-6">
-          <Specification analysis={analysis} onGenerated={setSpecification} />
+          <Specification 
+            analysis={analysis} 
+            onGenerated={setSpecification}
+            initialSpec={specification}
+          />
         </TabsContent>
 
         <TabsContent value="risks" className="mt-6">

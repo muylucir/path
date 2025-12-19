@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
@@ -220,17 +220,18 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
             </div>
 
             <div className="flex gap-2">
-              <Input
+              <Textarea
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (e.key === "Enter" && e.ctrlKey) {
                     e.preventDefault();
                     handleUserMessage();
                   }
                 }}
-                placeholder="답변을 입력하거나 '분석 완료'를 입력하세요..."
+                placeholder="답변을 입력하세요 (Ctrl+Enter로 전송)..."
                 disabled={isStreaming || isAnalyzing}
+                className="min-h-[80px] resize-none"
               />
               <Button
                 onClick={handleUserMessage}
