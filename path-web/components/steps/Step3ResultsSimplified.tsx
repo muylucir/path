@@ -130,8 +130,9 @@ export function Step3ResultsSimplified({
 
       {/* Tabs */}
       <Tabs defaultValue="analysis" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="analysis">📊 분석 결과</TabsTrigger>
+          <TabsTrigger value="chat">💬 대화 내역</TabsTrigger>
           <TabsTrigger value="spec">📋 명세서</TabsTrigger>
           <TabsTrigger value="actions">🚀 액션</TabsTrigger>
         </TabsList>
@@ -208,7 +209,38 @@ export function Step3ResultsSimplified({
           </Card>
         </TabsContent>
 
-        {/* Tab 2: Specification */}
+        {/* Tab 2: Chat History */}
+        <TabsContent value="chat" className="mt-6">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+                {chatHistory.map((msg, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex ${
+                      msg.role === "user" ? "justify-end" : "justify-start"
+                    }`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-lg p-3 ${
+                        msg.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      }`}
+                    >
+                      <div className="text-xs font-semibold mb-1">
+                        {msg.role === "user" ? "You" : "Claude"}
+                      </div>
+                      <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab 3: Specification */}
         <TabsContent value="spec" className="mt-6">
           <Card>
             <CardContent className="pt-6 space-y-4">
