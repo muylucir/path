@@ -6,7 +6,7 @@
 
 ## 🎯 P.A.T.H가 무엇인가요?
 
-**P.A.T.H** = **P**roblem → **A**gent → **T**echnical → **H**andoff
+**P.A.T.H** = **P**roblem → **A**gent Pattern → **T**echnical → **H**andoff
 
 고객의 막연한 AI Agent 아이디어를 **구조화된 프로토타입 계획**으로 변환하는 체계적인 프레임워크입니다.
 
@@ -274,51 +274,3 @@ streamlit run app.py
 - ✅ Feasibility 점수 (50점 만점)
 - ✅ 구현 명세서 (Markdown)
 - ✅ Architecture 다이어그램 (Mermaid)
-
-## 🤝 피드백 요청
-
-다음 항목에 대한 의견을 부탁드립니다:
-
-### 1. 프레임워크 자체
-- [ ] INPUT/PROCESS/OUTPUT/Human-in-Loop 분류가 적절한가?
-- [ ] 5개 Feasibility 항목이 충분한가?
-- [ ] AI Agent 패턴 4가지가 실무에 적합한가?
-- [ ] 누락된 중요 요소가 있는가?
-
-### 2. 도구 사용성
-- [ ] 구조화된 분석이 가능한가?
-- [ ] Claude의 질문이 적절한가?
-- [ ] 생성된 명세서가 실무에 유용한가?
-- [ ] UI/UX가 직관적인가?
-
-### 3. 실무 적용
-- [ ] 고객 미팅에서 사용할 수 있는가?
-- [ ] 제안서 작성에 도움이 되는가?
-- [ ] 워크샵/해커톤에서 활용 가능한가?
-- [ ] 어떤 상황에서 가장 유용할 것 같은가?
-
-### 4. 개선 아이디어
-- [ ] 추가되면 좋을 기능은?
-- [ ] 불필요한 부분은?
-- [ ] 더 간소화할 부분은?
-- [ ] 다른 활용 방안은?
-
----
-
-## 🔗 참고 자료
-
-- **프레임워크 상세 문서**: [test.md](../test.md)
-- **사용 가이드**: [README.md](README.md)
-- **Andrew Ng's Agentic Patterns**: [DeepLearning.AI](https://www.deeplearning.ai/the-batch/how-agents-can-improve-llm-performance/)
-
----
-
-## 📞 문의
-
-질문이나 제안 사항이 있으시면 언제든 연락 주세요!
-
-**목표**: SA 팀의 피드백을 반영하여 실무에서 정말 유용한 도구로 발전시키기
-
----
-
-_"막연한 아이디어를 검증 가능한 계획으로"_

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, type FormValues } from "@/lib/schema";
@@ -11,7 +12,6 @@ import {
   ERROR_TOLERANCE_OPTIONS,
 } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -28,13 +28,19 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataSourceInput } from "./DataSourceInput";
 import { ChevronDown, Info } from "lucide-react";
+import type { DataSource } from "@/lib/types";
 
 interface Step1FormProps {
   onSubmit: (data: FormValues) => void;
 }
 
 export function Step1Form({ onSubmit }: Step1FormProps) {
+  const [dataSources, setDataSources] = useState<DataSource[]>([
+    { type: "", description: "" },
+  ]);
+
   const {
     register,
     handleSubmit,
@@ -47,15 +53,16 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       painPoint: "",
       inputType: "",
       processSteps: [],
-      outputType: "",
+      outputTypes: [],
       humanLoop: "",
-      dataSource: "",
+      dataSources: [{ type: "", description: "" }],
       errorTolerance: "",
       additionalContext: "",
     },
   });
 
   const processSteps = watch("processSteps");
+  const outputTypes = watch("outputTypes");
 
   const toggleProcessStep = (step: string) => {
     const current = processSteps || [];
@@ -65,8 +72,25 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
     setValue("processSteps", updated);
   };
 
+  const toggleOutputType = (type: string) => {
+    const current = outputTypes || [];
+    const updated = current.includes(type)
+      ? current.filter((t) => t !== type)
+      : [...current, type];
+    setValue("outputTypes", updated);
+  };
+
+  const handleDataSourcesChange = (sources: DataSource[]) => {
+    setDataSources(sources);
+    setValue("dataSources", sources);
+  };
+
+  const handleFormSubmit = (data: FormValues) => {
+    onSubmit({ ...data, dataSources });
+  };
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -133,25 +157,30 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               )}
             </div>
 
-            {/* OUTPUT Type */}
+            {/* OUTPUT Types */}
             <div className="space-y-2">
-              <Label htmlFor="outputType">
-                OUTPUT: 최종 결과물은? <span className="text-red-500">*</span>
+              <Label>
+                OUTPUT: 최종 결과물은? (복수선택 가능) <span className="text-red-500">*</span>
               </Label>
-              <Select onValueChange={(value) => setValue("outputType", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {OUTPUT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
+              <div className="space-y-2 border rounded-md p-4 max-h-[200px] overflow-y-auto">
+                {OUTPUT_TYPES.map((type) => (
+                  <div key={type} className="flex items-start space-x-2">
+                    <Checkbox
+                      id={`output-${type}`}
+                      checked={outputTypes?.includes(type)}
+                      onCheckedChange={() => toggleOutputType(type)}
+                    />
+                    <label
+                      htmlFor={`output-${type}`}
+                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                    >
                       {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.outputType && (
-                <p className="text-sm text-red-500">{errors.outputType.message}</p>
+                    </label>
+                  </div>
+                ))}
+              </div>
+              {errors.outputTypes && (
+                <p className="text-sm text-red-500">{errors.outputTypes.message}</p>
               )}
             </div>
           </div>
@@ -162,7 +191,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               <Label>
                 PROCESS: 어떤 작업이 필요한가요? (복수선택 가능) <span className="text-red-500">*</span>
               </Label>
-              <div className="space-y-2 border rounded-md p-4">
+              <div className="space-y-2 border rounded-md p-4 max-h-[250px] overflow-y-auto">
                 {PROCESS_STEPS.map((step) => (
                   <div key={step} className="flex items-start space-x-2">
                     <Checkbox
@@ -207,54 +236,45 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
             </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Data Source */}
-            <div className="space-y-2">
-              <Label htmlFor="dataSource">데이터는 어디서 가져오나요?</Label>
-              <Input
-                id="dataSource"
-                placeholder="예: MCP 서버, Gmail API, S3, DynamoDB, 웹 스크래핑"
-                {...register("dataSource")}
-              />
-            </div>
+          {/* Data Sources */}
+          <DataSourceInput
+            dataSources={dataSources}
+            onChange={handleDataSourcesChange}
+            error={errors.dataSources?.message}
+          />
 
-            {/* Error Tolerance */}
-            <div className="space-y-2">
-              <Label htmlFor="errorTolerance">
-                오류 허용도는? <span className="text-red-500">*</span>
-              </Label>
-              <Select onValueChange={(value) => setValue("errorTolerance", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ERROR_TOLERANCE_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.errorTolerance && (
-                <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>
-              )}
-            </div>
+          {/* Error Tolerance */}
+          <div className="space-y-2">
+            <Label htmlFor="errorTolerance">
+              오류 허용도는? <span className="text-red-500">*</span>
+            </Label>
+            <Select onValueChange={(value) => setValue("errorTolerance", value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {ERROR_TOLERANCE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.errorTolerance && (
+              <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>
+            )}
           </div>
 
           {/* Additional Context */}
-          <Collapsible>
-            <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium hover:underline">
-              📝 추가 정보 (선택사항)
-              <ChevronDown className="h-4 w-4" />
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <Textarea
-                placeholder="예: 과거 데이터 1000건 있음, 법무팀 검토 필수, 실시간 처리 필요 등"
-                className="min-h-[80px]"
-                {...register("additionalContext")}
-              />
-            </CollapsibleContent>
-          </Collapsible>
+          <div className="space-y-2">
+            <Label htmlFor="additionalContext">📝 추가 정보 (선택사항)</Label>
+            <Textarea
+              id="additionalContext"
+              placeholder="예: 과거 데이터 1000건 있음, 법무팀 검토 필수, 실시간 처리 필요 등"
+              className="min-h-[80px]"
+              {...register("additionalContext")}
+            />
+          </div>
 
           <Button type="submit" size="lg" className="w-full">
             🤖 Claude 분석 시작
