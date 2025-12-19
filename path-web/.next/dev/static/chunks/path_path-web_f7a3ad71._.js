@@ -1432,6 +1432,7 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
     };
     const handleSave = async ()=>{
         setIsSaving(true);
+        console.log("Saving session with specification length:", specification?.length || 0);
         try {
             const sessionData = {
                 pain_point: analysis.pain_point,
@@ -1478,12 +1479,12 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
                             children: "🚀 다음 단계"
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                            lineNumber: 72,
+                            lineNumber: 74,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                        lineNumber: 71,
+                        lineNumber: 73,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1498,23 +1499,23 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
                                     ]
                                 }, idx, true, {
                                     fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                                    lineNumber: 77,
+                                    lineNumber: 79,
                                     columnNumber: 15
                                 }, this))
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                            lineNumber: 75,
+                            lineNumber: 77,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                        lineNumber: 74,
+                        lineNumber: 76,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                lineNumber: 70,
+                lineNumber: 72,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1524,12 +1525,12 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
                             children: "액션"
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                            lineNumber: 87,
+                            lineNumber: 89,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                        lineNumber: 86,
+                        lineNumber: 88,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -1545,7 +1546,7 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
                                             className: "h-4 w-4 animate-spin mr-2"
                                         }, void 0, false, {
                                             fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                                            lineNumber: 93,
+                                            lineNumber: 95,
                                             columnNumber: 17
                                         }, this),
                                         "저장 중..."
@@ -1553,7 +1554,7 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
                                 }, void 0, true) : saveSuccess ? "✅ 저장 완료!" : "💾 이 분석 결과 저장"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                                lineNumber: 90,
+                                lineNumber: 92,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -1563,25 +1564,25 @@ function NextSteps({ analysis, chatHistory, formData, specification }) {
                                 children: "🔄 새로운 분석 시작"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                                lineNumber: 102,
+                                lineNumber: 104,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                        lineNumber: 89,
+                        lineNumber: 91,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-                lineNumber: 85,
+                lineNumber: 87,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/path/path-web/components/analysis/NextSteps.tsx",
-        lineNumber: 69,
+        lineNumber: 71,
         columnNumber: 5
     }, this);
 }
@@ -1628,6 +1629,10 @@ function Step3Results({ analysis, chatHistory, formData }) {
     _s();
     const { feasibility_score, pattern } = analysis;
     const [specification, setSpecification] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["useState"])("");
+    const handleSpecificationGenerated = (spec)=>{
+        console.log("Specification generated, length:", spec.length);
+        setSpecification(spec);
+    };
     return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
         className: "space-y-6",
         children: [
@@ -1645,7 +1650,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         children: "추천 패턴"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 30,
+                                        lineNumber: 35,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1653,23 +1658,23 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         children: pattern
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 31,
+                                        lineNumber: 36,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 29,
+                                lineNumber: 34,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 28,
+                            lineNumber: 33,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 27,
+                        lineNumber: 32,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1683,7 +1688,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         children: "Feasibility"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 39,
+                                        lineNumber: 44,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1694,23 +1699,23 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         ]
                                     }, void 0, true, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 40,
+                                        lineNumber: 45,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 38,
+                                lineNumber: 43,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 37,
+                            lineNumber: 42,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 36,
+                        lineNumber: 41,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Card"], {
@@ -1724,7 +1729,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         children: "판정"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 48,
+                                        lineNumber: 53,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1732,7 +1737,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         children: feasibility_score >= 40 ? "✅ Go" : feasibility_score >= 30 ? "⚠️ 조건부" : "🔄 개선 필요"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 49,
+                                        lineNumber: 54,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("p", {
@@ -1740,29 +1745,29 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                         children: feasibility_score >= 40 ? "높은 성공률" : feasibility_score >= 30 ? "리스크 관리 필요" : "선행 작업 필요"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                        lineNumber: 56,
+                                        lineNumber: 61,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 47,
+                                lineNumber: 52,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 46,
+                            lineNumber: 51,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 45,
+                        lineNumber: 50,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                lineNumber: 26,
+                lineNumber: 31,
                 columnNumber: 7
             }, this),
             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Tabs"], {
@@ -1777,7 +1782,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                 children: "📊 상세 분석"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 71,
+                                lineNumber: 76,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -1785,7 +1790,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                 children: "💬 대화 내역"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 72,
+                                lineNumber: 77,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -1793,7 +1798,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                 children: "📋 명세서"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 73,
+                                lineNumber: 78,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -1801,7 +1806,7 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                 children: "⚠️ 리스크"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 74,
+                                lineNumber: 79,
                                 columnNumber: 11
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsTrigger"], {
@@ -1809,13 +1814,13 @@ function Step3Results({ analysis, chatHistory, formData }) {
                                 children: "🚀 다음 단계"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                                lineNumber: 75,
+                                lineNumber: 80,
                                 columnNumber: 11
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 70,
+                        lineNumber: 75,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -1825,12 +1830,12 @@ function Step3Results({ analysis, chatHistory, formData }) {
                             analysis: analysis
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 79,
+                            lineNumber: 84,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 78,
+                        lineNumber: 83,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -1840,12 +1845,12 @@ function Step3Results({ analysis, chatHistory, formData }) {
                             messages: chatHistory
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 83,
+                            lineNumber: 88,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 82,
+                        lineNumber: 87,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -1853,16 +1858,16 @@ function Step3Results({ analysis, chatHistory, formData }) {
                         className: "mt-6",
                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$analysis$2f$Specification$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Specification"], {
                             analysis: analysis,
-                            onGenerated: setSpecification,
+                            onGenerated: handleSpecificationGenerated,
                             initialSpec: specification
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 87,
+                            lineNumber: 92,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 86,
+                        lineNumber: 91,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -1872,12 +1877,12 @@ function Step3Results({ analysis, chatHistory, formData }) {
                             analysis: analysis
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 95,
+                            lineNumber: 100,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 94,
+                        lineNumber: 99,
                         columnNumber: 9
                     }, this),
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$tabs$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TabsContent"], {
@@ -1890,24 +1895,24 @@ function Step3Results({ analysis, chatHistory, formData }) {
                             specification: specification
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                            lineNumber: 99,
+                            lineNumber: 104,
                             columnNumber: 11
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                        lineNumber: 98,
+                        lineNumber: 103,
                         columnNumber: 9
                     }, this)
                 ]
             }, void 0, true, {
                 fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-                lineNumber: 69,
+                lineNumber: 74,
                 columnNumber: 7
             }, this)
         ]
     }, void 0, true, {
         fileName: "[project]/path/path-web/components/steps/Step3Results.tsx",
-        lineNumber: 24,
+        lineNumber: 29,
         columnNumber: 5
     }, this);
 }

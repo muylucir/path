@@ -20,6 +20,11 @@ export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsPr
   const { feasibility_score, pattern } = analysis;
   const [specification, setSpecification] = useState<string>("");
 
+  const handleSpecificationGenerated = (spec: string) => {
+    console.log("Specification generated, length:", spec.length);
+    setSpecification(spec);
+  };
+
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -86,7 +91,7 @@ export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsPr
         <TabsContent value="spec" className="mt-6">
           <Specification 
             analysis={analysis} 
-            onGenerated={setSpecification}
+            onGenerated={handleSpecificationGenerated}
             initialSpec={specification}
           />
         </TabsContent>

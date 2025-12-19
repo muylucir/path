@@ -27,6 +27,8 @@ export function NextSteps({ analysis, chatHistory, formData, specification }: Ne
 
   const handleSave = async () => {
     setIsSaving(true);
+    
+    console.log("Saving session with specification length:", specification?.length || 0);
 
     try {
       const sessionData = {
