@@ -298,52 +298,51 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
           <Separator />
 
-          {/* Human-in-Loop */}
-          <div className="space-y-2">
-            <Label className="text-base font-semibold flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Human-in-Loop
-            </Label>
-            <Select onValueChange={(value) => setValue("humanLoop", value)}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="사람 개입 시점을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {HUMAN_LOOP_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.humanLoop && (
-              <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
-            )}
-          </div>
+          {/* Human-in-Loop & Error Tolerance */}
+          <div className="grid md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                Human-in-Loop
+              </Label>
+              <Select onValueChange={(value) => setValue("humanLoop", value)}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="사람 개입 시점" />
+                </SelectTrigger>
+                <SelectContent>
+                  {HUMAN_LOOP_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.humanLoop && (
+                <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
+              )}
+            </div>
 
-          <Separator />
-
-          {/* Error Tolerance */}
-          <div className="space-y-2">
-            <Label className="text-base font-semibold flex items-center gap-2">
-              <AlertCircle className="h-5 w-5" />
-              오류 허용도
-            </Label>
-            <Select onValueChange={(value) => setValue("errorTolerance", value)}>
-              <SelectTrigger className="h-11">
-                <SelectValue placeholder="오류 허용도를 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                {ERROR_TOLERANCE_OPTIONS.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.errorTolerance && (
-              <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>
-            )}
+            <div className="space-y-2">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <AlertCircle className="h-5 w-5" />
+                오류 허용도
+              </Label>
+              <Select onValueChange={(value) => setValue("errorTolerance", value)}>
+                <SelectTrigger className="h-11">
+                  <SelectValue placeholder="오류 허용도" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ERROR_TOLERANCE_OPTIONS.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.errorTolerance && (
+                <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
