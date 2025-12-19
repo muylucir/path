@@ -5,12 +5,18 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { SessionList } from "@/components/sessions/SessionList";
 import { ChevronDown } from "lucide-react";
 
 export function Sidebar() {
   return (
     <aside className="w-80 border-r p-6 space-y-4 overflow-y-auto h-[calc(100vh-73px)]">
       <div className="space-y-2">
+        <h2 className="text-lg font-semibold">💾 세션 관리</h2>
+        <SessionList />
+      </div>
+
+      <div className="border-t pt-4 space-y-2">
         <h2 className="text-lg font-semibold">📚 P.A.T.H 프레임워크</h2>
         
         <Collapsible>
