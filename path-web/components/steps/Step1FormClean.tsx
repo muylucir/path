@@ -148,7 +148,7 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
               INPUT: 언제 실행되나요?
             </Label>
             <Select onValueChange={(value) => setValue("inputType", value)}>
-              <SelectTrigger className="h-11">
+              <SelectTrigger className="h-11 w-100">
                 <SelectValue placeholder="트리거 타입을 선택하세요" />
               </SelectTrigger>
               <SelectContent className="w-[400px]">

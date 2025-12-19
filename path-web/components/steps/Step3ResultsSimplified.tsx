@@ -253,16 +253,18 @@ export function Step3ResultsSimplified({
                     }`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-lg p-3 ${
+                      className={`max-w-[80%] rounded-lg p-4 ${
                         msg.role === "user"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted"
                       }`}
                     >
-                      <div className="text-xs font-semibold mb-1">
+                      <div className="text-xs font-semibold mb-2">
                         {msg.role === "user" ? "You" : "Claude"}
                       </div>
-                      <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
+                      <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                        <MDXRenderer content={msg.content} />
+                      </div>
                     </div>
                   </div>
                 ))}
