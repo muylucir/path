@@ -7,9 +7,10 @@ import { Loader2, Download, AlertCircle } from "lucide-react";
 
 interface SpecificationProps {
   analysis: any;
+  onGenerated?: (spec: string) => void;
 }
 
-export function Specification({ analysis }: SpecificationProps) {
+export function Specification({ analysis, onGenerated }: SpecificationProps) {
   const [spec, setSpec] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
@@ -46,6 +47,7 @@ export function Specification({ analysis }: SpecificationProps) {
               const data = line.slice(6);
               if (data === "[DONE]") {
                 setSpec(fullSpec);
+                onGenerated?.(fullSpec);
                 setIsGenerating(false);
                 return;
               }

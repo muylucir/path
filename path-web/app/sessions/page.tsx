@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, Trash2, Eye } from "lucide-react";
+import { formatKST } from "@/lib/utils";
 import type { SessionListItem } from "@/lib/types";
 
 export default function SessionsPage() {
@@ -152,7 +153,7 @@ export default function SessionsPage() {
                 {sortedSessions.map((session) => (
                   <TableRow key={session.session_id}>
                     <TableCell className="text-sm text-muted-foreground">
-                      {session.timestamp.slice(0, 16).replace("T", " ")}
+                      {formatKST(session.timestamp)}
                     </TableCell>
                     <TableCell className="max-w-md">
                       <p className="text-sm truncate">{session.pain_point}</p>

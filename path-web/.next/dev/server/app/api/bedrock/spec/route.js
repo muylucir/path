@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/bedrock/spec/route.js")
+R.c("server/chunks/[root-of-the-server]__9f00df7f._.js")
+R.c("server/chunks/03239_next_dist_39399dc9._.js")
+R.c("server/chunks/03239_@smithy_core_dist-es_788acd0f._.js")
+R.c("server/chunks/03239_@aws-sdk_client-bedrock-runtime_546558d1._.js")
+R.c("server/chunks/03239_86952c25._.js")
+R.c("server/chunks/[root-of-the-server]__085fe1d3._.js")
+R.c("server/chunks/path_path-web__next-internal_server_app_api_bedrock_spec_route_actions_066816cc.js")
+R.m("[project]/path/path-web/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/path/path-web/app/api/bedrock/spec/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/path/path-web/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/path/path-web/app/api/bedrock/spec/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

@@ -11,9 +11,10 @@ interface NextStepsProps {
   analysis: Analysis;
   chatHistory: ChatMessage[];
   formData: any;
+  specification?: string;
 }
 
-export function NextSteps({ analysis, chatHistory, formData }: NextStepsProps) {
+export function NextSteps({ analysis, chatHistory, formData, specification }: NextStepsProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -45,7 +46,7 @@ export function NextSteps({ analysis, chatHistory, formData }: NextStepsProps) {
         risks: analysis.risks,
         next_steps: analysis.next_steps,
         chat_history: chatHistory,
-        specification: "",
+        specification: specification || "",
       };
 
       const response = await fetch("/api/sessions", {

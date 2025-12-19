@@ -1,0 +1,3 @@
+{
+  "/api/bedrock/chat/route": "app/api/bedrock/chat/route.js"
+}

@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/bedrock/chat/route.js")
+R.c("server/chunks/[root-of-the-server]__dde379f6._.js")
+R.c("server/chunks/03239_0bfb0439._.js")
+R.c("server/chunks/[root-of-the-server]__d324d6b0._.js")
+R.c("server/chunks/[root-of-the-server]__e7b3de86._.js")
+R.c("server/chunks/[root-of-the-server]__8229cac7._.js")
+R.c("server/chunks/[root-of-the-server]__d1a30f25._.js")
+R.c("server/chunks/path_path-web__next-internal_server_app_api_bedrock_chat_route_actions_c28247dc.js")
+R.m(19627)
+module.exports=R.m(19627).exports

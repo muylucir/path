@@ -1,0 +1,3 @@
+{
+  "/api/bedrock/analyze/route": "app/api/bedrock/analyze/route.js"
+}

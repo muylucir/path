@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DetailedAnalysis } from "@/components/analysis/DetailedAnalysis";
@@ -15,6 +18,7 @@ interface Step3ResultsProps {
 
 export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsProps) {
   const { feasibility_score, pattern } = analysis;
+  const [specification, setSpecification] = useState<string>("");
 
   return (
     <div className="space-y-6">
@@ -80,7 +84,7 @@ export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsPr
         </TabsContent>
 
         <TabsContent value="spec" className="mt-6">
-          <Specification analysis={analysis} />
+          <Specification analysis={analysis} onGenerated={setSpecification} />
         </TabsContent>
 
         <TabsContent value="risks" className="mt-6">
@@ -88,7 +92,12 @@ export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsPr
         </TabsContent>
 
         <TabsContent value="next" className="mt-6">
-          <NextSteps analysis={analysis} chatHistory={chatHistory} formData={formData} />
+          <NextSteps 
+            analysis={analysis} 
+            chatHistory={chatHistory} 
+            formData={formData}
+            specification={specification}
+          />
         </TabsContent>
       </Tabs>
     </div>
