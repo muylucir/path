@@ -25,8 +25,8 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, currentMessage]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+  }, [chatHistory]);
 
   const startInitialAnalysis = async () => {
     setIsStreaming(true);
