@@ -1,6 +1,8 @@
 import { invokeClaude } from "@/lib/aws/bedrock";
 import { NextRequest } from "next/server";
 
+export const maxDuration = 60; // 60 seconds timeout
+
 export async function POST(req: NextRequest) {
   try {
     const { analysis } = await req.json();

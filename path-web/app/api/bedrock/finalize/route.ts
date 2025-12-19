@@ -2,6 +2,8 @@ import { invokeClaude } from "@/lib/aws/bedrock";
 import { SYSTEM_PROMPT } from "@/lib/prompts";
 import { NextRequest } from "next/server";
 
+export const maxDuration = 60; // 60 seconds timeout
+
 export async function POST(req: NextRequest) {
   try {
     const { conversation } = await req.json();
