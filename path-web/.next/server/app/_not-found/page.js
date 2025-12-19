@@ -10,5 +10,5 @@ R.c("server/chunks/ssr/[root-of-the-server]__dfaeccb8._.js")
 R.c("server/chunks/ssr/03239_next_dist_client_components_a8085b58._.js")
 R.c("server/chunks/ssr/03239_next_dist_client_components_builtin_forbidden_b32b5795.js")
 R.c("server/chunks/ssr/path_path-web__next-internal_server_app__not-found_page_actions_423f521f.js")
-R.m(9395)
-module.exports=R.m(9395).exports
+R.m(51906)
+module.exports=R.m(51906).exports

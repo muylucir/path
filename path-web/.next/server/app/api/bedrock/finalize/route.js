@@ -1,5 +1,5 @@
 var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/bedrock/finalize/route.js")
-R.c("server/chunks/[root-of-the-server]__dde379f6._.js")
+R.c("server/chunks/[root-of-the-server]__6a921fe8._.js")
 R.c("server/chunks/03239_0bfb0439._.js")
 R.c("server/chunks/[root-of-the-server]__397660f6._.js")
 R.c("server/chunks/[root-of-the-server]__d1a30f25._.js")

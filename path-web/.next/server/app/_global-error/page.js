@@ -7,5 +7,5 @@ R.c("server/chunks/ssr/03239_13e290d7._.js")
 R.c("server/chunks/ssr/03239_next_dist_4c8c51a8._.js")
 R.c("server/chunks/ssr/path_path-web_app_30eef223._.js")
 R.c("server/chunks/ssr/path_path-web__next-internal_server_app__global-error_page_actions_a45610aa.js")
-R.m(83404)
-module.exports=R.m(83404).exports
+R.m(783404)
+module.exports=R.m(783404).exports
