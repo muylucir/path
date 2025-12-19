@@ -469,13 +469,17 @@ function SessionsPage() {
         try {
             const response = await fetch(`/api/sessions/${sessionId}`);
             const session = await response.json();
+            // Store in sessionStorage
+            sessionStorage.setItem("currentStep", "3");
             sessionStorage.setItem("formData", JSON.stringify({
                 painPoint: session.pain_point,
                 inputType: session.input_type,
                 processSteps: session.process_steps,
-                outputType: session.output_type,
+                outputTypes: [
+                    session.output_type
+                ],
                 humanLoop: session.human_loop,
-                dataSource: session.data_source,
+                dataSources: [],
                 errorTolerance: session.error_tolerance,
                 additionalContext: session.additional_context
             }));
@@ -497,7 +501,8 @@ function SessionsPage() {
                 risks: session.risks,
                 next_steps: session.next_steps
             }));
-            router.push("/results");
+            // Navigate to home (will show step 3)
+            router.push("/");
         } catch (error) {
             console.error("Error loading session:", error);
         }
@@ -528,7 +533,7 @@ function SessionsPage() {
             children: "✅ Go"
         }, void 0, false, {
             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-            lineNumber: 101,
+            lineNumber: 104,
             columnNumber: 29
         }, this);
         if (score >= 30) return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -536,7 +541,7 @@ function SessionsPage() {
             children: "⚠️ 조건부"
         }, void 0, false, {
             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-            lineNumber: 102,
+            lineNumber: 105,
             columnNumber: 29
         }, this);
         return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$badge$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Badge"], {
@@ -544,7 +549,7 @@ function SessionsPage() {
             children: "🔄 개선 필요"
         }, void 0, false, {
             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-            lineNumber: 103,
+            lineNumber: 106,
             columnNumber: 12
         }, this);
     };
@@ -560,7 +565,7 @@ function SessionsPage() {
                                 children: "💾 세션 목록"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                lineNumber: 111,
+                                lineNumber: 114,
                                 columnNumber: 13
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
@@ -573,7 +578,7 @@ function SessionsPage() {
                                         children: "날짜순"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                        lineNumber: 113,
+                                        lineNumber: 116,
                                         columnNumber: 15
                                     }, this),
                                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -583,24 +588,24 @@ function SessionsPage() {
                                         children: "점수순"
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                        lineNumber: 120,
+                                        lineNumber: 123,
                                         columnNumber: 15
                                     }, this)
                                 ]
                             }, void 0, true, {
                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                lineNumber: 112,
+                                lineNumber: 115,
                                 columnNumber: 13
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                        lineNumber: 110,
+                        lineNumber: 113,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                    lineNumber: 109,
+                    lineNumber: 112,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$card$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["CardContent"], {
@@ -610,12 +615,12 @@ function SessionsPage() {
                             className: "h-8 w-8 animate-spin"
                         }, void 0, false, {
                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                            lineNumber: 133,
+                            lineNumber: 136,
                             columnNumber: 15
                         }, this)
                     }, void 0, false, {
                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                        lineNumber: 132,
+                        lineNumber: 135,
                         columnNumber: 13
                     }, this) : sessions.length === 0 ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                         className: "text-center p-12",
@@ -625,7 +630,7 @@ function SessionsPage() {
                                 children: "저장된 세션이 없습니다."
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                lineNumber: 137,
+                                lineNumber: 140,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -634,13 +639,13 @@ function SessionsPage() {
                                 children: "새 분석 시작하기"
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                lineNumber: 138,
+                                lineNumber: 141,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                        lineNumber: 136,
+                        lineNumber: 139,
                         columnNumber: 13
                     }, this) : /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Table"], {
                         children: [
@@ -651,14 +656,14 @@ function SessionsPage() {
                                             children: "날짜"
                                         }, void 0, false, {
                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                            lineNumber: 146,
+                                            lineNumber: 149,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
                                             children: "Pain Point"
                                         }, void 0, false, {
                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                            lineNumber: 147,
+                                            lineNumber: 150,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -666,7 +671,7 @@ function SessionsPage() {
                                             children: "Feasibility"
                                         }, void 0, false, {
                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                            lineNumber: 148,
+                                            lineNumber: 151,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -674,7 +679,7 @@ function SessionsPage() {
                                             children: "판정"
                                         }, void 0, false, {
                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                            lineNumber: 149,
+                                            lineNumber: 152,
                                             columnNumber: 19
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableHead"], {
@@ -682,18 +687,18 @@ function SessionsPage() {
                                             children: "액션"
                                         }, void 0, false, {
                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                            lineNumber: 150,
+                                            lineNumber: 153,
                                             columnNumber: 19
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                    lineNumber: 145,
+                                    lineNumber: 148,
                                     columnNumber: 17
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                lineNumber: 144,
+                                lineNumber: 147,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableBody"], {
@@ -704,7 +709,7 @@ function SessionsPage() {
                                                 children: (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$lib$2f$utils$2e$ts__$5b$app$2d$client$5d$__$28$ecmascript$29$__["formatKST"])(session.timestamp)
                                             }, void 0, false, {
                                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                lineNumber: 156,
+                                                lineNumber: 159,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -714,12 +719,12 @@ function SessionsPage() {
                                                     children: session.pain_point
                                                 }, void 0, false, {
                                                     fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                    lineNumber: 160,
+                                                    lineNumber: 163,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                lineNumber: 159,
+                                                lineNumber: 162,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -730,7 +735,7 @@ function SessionsPage() {
                                                 ]
                                             }, void 0, true, {
                                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                lineNumber: 162,
+                                                lineNumber: 165,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -738,7 +743,7 @@ function SessionsPage() {
                                                 children: getScoreBadge(session.feasibility_score)
                                             }, void 0, false, {
                                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                lineNumber: 165,
+                                                lineNumber: 168,
                                                 columnNumber: 21
                                             }, this),
                                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$table$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["TableCell"], {
@@ -755,14 +760,14 @@ function SessionsPage() {
                                                                     className: "h-4 w-4 mr-1"
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                                    lineNumber: 175,
+                                                                    lineNumber: 178,
                                                                     columnNumber: 27
                                                                 }, this),
                                                                 "보기"
                                                             ]
                                                         }, void 0, true, {
                                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                            lineNumber: 170,
+                                                            lineNumber: 173,
                                                             columnNumber: 25
                                                         }, this),
                                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$components$2f$ui$2f$button$2e$tsx__$5b$app$2d$client$5d$__$28$ecmascript$29$__["Button"], {
@@ -773,56 +778,56 @@ function SessionsPage() {
                                                                 className: "h-4 w-4"
                                                             }, void 0, false, {
                                                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                                lineNumber: 183,
+                                                                lineNumber: 186,
                                                                 columnNumber: 27
                                                             }, this)
                                                         }, void 0, false, {
                                                             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                            lineNumber: 178,
+                                                            lineNumber: 181,
                                                             columnNumber: 25
                                                         }, this)
                                                     ]
                                                 }, void 0, true, {
                                                     fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                    lineNumber: 169,
+                                                    lineNumber: 172,
                                                     columnNumber: 23
                                                 }, this)
                                             }, void 0, false, {
                                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                                lineNumber: 168,
+                                                lineNumber: 171,
                                                 columnNumber: 21
                                             }, this)
                                         ]
                                     }, session.session_id, true, {
                                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                        lineNumber: 155,
+                                        lineNumber: 158,
                                         columnNumber: 19
                                     }, this))
                             }, void 0, false, {
                                 fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                                lineNumber: 153,
+                                lineNumber: 156,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                        lineNumber: 143,
+                        lineNumber: 146,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/path/path-web/app/sessions/page.tsx",
-                    lineNumber: 130,
+                    lineNumber: 133,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/path/path-web/app/sessions/page.tsx",
-            lineNumber: 108,
+            lineNumber: 111,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/path/path-web/app/sessions/page.tsx",
-        lineNumber: 107,
+        lineNumber: 110,
         columnNumber: 5
     }, this);
 }
