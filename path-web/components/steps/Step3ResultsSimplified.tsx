@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2 } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket } from "lucide-react";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
@@ -130,10 +130,22 @@ export function Step3ResultsSimplified({
       {/* Tabs */}
       <Tabs defaultValue="analysis" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="analysis">📊 분석 결과</TabsTrigger>
-          <TabsTrigger value="chat">💬 대화 내역</TabsTrigger>
-          <TabsTrigger value="spec">📋 명세서</TabsTrigger>
-          <TabsTrigger value="actions">🚀 액션</TabsTrigger>
+          <TabsTrigger value="analysis" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            분석 결과
+          </TabsTrigger>
+          <TabsTrigger value="chat" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            대화 내역
+          </TabsTrigger>
+          <TabsTrigger value="spec" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            명세서
+          </TabsTrigger>
+          <TabsTrigger value="actions" className="flex items-center gap-2">
+            <Rocket className="h-4 w-4" />
+            액션
+          </TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Analysis + Risks */}
