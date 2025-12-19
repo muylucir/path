@@ -17,6 +17,7 @@ export function Specification({ analysis }: SpecificationProps) {
   const generateSpec = async () => {
     setIsGenerating(true);
     setError("");
+    let fullSpec = "";
 
     try {
       const response = await fetch("/api/bedrock/spec", {
@@ -26,16 +27,42 @@ export function Specification({ analysis }: SpecificationProps) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "명세서 생성 실패");
+        throw new Error("명세서 생성 실패");
       }
 
-      const data = await response.json();
-      setSpec(data.specification);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                setSpec(fullSpec);
+                setIsGenerating(false);
+                return;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                fullSpec += parsed.text;
+                setSpec(fullSpec);
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+          }
+        }
+      }
     } catch (err) {
       console.error("Error generating spec:", err);
       setError(err instanceof Error ? err.message : "명세서 생성 중 오류가 발생했습니다");
-    } finally {
       setIsGenerating(false);
     }
   };
@@ -65,7 +92,7 @@ export function Specification({ analysis }: SpecificationProps) {
           </div>
         )}
         
-        {!spec ? (
+        {!spec || isGenerating ? (
           <Button
             onClick={generateSpec}
             disabled={isGenerating}
@@ -80,14 +107,21 @@ export function Specification({ analysis }: SpecificationProps) {
               "🤖 Claude로 상세 명세서 생성"
             )}
           </Button>
-        ) : (
+        ) : null}
+        
+        {spec && (
           <>
-            <Button onClick={downloadSpec} className="w-full">
-              <Download className="h-4 w-4 mr-2" />
-              명세서 다운로드 (Markdown)
-            </Button>
-            <div className="border rounded-lg p-4 max-h-[600px] overflow-y-auto">
-              <pre className="text-sm whitespace-pre-wrap">{spec}</pre>
+            {!isGenerating && (
+              <Button onClick={downloadSpec} className="w-full">
+                <Download className="h-4 w-4 mr-2" />
+                명세서 다운로드 (Markdown)
+              </Button>
+            )}
+            <div className="border rounded-lg p-4 max-h-[600px] overflow-y-auto bg-muted/30">
+              <pre className="text-sm whitespace-pre-wrap font-mono">{spec}</pre>
+              {isGenerating && (
+                <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />
+              )}
             </div>
           </>
         )}
