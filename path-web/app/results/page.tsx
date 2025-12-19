@@ -1,14 +1,116 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Step3ResultsSimplified } from "@/components/steps/Step3ResultsSimplified";
+import { StepIndicator } from "@/components/layout/StepIndicator";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import type { Analysis, ChatMessage } from "@/lib/types";
+
+const STEPS = ["기본 정보", "Claude 분석", "결과 확인"];
 
 export default function ResultsPage() {
   const router = useRouter();
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [formData, setFormData] = useState<any>(null);
+  const [specification, setSpecification] = useState<string>("");
 
   useEffect(() => {
-    router.replace("/");
+    const analysisData = sessionStorage.getItem("analysis");
+    const chatData = sessionStorage.getItem("chatHistory");
+    const formDataStr = sessionStorage.getItem("formData");
+    const specData = sessionStorage.getItem("specification");
+
+    if (!analysisData || !chatData || !formDataStr) {
+      router.push("/");
+      return;
+    }
+
+    setAnalysis(JSON.parse(analysisData));
+    setChatHistory(JSON.parse(chatData));
+    setFormData(JSON.parse(formDataStr));
+    setSpecification(specData || "");
   }, [router]);
 
-  return null;
+  const handleSave = async (spec: string) => {
+    if (!analysis || !formData) return;
+
+    try {
+      const sessionData = {
+        pain_point: analysis.pain_point,
+        input_type: analysis.input_type,
+        process_steps: analysis.process_steps,
+        output_type: analysis.output_types[0] || "",
+        human_loop: analysis.human_loop,
+        data_source: formData.dataSources?.map((ds: any) => `${ds.type}: ${ds.description}`).join(", ") || "",
+        error_tolerance: formData.errorTolerance || "",
+        additional_context: formData.additionalContext || "",
+        pattern: analysis.pattern,
+        pattern_reason: analysis.pattern_reason,
+        feasibility_breakdown: analysis.feasibility_breakdown,
+        feasibility_score: analysis.feasibility_score,
+        recommendation: analysis.recommendation,
+        risks: analysis.risks,
+        next_steps: analysis.next_steps,
+        chat_history: chatHistory,
+        specification: spec,
+      };
+
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sessionData),
+      });
+
+      if (response.ok) {
+        toast.success("저장 완료", {
+          description: "분석 결과가 저장되었습니다.",
+        });
+      }
+    } catch (error) {
+      console.error("Error saving:", error);
+      toast.error("저장 실패", {
+        description: "오류가 발생했습니다.",
+      });
+    }
+  };
+
+  const handleNewAnalysis = () => {
+    sessionStorage.clear();
+    router.push("/");
+  };
+
+  if (!analysis || !formData) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">로딩 중...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <StepIndicator currentStep={3} steps={STEPS} />
+        
+        <div className="mt-8 space-y-6">
+          <Step3ResultsSimplified
+            analysis={analysis}
+            chatHistory={chatHistory}
+            formData={formData}
+            initialSpecification={specification}
+            onSave={handleSave}
+          />
+          
+          <div className="flex justify-center">
+            <Button onClick={handleNewAnalysis} variant="outline" size="lg">
+              🔄 새로운 분석 시작
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
