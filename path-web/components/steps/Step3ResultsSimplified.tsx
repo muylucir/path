@@ -178,7 +178,7 @@ export function Step3ResultsSimplified({
                 <h4 className="font-semibold mb-2">⚙️ PROCESS</h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   {analysis.process_steps.map((step, idx) => (
-                    <li key={idx}>{idx + 1}. {step}</li>
+                    <li key={idx}>{step}</li>
                   ))}
                 </ul>
               </div>
