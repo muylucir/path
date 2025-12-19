@@ -4,6 +4,8 @@ import { NextRequest } from "next/server";
 export async function POST(req: NextRequest) {
   try {
     const { analysis } = await req.json();
+    
+    console.log("Spec API called with analysis:", JSON.stringify(analysis).slice(0, 200));
 
     const systemPrompt = `당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.`;
 
@@ -76,13 +78,21 @@ flowchart TD
 **중요2**: LLM은 Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
 **중요3**: Framework는 Strands SDK를 사용하세요.`;
 
+    console.log("Calling invokeClaude...");
     const specification = await invokeClaude(prompt, systemPrompt);
+    console.log("Specification generated, length:", specification.length);
 
     return Response.json({ specification });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in spec API:", error);
+    console.error("Error stack:", error.stack);
+    console.error("Error message:", error.message);
+    
     return new Response(
-      JSON.stringify({ error: "명세서 생성 중 오류가 발생했습니다" }),
+      JSON.stringify({ 
+        error: "명세서 생성 중 오류가 발생했습니다",
+        details: error.message 
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },
