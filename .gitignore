@@ -22,7 +22,9 @@ wheels/
 
 # Node.js
 path-web/node_modules/
+path-web/.next/
 node_modules/
+.next/
 
 # Virtual Environment
 path/.venv/
