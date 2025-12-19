@@ -908,6 +908,10 @@
     width: 200px;
   }
 
+  .w-\[400px\] {
+    width: 400px;
+  }
+
   .w-fit {
     width: fit-content;
   }
