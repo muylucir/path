@@ -1,11 +1,17 @@
 "use client";
 
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Step1FormClean } from "@/components/steps/Step1FormClean";
 import type { FormValues } from "@/lib/schema";
 
 export default function Home() {
   const router = useRouter();
+
+  useEffect(() => {
+    // Clear sessionStorage when visiting home page
+    sessionStorage.clear();
+  }, []);
 
   const handleSubmit = (data: FormValues) => {
     sessionStorage.setItem("formData", JSON.stringify(data));
