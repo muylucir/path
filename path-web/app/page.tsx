@@ -38,11 +38,16 @@ export default function Home() {
     const savedAnalysis = sessionStorage.getItem("analysis");
     const savedSpec = sessionStorage.getItem("specification");
 
-    if (savedStep) setCurrentStep(parseInt(savedStep));
+    // Load data first
     if (savedFormData) setFormData(JSON.parse(savedFormData));
     if (savedChatHistory) setChatHistory(JSON.parse(savedChatHistory));
     if (savedAnalysis) setAnalysis(JSON.parse(savedAnalysis));
     if (savedSpec) setSpecification(savedSpec);
+    
+    // Then set step (after data is loaded)
+    if (savedStep) {
+      setTimeout(() => setCurrentStep(parseInt(savedStep)), 0);
+    }
   }, []);
 
   // Save to sessionStorage on state change
