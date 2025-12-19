@@ -134,106 +134,104 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* INPUT Type */}
-            <div className="space-y-2">
-              <Label htmlFor="inputType">
-                INPUT: 언제 실행되나요? <span className="text-red-500">*</span>
-              </Label>
-              <Select onValueChange={(value) => setValue("inputType", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {INPUT_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.inputType && (
-                <p className="text-sm text-red-500">{errors.inputType.message}</p>
-              )}
-            </div>
-
-            {/* OUTPUT Types */}
-            <div className="space-y-2">
-              <Label>
-                OUTPUT: 최종 결과물은? (복수선택 가능) <span className="text-red-500">*</span>
-              </Label>
-              <div className="space-y-2 border rounded-md p-4 max-h-[200px] overflow-y-auto">
-                {OUTPUT_TYPES.map((type) => (
-                  <div key={type} className="flex items-start space-x-2">
-                    <Checkbox
-                      id={`output-${type}`}
-                      checked={outputTypes?.includes(type)}
-                      onCheckedChange={() => toggleOutputType(type)}
-                    />
-                    <label
-                      htmlFor={`output-${type}`}
-                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {type}
-                    </label>
-                  </div>
+          {/* INPUT Type */}
+          <div className="space-y-2">
+            <Label htmlFor="inputType">
+              INPUT: 언제 실행되나요? <span className="text-red-500">*</span>
+            </Label>
+            <Select onValueChange={(value) => setValue("inputType", value)}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {INPUT_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
                 ))}
-              </div>
-              {errors.outputTypes && (
-                <p className="text-sm text-red-500">{errors.outputTypes.message}</p>
-              )}
-            </div>
+              </SelectContent>
+            </Select>
+            {errors.inputType && (
+              <p className="text-sm text-red-500">{errors.inputType.message}</p>
+            )}
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* PROCESS Steps */}
-            <div className="space-y-2">
-              <Label>
-                PROCESS: 어떤 작업이 필요한가요? (복수선택 가능) <span className="text-red-500">*</span>
-              </Label>
-              <div className="space-y-2 border rounded-md p-4 max-h-[250px] overflow-y-auto">
-                {PROCESS_STEPS.map((step) => (
-                  <div key={step} className="flex items-start space-x-2">
-                    <Checkbox
-                      id={step}
-                      checked={processSteps?.includes(step)}
-                      onCheckedChange={() => toggleProcessStep(step)}
-                    />
-                    <label
-                      htmlFor={step}
-                      className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                    >
-                      {step}
-                    </label>
-                  </div>
-                ))}
-              </div>
-              {errors.processSteps && (
-                <p className="text-sm text-red-500">{errors.processSteps.message}</p>
-              )}
+          {/* PROCESS Steps */}
+          <div className="space-y-2">
+            <Label>
+              PROCESS: 어떤 작업이 필요한가요? (복수선택 가능) <span className="text-red-500">*</span>
+            </Label>
+            <div className="grid grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/30">
+              {PROCESS_STEPS.map((step) => (
+                <div key={step} className="flex items-start space-x-3 p-2 rounded hover:bg-accent/50">
+                  <Checkbox
+                    id={step}
+                    checked={processSteps?.includes(step)}
+                    onCheckedChange={() => toggleProcessStep(step)}
+                    className="mt-0.5"
+                  />
+                  <label
+                    htmlFor={step}
+                    className="text-sm leading-tight cursor-pointer flex-1"
+                  >
+                    {step}
+                  </label>
+                </div>
+              ))}
             </div>
+            {errors.processSteps && (
+              <p className="text-sm text-red-500">{errors.processSteps.message}</p>
+            )}
+          </div>
 
-            {/* Human-in-Loop */}
-            <div className="space-y-2">
-              <Label htmlFor="humanLoop">
-                HUMAN-IN-LOOP: 사람 개입 시점은? <span className="text-red-500">*</span>
-              </Label>
-              <Select onValueChange={(value) => setValue("humanLoop", value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {HUMAN_LOOP_OPTIONS.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.humanLoop && (
-                <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
-              )}
+          {/* OUTPUT Types */}
+          <div className="space-y-2">
+            <Label>
+              OUTPUT: 최종 결과물은? (복수선택 가능) <span className="text-red-500">*</span>
+            </Label>
+            <div className="grid grid-cols-2 gap-3 border rounded-lg p-4 bg-muted/30">
+              {OUTPUT_TYPES.map((type) => (
+                <div key={type} className="flex items-start space-x-3 p-2 rounded hover:bg-accent/50">
+                  <Checkbox
+                    id={`output-${type}`}
+                    checked={outputTypes?.includes(type)}
+                    onCheckedChange={() => toggleOutputType(type)}
+                    className="mt-0.5"
+                  />
+                  <label
+                    htmlFor={`output-${type}`}
+                    className="text-sm leading-tight cursor-pointer flex-1"
+                  >
+                    {type}
+                  </label>
+                </div>
+              ))}
             </div>
+            {errors.outputTypes && (
+              <p className="text-sm text-red-500">{errors.outputTypes.message}</p>
+            )}
+          </div>
+
+          {/* Human-in-Loop */}
+          <div className="space-y-2">
+            <Label htmlFor="humanLoop">
+              HUMAN-IN-LOOP: 사람 개입 시점은? <span className="text-red-500">*</span>
+            </Label>
+            <Select onValueChange={(value) => setValue("humanLoop", value)}>
+              <SelectTrigger className="h-11">
+                <SelectValue placeholder="선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {HUMAN_LOOP_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errors.humanLoop && (
+              <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
+            )}
           </div>
 
           {/* Data Sources */}
