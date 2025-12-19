@@ -19,6 +19,7 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     startInitialAnalysis();
@@ -27,6 +28,18 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
   }, [chatHistory]);
+
+  useEffect(() => {
+    // Throttle scroll during streaming to prevent jitter
+    if (currentMessage && isStreaming) {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      scrollTimeoutRef.current = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
+      }, 100);
+    }
+  }, [currentMessage, isStreaming]);
 
   const startInitialAnalysis = async () => {
     setIsStreaming(true);

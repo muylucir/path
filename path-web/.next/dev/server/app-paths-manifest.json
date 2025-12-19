@@ -1,4 +1,8 @@
 {
+  "/analyze/page": "app/analyze/page.js",
+  "/api/bedrock/analyze/route": "app/api/bedrock/analyze/route.js",
+  "/api/bedrock/chat/route": "app/api/bedrock/chat/route.js",
+  "/api/bedrock/finalize/route": "app/api/bedrock/finalize/route.js",
   "/api/sessions/[id]/route": "app/api/sessions/[id]/route.js",
   "/api/sessions/route": "app/api/sessions/route.js",
   "/page": "app/page.js",

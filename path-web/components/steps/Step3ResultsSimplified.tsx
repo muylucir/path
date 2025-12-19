@@ -15,7 +15,7 @@ interface Step3ResultsSimplifiedProps {
   chatHistory: ChatMessage[];
   formData: any;
   initialSpecification?: string;
-  onSave: (specification: string) => void;
+  onSave: (specification: string) => Promise<void>;
 }
 
 export function Step3ResultsSimplified({
@@ -28,6 +28,16 @@ export function Step3ResultsSimplified({
   const { feasibility_score, pattern, feasibility_breakdown, risks, next_steps } = analysis;
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(specification);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const generateSpec = async () => {
     setIsGenerating(true);
@@ -328,12 +338,22 @@ export function Step3ResultsSimplified({
 
               <div className="space-y-3">
                 <Button
-                  onClick={() => onSave(specification)}
+                  onClick={handleSave}
+                  disabled={isSaving}
                   className="w-full gap-2"
                   size="lg"
                 >
-                  <Save className="h-5 w-5" />
-                  이 분석 결과 저장
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-5 w-5" />
+                      이 분석 결과 저장
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
