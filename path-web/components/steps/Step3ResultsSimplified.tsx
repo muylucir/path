@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save } from "lucide-react";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
@@ -256,8 +256,9 @@ export function Step3ResultsSimplified({
           <Card>
             <CardContent className="pt-6 space-y-4">
               {!specification && !isGenerating && (
-                <Button onClick={generateSpec} className="w-full" size="lg">
-                  🤖 Claude로 상세 명세서 생성
+                <Button onClick={generateSpec} className="w-full gap-2" size="lg">
+                  <Sparkles className="h-5 w-5" />
+                  Claude로 상세 명세서 생성
                 </Button>
               )}
 
@@ -290,7 +291,10 @@ export function Step3ResultsSimplified({
           <Card>
             <CardContent className="pt-6 space-y-6">
               <div>
-                <h3 className="font-semibold mb-3">🚀 다음 단계</h3>
+                <h3 className="font-semibold mb-3 flex items-center gap-2">
+                  <Rocket className="h-5 w-5" />
+                  다음 단계
+                </h3>
                 <ol className="space-y-2 text-sm">
                   {next_steps.map((step, idx) => (
                     <li key={idx}>{idx + 1}. {step}</li>
@@ -303,10 +307,11 @@ export function Step3ResultsSimplified({
               <div className="space-y-3">
                 <Button
                   onClick={() => onSave(specification)}
-                  className="w-full"
+                  className="w-full gap-2"
                   size="lg"
                 >
-                  💾 이 분석 결과 저장
+                  <Save className="h-5 w-5" />
+                  이 분석 결과 저장
                 </Button>
               </div>
             </CardContent>

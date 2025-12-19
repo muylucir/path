@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Trash2, Eye } from "lucide-react";
+import { Loader2, Trash2, Eye, CheckCircle, AlertTriangle, RefreshCw, Database } from "lucide-react";
 import { formatKST } from "@/lib/utils";
 import type { SessionListItem } from "@/lib/types";
 
@@ -100,9 +100,24 @@ export default function SessionsPage() {
   });
 
   const getScoreBadge = (score: number) => {
-    if (score >= 40) return <Badge className="bg-green-600">✅ Go</Badge>;
-    if (score >= 30) return <Badge className="bg-yellow-600">⚠️ 조건부</Badge>;
-    return <Badge className="bg-red-600">🔄 개선 필요</Badge>;
+    if (score >= 40) return (
+      <Badge className="bg-green-600 flex items-center gap-1">
+        <CheckCircle className="h-3 w-3" />
+        Go
+      </Badge>
+    );
+    if (score >= 30) return (
+      <Badge className="bg-yellow-600 flex items-center gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        조건부
+      </Badge>
+    );
+    return (
+      <Badge className="bg-red-600 flex items-center gap-1">
+        <RefreshCw className="h-3 w-3" />
+        개선 필요
+      </Badge>
+    );
   };
 
   return (
@@ -110,7 +125,10 @@ export default function SessionsPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>💾 세션 목록</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              세션 목록
+            </CardTitle>
             <div className="flex gap-2">
               <Button
                 variant={sortBy === "date" ? "default" : "outline"}

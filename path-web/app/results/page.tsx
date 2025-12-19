@@ -6,6 +6,7 @@ import { Step3ResultsSimplified } from "@/components/steps/Step3ResultsSimplifie
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
 const STEPS = ["기본 정보", "Claude 분석", "결과 확인"];
@@ -105,8 +106,9 @@ export default function ResultsPage() {
           />
           
           <div className="flex justify-center">
-            <Button onClick={handleNewAnalysis} variant="outline" size="lg">
-              🔄 새로운 분석 시작
+            <Button onClick={handleNewAnalysis} variant="outline" size="lg" className="gap-2">
+              <RefreshCw className="h-5 w-5" />
+              새로운 분석 시작
             </Button>
           </div>
         </div>
