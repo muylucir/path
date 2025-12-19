@@ -7,8 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Download, Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
 interface Step3ResultsSimplifiedProps {
@@ -259,10 +258,8 @@ export function Step3ResultsSimplified({
                     </Button>
                   )}
 
-                  <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {specification}
-                    </ReactMarkdown>
+                  <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto">
+                    <MDXRenderer content={specification} />
                     {isGenerating && (
                       <div className="flex items-center gap-2 mt-4">
                         <Loader2 className="h-4 w-4 animate-spin" />
