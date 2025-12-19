@@ -19,6 +19,7 @@ interface Step3ResultsProps {
 export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsProps) {
   const { feasibility_score, pattern } = analysis;
   const [specification, setSpecification] = useState<string>("");
+  const [specification, setSpecification] = useState<string>("");
 
   return (
     <div className="space-y-6">
