@@ -29,8 +29,9 @@ export default function Home() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [specification, setSpecification] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Load from sessionStorage on mount (for refresh)
+  // Load from sessionStorage on mount
   useEffect(() => {
     const savedStep = sessionStorage.getItem("currentStep");
     const savedFormData = sessionStorage.getItem("formData");
@@ -38,17 +39,29 @@ export default function Home() {
     const savedAnalysis = sessionStorage.getItem("analysis");
     const savedSpec = sessionStorage.getItem("specification");
 
-    // Load data first
     if (savedFormData) setFormData(JSON.parse(savedFormData));
     if (savedChatHistory) setChatHistory(JSON.parse(savedChatHistory));
     if (savedAnalysis) setAnalysis(JSON.parse(savedAnalysis));
     if (savedSpec) setSpecification(savedSpec);
     
-    // Then set step (after data is loaded)
+    setIsLoading(false);
+    
+    // Set step after data is loaded
     if (savedStep) {
-      setTimeout(() => setCurrentStep(parseInt(savedStep)), 0);
+      setCurrentStep(parseInt(savedStep));
     }
   }, []);
+
+  // Don't render until loaded
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg">로딩 중...</div>
+        </div>
+      </div>
+    );
+  }
 
   // Save to sessionStorage on state change
   useEffect(() => {
