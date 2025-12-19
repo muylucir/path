@@ -1141,26 +1141,27 @@ function Specification({ analysis, onGenerated, initialSpec }) {
                                                         __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$remark$2d$gfm$2f$lib$2f$index$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["default"]
                                                     ],
                                                     components: {
-                                                        code ({ node, inline, className, children, ...props }) {
+                                                        code (props) {
+                                                            const { node, className, children, ...rest } = props;
                                                             const match = /language-(\w+)/.exec(className || '');
                                                             const lang = match ? match[1] : '';
-                                                            if (!inline && lang === 'mermaid') {
+                                                            if (lang === 'mermaid') {
                                                                 return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("div", {
                                                                     className: "mermaid",
                                                                     children: String(children).replace(/\n$/, '')
                                                                 }, void 0, false, {
                                                                     fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                                                    lineNumber: 167,
+                                                                    lineNumber: 168,
                                                                     columnNumber: 29
                                                                 }, void 0);
                                                             }
                                                             return /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("code", {
                                                                 className: className,
-                                                                ...props,
+                                                                ...rest,
                                                                 children: children
                                                             }, void 0, false, {
                                                                 fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                                                lineNumber: 174,
+                                                                lineNumber: 175,
                                                                 columnNumber: 27
                                                             }, void 0);
                                                         }
@@ -1175,7 +1176,7 @@ function Specification({ analysis, onGenerated, initialSpec }) {
                                                     className: "inline-block w-2 h-4 bg-foreground animate-pulse ml-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                                    lineNumber: 184,
+                                                    lineNumber: 185,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
@@ -1200,25 +1201,25 @@ function Specification({ analysis, onGenerated, initialSpec }) {
                                                     children: spec
                                                 }, void 0, false, {
                                                     fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                                    lineNumber: 191,
+                                                    lineNumber: 192,
                                                     columnNumber: 19
                                                 }, this),
                                                 isGenerating && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$node_modules$2f$next$2f$dist$2f$compiled$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$client$5d$__$28$ecmascript$29$__["jsxDEV"])("span", {
                                                     className: "inline-block w-2 h-4 bg-foreground animate-pulse ml-1"
                                                 }, void 0, false, {
                                                     fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                                    lineNumber: 193,
+                                                    lineNumber: 194,
                                                     columnNumber: 21
                                                 }, this)
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                            lineNumber: 190,
+                                            lineNumber: 191,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
                                         fileName: "[project]/path/path-web/components/analysis/Specification.tsx",
-                                        lineNumber: 189,
+                                        lineNumber: 190,
                                         columnNumber: 15
                                     }, this)
                                 ]

@@ -45,13 +45,15 @@ export default function SessionsPage() {
       const response = await fetch(`/api/sessions/${sessionId}`);
       const session = await response.json();
 
+      // Store in sessionStorage
+      sessionStorage.setItem("currentStep", "3");
       sessionStorage.setItem("formData", JSON.stringify({
         painPoint: session.pain_point,
         inputType: session.input_type,
         processSteps: session.process_steps,
-        outputType: session.output_type,
+        outputTypes: [session.output_type],
         humanLoop: session.human_loop,
-        dataSource: session.data_source,
+        dataSources: [],
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
       }));
@@ -72,7 +74,8 @@ export default function SessionsPage() {
         next_steps: session.next_steps,
       }));
 
-      router.push("/results");
+      // Navigate to home (will show step 3)
+      router.push("/");
     } catch (error) {
       console.error("Error loading session:", error);
     }

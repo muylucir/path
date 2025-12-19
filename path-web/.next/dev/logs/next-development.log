@@ -21,3 +21,2521 @@ Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allow
 [03:06:41.926] Server  LOG     ✓ Compiled in 26ms
 [03:07:02.539] Server  LOG     ✓ Compiled in 23ms
 [03:07:16.733] Server  LOG     ✓ Compiled in 26ms
+[03:09:28.870] Browser LOG     Specification generated, length: 11225
+[03:09:37.673] Browser LOG     Saving session with specification length: 11225
+[03:09:41.046] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:02:24.250] Server  LOG     ✓ Compiled in 66ms
+[05:03:02.751] Server  LOG     ✓ Compiled in 95ms
+[05:03:31.562] Server  LOG     ✓ Compiled in 0ms
+[05:04:25.376] Server  LOG     ✓ Compiled in 142ms
+[05:04:54.331] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.336] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.339] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.342] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.399] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.402] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.404] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.406] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.409] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.410] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.412] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.414] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.417] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.420] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.421] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.423] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.425] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.426] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.427] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.429] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.432] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.434] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.434] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.436] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.437] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.439] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.440] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.442] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.444] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.445] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.447] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.448] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.450] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.452] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.453] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.454] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.456] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.457] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.459] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.459] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.461] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.463] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.464] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.464] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.467] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.468] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.468] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.469] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.471] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.472] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.473] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.474] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.475] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.476] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.478] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.478] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.480] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.482] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.483] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.484] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.485] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.486] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.487] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.488] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.490] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.490] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.491] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.492] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.494] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.494] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.495] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.497] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:54.498] Server  LOG     ✓ Compiled in 500ms
+[05:04:55.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:55.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:55.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:58.835] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:04:59.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:59.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:59.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:59.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:59.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:04:59.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:01.601] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:05:02.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:02.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:02.311] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:24.312] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:24.312] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:24.312] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:24.312] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:24.313] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:24.313] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:25.313] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:25.313] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:25.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:28.858] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:05:29.317] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:29.317] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:29.318] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:31.633] Server  ERROR   ⨯ ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+[05:05:32.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:32.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:32.314] Browser ERROR   ./path/path-web/app/page.tsx:19:1
+Module not found: Can't resolve '@/hooks/use-toast'
+  17 | } from "@/components/ui/dialog";
+  18 | import { HelpCircle } from "lucide-react";
+> 19 | import { useToast } from "@/hooks/use-toast";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  20 | import type { FormValues } from "@/lib/schema";
+  21 | import type { Analysis, ChatMessage } from "@/lib/types";
+  22 |
+
+Import map: aliased to relative './hooks/use-toast' inside of [project]/path/path-web
+
+Import traces:
+  Client Component Browser:
+    ./path/path-web/app/page.tsx [Client Component Browser]
+    ./path/path-web/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./path/path-web/app/page.tsx [Client Component SSR]
+    ./path/path-web/app/page.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+[05:05:38.818] Server  LOG     ✓ Compiled in 36ms
+[05:05:39.321] Browser ERROR   uncaughtError: ReferenceError: useToast is not defined
+[05:05:52.806] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[05:05:53.330] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:06:05.507] Server  LOG     ✓ Compiled in 25ms
+[05:06:32.964] Server  LOG     ✓ Compiled in 1338ms
+[05:06:33.686] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:06:33.735] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:06:33.758] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:07:30.971] Server  LOG     ✓ Compiled in 72ms
+[05:15:36.155] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:15:39.629] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:15:41.419] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:15:42.273] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:16:32.922] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[05:17:10.309] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
