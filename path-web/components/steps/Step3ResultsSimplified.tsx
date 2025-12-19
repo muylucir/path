@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, ArrowDown, ArrowUp, Settings, CheckCircle, RefreshCw } from "lucide-react";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
@@ -115,13 +115,24 @@ export function Step3ResultsSimplified({
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-sm text-muted-foreground mb-1">판정</p>
-              <p className="text-xl font-bold">
-                {feasibility_score >= 40
-                  ? "✅ Go"
-                  : feasibility_score >= 30
-                  ? "⚠️ 조건부"
-                  : "🔄 개선 필요"}
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                {feasibility_score >= 40 ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    <p className="text-xl font-bold">Go</p>
+                  </>
+                ) : feasibility_score >= 30 ? (
+                  <>
+                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                    <p className="text-xl font-bold">조건부</p>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-5 w-5 text-red-600" />
+                    <p className="text-xl font-bold">개선 필요</p>
+                  </>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -173,11 +184,17 @@ export function Step3ResultsSimplified({
               {/* Problem Decomposition */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-semibold mb-2">📥 INPUT</h4>
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <ArrowDown className="h-4 w-4" />
+                    INPUT
+                  </h4>
                   <p className="text-sm text-muted-foreground">{analysis.input_type}</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-2">📤 OUTPUT</h4>
+                  <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <ArrowUp className="h-4 w-4" />
+                    OUTPUT
+                  </h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
                     {analysis.output_types.map((type, idx) => (
                       <li key={idx}>• {type}</li>
@@ -187,7 +204,10 @@ export function Step3ResultsSimplified({
               </div>
 
               <div>
-                <h4 className="font-semibold mb-2">⚙️ PROCESS</h4>
+                <h4 className="font-semibold mb-2 flex items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  PROCESS
+                </h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   {analysis.process_steps.map((step, idx) => (
                     <li key={idx}>{step}</li>
