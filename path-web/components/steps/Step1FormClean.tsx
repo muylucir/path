@@ -306,10 +306,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
                 Human-in-Loop
               </Label>
               <Select onValueChange={(value) => setValue("humanLoop", value)}>
-                <SelectTrigger className="h-[88px]">
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="사람 개입 시점" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[400px]">
                   {HUMAN_LOOP_OPTIONS.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
@@ -328,10 +328,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
                 오류 허용도
               </Label>
               <Select onValueChange={(value) => setValue("errorTolerance", value)}>
-                <SelectTrigger className="h-[88px]">
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="오류 허용도" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="w-[400px]">
                   {ERROR_TOLERANCE_OPTIONS.map((option) => (
                     <SelectItem key={option} value={option}>
                       {option}
