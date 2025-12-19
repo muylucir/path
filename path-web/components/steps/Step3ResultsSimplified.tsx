@@ -304,12 +304,16 @@ export function Step3ResultsSimplified({
                   )}
 
                   <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto">
-                    <MDXRenderer content={specification} />
-                    {isGenerating && (
-                      <div className="flex items-center gap-2 mt-4">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span className="text-sm text-muted-foreground">생성 중...</span>
-                      </div>
+                    {isGenerating ? (
+                      <>
+                        <pre className="text-sm whitespace-pre-wrap font-mono">{specification}</pre>
+                        <div className="flex items-center gap-2 mt-4">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm text-muted-foreground">생성 중...</span>
+                        </div>
+                      </>
+                    ) : (
+                      <MDXRenderer content={specification} />
                     )}
                   </div>
                 </>
