@@ -24,12 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { 
@@ -120,7 +114,7 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 max-w-4xl mx-auto">
-      {/* Pain Point - 가장 중요 */}
+      {/* Pain Point */}
       <Card>
         <CardHeader>
           <CardTitle>해결하고 싶은 문제</CardTitle>
@@ -236,16 +230,19 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
         </CardContent>
       </Card>
 
-      {/* Additional Settings - Accordion */}
-      <Accordion type="multiple" className="w-full">
-        <AccordionItem value="data-sources">
-          <AccordionTrigger className="text-base font-semibold">
-            <div className="flex items-center gap-2">
+      {/* Additional Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>추가 설정</CardTitle>
+          <CardDescription>데이터 소스, Human-in-Loop, 오류 허용도를 설정하세요</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Data Sources */}
+          <div className="space-y-3">
+            <Label className="text-base font-semibold flex items-center gap-2">
               <Database className="h-5 w-5" />
               데이터 소스
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-3 pt-4">
+            </Label>
             {dataSources.map((source, index) => (
               <div key={index} className="flex gap-2">
                 <Select
@@ -297,17 +294,16 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
             {errors.dataSources && (
               <p className="text-sm text-red-500">{errors.dataSources.message}</p>
             )}
-          </AccordionContent>
-        </AccordionItem>
+          </div>
 
-        <AccordionItem value="human-loop">
-          <AccordionTrigger className="text-base font-semibold">
-            <div className="flex items-center gap-2">
+          <Separator />
+
+          {/* Human-in-Loop */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold flex items-center gap-2">
               <Users className="h-5 w-5" />
               Human-in-Loop
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pt-4">
+            </Label>
             <Select onValueChange={(value) => setValue("humanLoop", value)}>
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="사람 개입 시점을 선택하세요" />
@@ -321,19 +317,18 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
               </SelectContent>
             </Select>
             {errors.humanLoop && (
-              <p className="text-sm text-red-500 mt-2">{errors.humanLoop.message}</p>
+              <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
             )}
-          </AccordionContent>
-        </AccordionItem>
+          </div>
 
-        <AccordionItem value="error-tolerance">
-          <AccordionTrigger className="text-base font-semibold">
-            <div className="flex items-center gap-2">
+          <Separator />
+
+          {/* Error Tolerance */}
+          <div className="space-y-2">
+            <Label className="text-base font-semibold flex items-center gap-2">
               <AlertCircle className="h-5 w-5" />
               오류 허용도
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pt-4">
+            </Label>
             <Select onValueChange={(value) => setValue("errorTolerance", value)}>
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="오류 허용도를 선택하세요" />
@@ -347,27 +342,29 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
               </SelectContent>
             </Select>
             {errors.errorTolerance && (
-              <p className="text-sm text-red-500 mt-2">{errors.errorTolerance.message}</p>
+              <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>
             )}
-          </AccordionContent>
-        </AccordionItem>
+          </div>
+        </CardContent>
+      </Card>
 
-        <AccordionItem value="additional">
-          <AccordionTrigger className="text-base font-semibold">
-            <div className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              추가 정보 (선택사항)
-            </div>
-          </AccordionTrigger>
-          <AccordionContent className="pt-4">
-            <Textarea
-              placeholder="예: 과거 데이터 1000건 있음, 법무팀 검토 필수, 실시간 처리 필요 등"
-              className="min-h-[100px]"
-              {...register("additionalContext")}
-            />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+      {/* Optional: Additional Context */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            추가 정보
+          </CardTitle>
+          <CardDescription>선택사항: 추가로 알려주고 싶은 내용이 있다면 작성하세요</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Textarea
+            placeholder="예: 과거 데이터 1000건 있음, 법무팀 검토 필수, 실시간 처리 필요 등"
+            className="min-h-[100px]"
+            {...register("additionalContext")}
+          />
+        </CardContent>
+      </Card>
 
       {/* Submit */}
       <div className="flex justify-center pt-4">
