@@ -10,3 +10,14 @@ Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allow
 [02:59:57.828] Server  LOG     ✓ Compiled in 29ms
 [03:00:09.105] Server  LOG     ✓ Compiled in 23ms
 [03:00:22.212] Server  LOG     ✓ Compiled in 27ms
+[03:02:03.348] Browser LOG     Saving session with specification length: 11832
+[03:02:05.926] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:02:30.242] Server  ERROR   Error in spec stream: TypeError [ERR_INVALID_STATE]: Invalid state: Controller is already closed
+[03:02:30.408] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:03:56.618] Browser LOG     Specification generated, length: 10774
+[03:05:11.606] Browser LOG     Saving session with specification length: 10774
+[03:05:15.867] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[03:06:26.637] Server  LOG     ✓ Compiled in 73ms
+[03:06:41.926] Server  LOG     ✓ Compiled in 26ms
+[03:07:02.539] Server  LOG     ✓ Compiled in 23ms
+[03:07:16.733] Server  LOG     ✓ Compiled in 26ms

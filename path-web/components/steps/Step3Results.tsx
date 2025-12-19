@@ -14,15 +14,18 @@ interface Step3ResultsProps {
   analysis: Analysis;
   chatHistory: ChatMessage[];
   formData: any;
+  initialSpecification?: string;
 }
 
-export function Step3Results({ analysis, chatHistory, formData }: Step3ResultsProps) {
+export function Step3Results({ analysis, chatHistory, formData, initialSpecification }: Step3ResultsProps) {
   const { feasibility_score, pattern } = analysis;
-  const [specification, setSpecification] = useState<string>("");
+  const [specification, setSpecification] = useState<string>(initialSpecification || "");
 
   const handleSpecificationGenerated = (spec: string) => {
     console.log("Specification generated, length:", spec.length);
     setSpecification(spec);
+    // Also save to sessionStorage
+    sessionStorage.setItem("specification", spec);
   };
 
   return (

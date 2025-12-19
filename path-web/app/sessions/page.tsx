@@ -56,6 +56,7 @@ export default function SessionsPage() {
         additionalContext: session.additional_context,
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history));
+      sessionStorage.setItem("specification", session.specification || "");
       sessionStorage.setItem("analysis", JSON.stringify({
         pain_point: session.pain_point,
         input_type: session.input_type,

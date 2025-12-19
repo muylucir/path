@@ -11,11 +11,13 @@ export default function ResultsPage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [formData, setFormData] = useState<any>(null);
+  const [specification, setSpecification] = useState<string>("");
 
   useEffect(() => {
     const analysisData = sessionStorage.getItem("analysis");
     const chatData = sessionStorage.getItem("chatHistory");
     const formDataStr = sessionStorage.getItem("formData");
+    const specData = sessionStorage.getItem("specification");
 
     if (!analysisData || !chatData || !formDataStr) {
       router.push("/");
@@ -25,6 +27,7 @@ export default function ResultsPage() {
     setAnalysis(JSON.parse(analysisData));
     setChatHistory(JSON.parse(chatData));
     setFormData(JSON.parse(formDataStr));
+    setSpecification(specData || "");
   }, [router]);
 
   if (!analysis || !formData) {
@@ -42,7 +45,12 @@ export default function ResultsPage() {
       <Sidebar />
       <div className="flex-1 max-w-6xl">
         <h1 className="text-2xl font-bold mb-6">3️⃣ 분석 결과</h1>
-        <Step3Results analysis={analysis} chatHistory={chatHistory} formData={formData} />
+        <Step3Results 
+          analysis={analysis} 
+          chatHistory={chatHistory} 
+          formData={formData}
+          initialSpecification={specification}
+        />
       </div>
     </div>
   );
