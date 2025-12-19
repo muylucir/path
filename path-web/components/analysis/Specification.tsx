@@ -1,19 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Download, AlertCircle } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface SpecificationProps {
   analysis: any;
   onGenerated?: (spec: string) => void;
+  initialSpec?: string;
 }
 
-export function Specification({ analysis, onGenerated }: SpecificationProps) {
-  const [spec, setSpec] = useState<string>("");
+export function Specification({ analysis, onGenerated, initialSpec }: SpecificationProps) {
+  const [spec, setSpec] = useState<string>(initialSpec || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
+
+  useEffect(() => {
+    if (initialSpec) {
+      setSpec(initialSpec);
+    }
+  }, [initialSpec]);
 
   const generateSpec = async () => {
     setIsGenerating(true);
@@ -56,7 +66,7 @@ export function Specification({ analysis, onGenerated }: SpecificationProps) {
                 fullSpec += parsed.text;
                 setSpec(fullSpec);
               } catch (e) {
-                // Ignore parse errors
+                // Ignore
               }
             }
           }
@@ -94,24 +104,17 @@ export function Specification({ analysis, onGenerated }: SpecificationProps) {
           </div>
         )}
         
-        {!spec || isGenerating ? (
+        {!spec && !isGenerating && (
           <Button
             onClick={generateSpec}
             disabled={isGenerating}
             className="w-full"
           >
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                명세서 생성 중...
-              </>
-            ) : (
-              "🤖 Claude로 상세 명세서 생성"
-            )}
+            🤖 Claude로 상세 명세서 생성
           </Button>
-        ) : null}
+        )}
         
-        {spec && (
+        {(spec || isGenerating) && (
           <>
             {!isGenerating && (
               <Button onClick={downloadSpec} className="w-full">
@@ -119,12 +122,33 @@ export function Specification({ analysis, onGenerated }: SpecificationProps) {
                 명세서 다운로드 (Markdown)
               </Button>
             )}
-            <div className="border rounded-lg p-4 max-h-[600px] overflow-y-auto bg-muted/30">
-              <pre className="text-sm whitespace-pre-wrap font-mono">{spec}</pre>
-              {isGenerating && (
-                <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />
-              )}
-            </div>
+            
+            <Tabs defaultValue="preview" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="preview">미리보기</TabsTrigger>
+                <TabsTrigger value="raw">Markdown</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="preview" className="mt-4">
+                <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {spec}
+                  </ReactMarkdown>
+                  {isGenerating && (
+                    <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="raw" className="mt-4">
+                <div className="border rounded-lg p-4 max-h-[600px] overflow-y-auto bg-muted/30">
+                  <pre className="text-sm whitespace-pre-wrap font-mono">{spec}</pre>
+                  {isGenerating && (
+                    <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </>
         )}
       </CardContent>

@@ -701,14 +701,6 @@
     max-height: var(--radix-select-content-available-height);
   }
 
-  .max-h-\[200px\] {
-    max-height: 200px;
-  }
-
-  .max-h-\[250px\] {
-    max-height: 250px;
-  }
-
   .max-h-\[600px\] {
     max-height: 600px;
   }
@@ -789,6 +781,10 @@
     max-width: var(--container-md);
   }
 
+  .max-w-none {
+    max-width: none;
+  }
+
   .min-w-0 {
     min-width: calc(var(--spacing) * 0);
   }
@@ -845,6 +841,10 @@
 
   .cursor-pointer {
     cursor: pointer;
+  }
+
+  .resize-none {
+    resize: none;
   }
 
   .scroll-my-1 {
@@ -963,12 +963,6 @@
     --tw-space-y-reverse: 0;
     margin-block-start: calc(calc(var(--spacing) * 6) * var(--tw-space-y-reverse));
     margin-block-end: calc(calc(var(--spacing) * 6) * calc(1 - var(--tw-space-y-reverse)));
-  }
-
-  :where(.space-x-2 > :not(:last-child)) {
-    --tw-space-x-reverse: 0;
-    margin-inline-start: calc(calc(var(--spacing) * 2) * var(--tw-space-x-reverse));
-    margin-inline-end: calc(calc(var(--spacing) * 2) * calc(1 - var(--tw-space-x-reverse)));
   }
 
   :where(.space-x-3 > :not(:last-child)) {
@@ -1536,10 +1530,6 @@
 
   .peer-disabled\:opacity-50:is(:where(.peer):disabled ~ *) {
     opacity: .5;
-  }
-
-  .peer-disabled\:opacity-70:is(:where(.peer):disabled ~ *) {
-    opacity: .7;
   }
 
   .selection\:bg-primary ::selection, .selection\:bg-primary::selection {

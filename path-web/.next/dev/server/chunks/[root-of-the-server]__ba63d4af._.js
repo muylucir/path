@@ -360,12 +360,15 @@ ${dataSourceStr || "미지정"}
 
 __turbopack_context__.s([
     "POST",
-    ()=>POST
+    ()=>POST,
+    "maxDuration",
+    ()=>maxDuration
 ]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$lib$2f$aws$2f$bedrock$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/path/path-web/lib/aws/bedrock.ts [app-route] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$path$2f$path$2d$web$2f$lib$2f$prompts$2e$ts__$5b$app$2d$route$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/path/path-web/lib/prompts.ts [app-route] (ecmascript)");
 ;
 ;
+const maxDuration = 60; // 60 seconds timeout
 async function POST(req) {
     try {
         const { conversation } = await req.json();
