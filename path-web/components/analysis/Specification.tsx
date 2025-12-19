@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Download, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import mermaid from "mermaid";
 
 interface SpecificationProps {
   analysis: any;
@@ -18,12 +19,35 @@ export function Specification({ analysis, onGenerated, initialSpec }: Specificat
   const [spec, setSpec] = useState<string>(initialSpec || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
+  const mermaidInitialized = useRef(false);
+
+  useEffect(() => {
+    if (!mermaidInitialized.current) {
+      mermaid.initialize({ 
+        startOnLoad: true,
+        theme: 'default',
+        securityLevel: 'loose',
+      });
+      mermaidInitialized.current = true;
+    }
+  }, []);
 
   useEffect(() => {
     if (initialSpec) {
       setSpec(initialSpec);
     }
   }, [initialSpec]);
+
+  useEffect(() => {
+    if (spec && !isGenerating) {
+      // Render mermaid diagrams after spec is loaded
+      setTimeout(() => {
+        mermaid.run({
+          querySelector: '.mermaid',
+        });
+      }, 100);
+    }
+  }, [spec, isGenerating]);
 
   const generateSpec = async () => {
     setIsGenerating(true);
@@ -131,7 +155,29 @@ export function Specification({ analysis, onGenerated, initialSpec }: Specificat
               
               <TabsContent value="preview" className="mt-4">
                 <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto prose prose-sm dark:prose-invert max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        const lang = match ? match[1] : '';
+                        
+                        if (!inline && lang === 'mermaid') {
+                          return (
+                            <div className="mermaid">
+                              {String(children).replace(/\n$/, '')}
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        );
+                      }
+                    }}
+                  >
                     {spec}
                   </ReactMarkdown>
                   {isGenerating && (
