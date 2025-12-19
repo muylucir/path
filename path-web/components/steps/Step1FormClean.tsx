@@ -32,7 +32,18 @@ import {
 } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2 } from "lucide-react";
+import { 
+  Plus, 
+  Trash2, 
+  Sparkles,
+  Download,
+  Settings,
+  Upload,
+  Database,
+  Users,
+  AlertCircle,
+  FileText
+} from "lucide-react";
 import type { DataSource } from "@/lib/types";
 
 interface Step1FormCleanProps {
@@ -138,7 +149,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
         <CardContent className="space-y-6">
           {/* INPUT */}
           <div className="space-y-2">
-            <Label className="text-base font-semibold">📥 INPUT: 언제 실행되나요?</Label>
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <Download className="h-5 w-5" />
+              INPUT: 언제 실행되나요?
+            </Label>
             <Select onValueChange={(value) => setValue("inputType", value)}>
               <SelectTrigger className="h-11">
                 <SelectValue placeholder="트리거 타입을 선택하세요" />
@@ -160,7 +174,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
           {/* PROCESS */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">⚙️ PROCESS: 어떤 작업이 필요한가요?</Label>
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              PROCESS: 어떤 작업이 필요한가요?
+            </Label>
             <p className="text-sm text-muted-foreground">복수 선택 가능</p>
             <div className="space-y-2">
               {PROCESS_STEPS.map((step) => (
@@ -189,7 +206,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
           {/* OUTPUT */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold">📤 OUTPUT: 최종 결과물은?</Label>
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              OUTPUT: 최종 결과물은?
+            </Label>
             <p className="text-sm text-muted-foreground">복수 선택 가능</p>
             <div className="space-y-2">
               {OUTPUT_TYPES.map((type) => (
@@ -220,7 +240,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
       <Accordion type="multiple" className="w-full">
         <AccordionItem value="data-sources">
           <AccordionTrigger className="text-base font-semibold">
-            📦 데이터 소스
+            <div className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              데이터 소스
+            </div>
           </AccordionTrigger>
           <AccordionContent className="space-y-3 pt-4">
             {dataSources.map((source, index) => (
@@ -279,7 +302,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
         <AccordionItem value="human-loop">
           <AccordionTrigger className="text-base font-semibold">
-            👤 Human-in-Loop
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Human-in-Loop
+            </div>
           </AccordionTrigger>
           <AccordionContent className="pt-4">
             <Select onValueChange={(value) => setValue("humanLoop", value)}>
@@ -302,7 +328,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
         <AccordionItem value="error-tolerance">
           <AccordionTrigger className="text-base font-semibold">
-            ⚠️ 오류 허용도
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5" />
+              오류 허용도
+            </div>
           </AccordionTrigger>
           <AccordionContent className="pt-4">
             <Select onValueChange={(value) => setValue("errorTolerance", value)}>
@@ -325,7 +354,10 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
         <AccordionItem value="additional">
           <AccordionTrigger className="text-base font-semibold">
-            📝 추가 정보 (선택사항)
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              추가 정보 (선택사항)
+            </div>
           </AccordionTrigger>
           <AccordionContent className="pt-4">
             <Textarea
@@ -339,8 +371,9 @@ export function Step1FormClean({ onSubmit }: Step1FormCleanProps) {
 
       {/* Submit */}
       <div className="flex justify-center pt-4">
-        <Button type="submit" size="lg" className="w-full max-w-md">
-          🤖 Claude 분석 시작
+        <Button type="submit" size="lg" className="w-full max-w-md gap-2">
+          <Sparkles className="h-5 w-5" />
+          Claude 분석 시작
         </Button>
       </div>
     </form>

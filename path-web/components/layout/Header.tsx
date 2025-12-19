@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Bot } from "lucide-react";
 
 export function Header() {
   const pathname = usePathname();
@@ -12,7 +13,7 @@ export function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <Link href="/" className="flex items-center gap-2 hover:opacity-80">
-              <span className="text-2xl">🤖</span>
+              <Bot className="h-7 w-7" />
               <h1 className="text-xl font-bold">P.A.T.H Agent Designer</h1>
             </Link>
             
