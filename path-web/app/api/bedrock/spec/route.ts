@@ -9,74 +9,76 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = `당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.`;
 
-    const prompt = `다음 분석 결과를 바탕으로 프로토타입 구현을 위한 명세서를 작성하세요:
+    const prompt = `다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요:
 
 ${JSON.stringify(analysis, null, 2)}
-
-다음 5개 섹션만 작성하세요:
 
 # AI Agent Design Specification
 
 ## 1. Executive Summary
-- **Problem**: 해결하려는 문제 (1-2문장)
-- **Solution**: 선택된 패턴과 접근 방법
-- **Feasibility Score**: X/50 (판정)
-- **Go/No-Go**: 추천 사항
+- **Problem**: 해결하려는 문제 (1문장)
+- **Solution**: Strands Agent 구현 방법 (1-2문장)
+- **Feasibility**: X/50 (판정)
 
-## 2. Problem Decomposition
-### INPUT
-- 트리거 타입과 상세 설명
-- 데이터 소스
+## 2. Strands Agent 구현
 
-### PROCESS
-- 각 단계별 상세 설명 (번호 매겨서)
+### Agent Components
+| Agent Name | Role | Input | Output | LLM | Tools |
+|------------|------|-------|--------|-----|-------|
 
-### OUTPUT
-- 결과물 타입과 형식
-- 전달 방법
+### 패턴 분석
+선택된 패턴과 Strands Agent 구현 방법:
+- [패턴명]: [Graph 구조 설명 1-2문장]
 
-### Human-in-Loop
-- 사람 개입 시점과 방법
+### Graph 구조
+\`\`\`python
+nodes = {"node1": Agent(role="...", goal="...")}
+edges = [("node1", "node2")]
+\`\`\`
+
+### Agent-as-Tool
+| Agent Name | Role | Input | Output | 사용 시점 |
+|------------|------|-------|--------|----------|
+
+### Invocation State 활용
+에이전트 간 상태 공유:
+- **용도**: [어떤 데이터를 공유할지]
+- **업데이트 시점**: [언제 상태를 업데이트할지]
+- **활용 방법**: [다음 노드에서 어떻게 사용할지]
+
+### MCP 연동
+- [MCP 서버명]: [용도]
 
 ## 3. Architecture
 
-### 3.1 System Architecture
 \`\`\`mermaid
 graph TB
-    [전체 시스템 구조]
+    [Strands Graph 구조]
 \`\`\`
 
-### 3.2 Sequence Diagram
 \`\`\`mermaid
 sequenceDiagram
-    [컴포넌트 간 상호작용]
+    [핵심 흐름만]
 \`\`\`
 
-### 3.3 Flow Chart
 \`\`\`mermaid
 flowchart TD
     [처리 흐름]
 \`\`\`
 
-## 4. Agent Components
-
-선택된 패턴에 맞게 작성하세요:
-
-| Agent Name | Role | Input | Output | LLM | Tools |
-|------------|------|-------|--------|-----|-------|
-
-## 5. Technical Stack
-- **Framework**:
-    - 이유: 
-- **LLM**: 
-    - 용도: 
-    - 이유: 
+## 4. Problem Decomposition
+- INPUT: [트리거]
+- PROCESS: [핵심 단계만 3-5개]
+- OUTPUT: [결과물]
+- Human-in-Loop: [개입 시점]
 
 ---
-
-**중요1**: 위 5개 섹션만 작성하세요.
-**중요2**: LLM은 Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
-**중요3**: Framework는 Strands SDK를 사용하세요.`;
+**중요1**: 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요.
+**중요2**: Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요.
+**중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
+**중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
+**중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
+**중요6**: 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.`;
 
     const encoder = new TextEncoder();
     const stream = new ReadableStream({

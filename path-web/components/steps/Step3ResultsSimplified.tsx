@@ -296,12 +296,26 @@ export function Step3ResultsSimplified({
 
               {(specification || isGenerating) && (
                 <>
-                  {!isGenerating && (
-                    <Button onClick={downloadSpec} className="w-full">
-                      <Download className="h-4 w-4 mr-2" />
-                      명세서 다운로드 (Markdown)
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {!isGenerating && (
+                      <>
+                        <Button onClick={generateSpec} variant="outline" className="flex-1">
+                          <Loader2 className="h-4 w-4 mr-2" />
+                          재생성
+                        </Button>
+                        <Button onClick={downloadSpec} className="flex-1">
+                          <Download className="h-4 w-4 mr-2" />
+                          다운로드
+                        </Button>
+                      </>
+                    )}
+                    {isGenerating && (
+                      <Button disabled className="w-full">
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        생성 중...
+                      </Button>
+                    )}
+                  </div>
 
                   <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto">
                     {isGenerating ? (

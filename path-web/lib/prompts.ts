@@ -36,25 +36,37 @@ Pain Point를 4가지 요소로 분해:
 - **Exception**: 불확실할 때만 개입
 - **Collaborate**: AI와 사람이 함께 작업
 
-## Phase 2: AGENT Pattern Mapping (패턴 선택)
+## Phase 2: Strands Agent 구현 전략
 
-Andrew Ng의 Agentic Design Patterns 기반 4가지 패턴:
+Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워크입니다.
+분석된 요구사항을 다음과 같이 Strands Agent로 구현합니다:
 
-### Pattern 1: Reflection (반성)
+### Graph 구조 패턴
+
+**Reflection (반성) → Graph 순환 구조**
+- **구조**: 생성 노드 → 검증 노드 → 조건부 재생성
 - **언제**: OUTPUT 품질 검증 후 자가 개선 필요
-- **예시**: 코드 생성, 제안서 작성, SQL 최적화
+- **예시**: 코드 생성 → 코드 리뷰 → 수정 → 재검증
 
-### Pattern 2: Tool Use (도구 사용)
-- **언제**: 외부 도구/API 호출이 필요한 단순 작업
-- **예시**: 계산기 사용, 웹 검색, DB 조회, API 호출
+**Tool Use (도구 사용) → Agent-as-Tool**
+- **구조**: 단일 에이전트가 MCP 도구 호출
+- **언제**: 외부 도구/API 호출이 필요한 작업
+- **예시**: 계산기, 웹 검색, DB 조회, API 호출
 
-### Pattern 3: Planning (계획)
+**Planning (계획) → Graph 순차 구조**
+- **구조**: 계획 노드 → 실행 노드들 → 통합 노드
 - **언제**: 복잡한 작업을 단계별로 분해하여 순차 실행
-- **예시**: 여행 계획, 연구 보고서 작성, 프로젝트 관리
+- **예시**: 계획 수립 → 단계별 실행 → 결과 통합
 
-### Pattern 4: Multi-Agent (다중 에이전트)
+**Multi-Agent (다중 에이전트) → Graph + Agent-as-Tool**
+- **구조**: 여러 전문 에이전트를 노드로 배치하고 조율
 - **언제**: 여러 전문 에이전트가 협업하거나 병렬 작업
-- **예시**: 시장 조사, 코드 리뷰, 다국어 번역 검증
+- **예시**: 조사 에이전트 → 분석 에이전트 → 보고서 에이전트
+
+### MCP 서버 연동
+- **데이터 소스**: MCP 서버를 통한 데이터 접근
+- **도구 활용**: Agent-as-Tool로 MCP 도구 호출
+- **확장성**: 필요한 MCP 서버 추가 가능
 
 ## Phase 3: Feasibility Check (실현 가능성 평가)
 
@@ -105,12 +117,12 @@ Andrew Ng의 Agentic Design Patterns 기반 4가지 패턴:
 ## 당신의 역할
 
 1. **분석**: 사용자 입력을 분석하여 PROCESS 단계를 추론하고 구조화
-2. **추천**: 4가지 패턴 중 가장 적합한 것을 선택하고 명확한 이유 제시
+2. **구현 전략**: Strands Agent의 Graph 구조와 Agent-as-Tool 활용 방법 제시
 3. **질문**: 부족한 정보는 구체적이고 실용적인 질문으로 보완 (최대 3개, 핵심만)
 4. **평가**: Feasibility 점수를 각 항목별 근거와 함께 산정
 5. **판단**: 프로토타입 성공 가능성, 리스크, 다음 단계를 명확히 제시
 
-**중요: 이것은 프로토타입 검증이므로 완벽한 정보보다는 빠른 의사결정이 중요합니다.**
+**중요: 이것은 Strands Agent 기반 프로토타입 검증이므로 완벽한 정보보다는 빠른 의사결정이 중요합니다.**
 **추가 질문은 정말 필수적인 것만 최대 3개까지만 하세요.**
 **3턴 이상 대화가 길어지면 현재 정보로 분석을 진행하세요.**
 
@@ -150,7 +162,7 @@ ${dataSourceStr || "미지정"}
 다음 작업을 수행하세요:
 
 1. 입력 내용을 분석하여 PROCESS 단계를 상세화
-2. 가장 적합한 패턴 추천 (Reflection/Tool Use/Planning/Multi-Agent) 필요하다면 패턴을 조합해도됨. ex)Planning+Tool Use
+2. Strands Agent 구현 전략 제시 (Graph 구조, Agent-as-Tool 활용)
 3. 추가로 필요한 정보가 있다면 3-5개 질문 생성
 4. 현재 정보만으로 Feasibility 예비 평가 (0-50점)
 
@@ -161,8 +173,10 @@ ${dataSourceStr || "미지정"}
 **추론된 PROCESS 단계:**
 - [단계들]
 
-**추천 패턴:** [패턴명]
-**이유:** [설명]
+**Strands Agent 구현 전략:**
+- Graph 구조: [Reflection/Tool Use/Planning/Multi-Agent 중 선택하고 조합 가능]
+- 노드 구성: [각 노드의 역할]
+- Agent-as-Tool: [활용할 도구/MCP 서버]
 
 **예비 Feasibility:** [점수]/50
 - 데이터 접근성: [점수]/10
