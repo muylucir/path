@@ -10,7 +10,6 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
 lib64/
 parts/
 sdist/
@@ -79,3 +78,4 @@ CASE.md
 path/.python-version
 prompt_v3.txt
 agent_pattern_v3.md
+
