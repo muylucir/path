@@ -13,9 +13,10 @@ interface SpecificationProps {
   analysis: any;
   onGenerated?: (spec: string) => void;
   initialSpec?: string;
+  useAgentCore?: boolean;
 }
 
-export function Specification({ analysis, onGenerated, initialSpec }: SpecificationProps) {
+export function Specification({ analysis, onGenerated, initialSpec, useAgentCore }: SpecificationProps) {
   const [spec, setSpec] = useState<string>(initialSpec || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
@@ -58,7 +59,7 @@ export function Specification({ analysis, onGenerated, initialSpec }: Specificat
       const response = await fetch("/api/bedrock/spec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis }),
+        body: JSON.stringify({ analysis, useAgentCore }),
       });
 
       if (!response.ok) {

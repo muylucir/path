@@ -96,6 +96,7 @@ export function Step3Results({ analysis, chatHistory, formData, initialSpecifica
             analysis={analysis} 
             onGenerated={handleSpecificationGenerated}
             initialSpec={specification}
+            useAgentCore={formData?.useAgentCore}
           />
         </TabsContent>
 
