@@ -19,27 +19,18 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isAutoScrollRef = useRef(true);
 
   useEffect(() => {
     startInitialAnalysis();
   }, []);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-  }, [chatHistory]);
-
-  useEffect(() => {
-    // Throttle scroll during streaming to prevent jitter
-    if (currentMessage && isStreaming) {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
-      scrollTimeoutRef.current = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto", block: "end" });
-      }, 100);
+    if (isAutoScrollRef.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [currentMessage, isStreaming]);
+  }, [chatHistory, currentMessage]);
 
   const startInitialAnalysis = async () => {
     setIsStreaming(true);
@@ -192,7 +183,10 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="border rounded-lg p-4 min-h-[400px] max-h-[600px] overflow-y-auto space-y-4">
+            <div 
+              ref={chatContainerRef}
+              className="border rounded-lg p-4 min-h-[400px] max-h-[600px] overflow-y-auto space-y-4"
+            >
               {chatHistory.map((msg, idx) => (
                 <div
                   key={idx}

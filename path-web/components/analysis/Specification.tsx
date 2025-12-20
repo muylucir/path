@@ -138,14 +138,28 @@ export function Specification({ analysis, onGenerated, initialSpec }: Specificat
           </Button>
         )}
         
-        {(spec || isGenerating) && (
+        {spec && (
           <>
-            {!isGenerating && (
-              <Button onClick={downloadSpec} className="w-full">
-                <Download className="h-4 w-4 mr-2" />
-                명세서 다운로드 (Markdown)
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {!isGenerating && (
+                <>
+                  <Button onClick={generateSpec} variant="outline" className="flex-1">
+                    <Loader2 className="h-4 w-4 mr-2" />
+                    재생성
+                  </Button>
+                  <Button onClick={downloadSpec} className="flex-1">
+                    <Download className="h-4 w-4 mr-2" />
+                    다운로드
+                  </Button>
+                </>
+              )}
+              {isGenerating && (
+                <Button disabled className="w-full">
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  생성 중...
+                </Button>
+              )}
+            </div>
             
             <Tabs defaultValue="preview" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
