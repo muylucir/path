@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, ArrowDown, ArrowUp, Settings, CheckCircle, RefreshCw } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, ArrowDown, ArrowUp, Settings, CheckCircle, RefreshCw, AlertCircle } from "lucide-react";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
@@ -47,7 +47,7 @@ export function Step3ResultsSimplified({
       const response = await fetch("/api/bedrock/spec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis }),
+        body: JSON.stringify({ analysis, useAgentCore: formData?.useAgentCore }),
       });
 
       const reader = response.body?.getReader();
@@ -106,7 +106,10 @@ export function Step3ResultsSimplified({
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">추천 패턴</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <Sparkles className="h-5 w-5 text-muted-foreground" />
+                <p className="text-base font-medium text-muted-foreground">추천 패턴</p>
+              </div>
               <p className="text-xl font-bold">{pattern}</p>
             </div>
           </CardContent>
@@ -115,7 +118,10 @@ export function Step3ResultsSimplified({
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Feasibility</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <BarChart3 className="h-5 w-5 text-muted-foreground" />
+                <p className="text-base font-medium text-muted-foreground">Feasibility</p>
+              </div>
               <p className="text-xl font-bold">{feasibility_score}/50</p>
             </div>
           </CardContent>
@@ -124,7 +130,10 @@ export function Step3ResultsSimplified({
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">판정</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                <p className="text-base font-medium text-muted-foreground">판정</p>
+              </div>
               <div className="flex items-center justify-center gap-2">
                 {feasibility_score >= 40 ? (
                   <>

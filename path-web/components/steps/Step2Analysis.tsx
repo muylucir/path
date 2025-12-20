@@ -21,6 +21,7 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isAutoScrollRef = useRef(true);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     startInitialAnalysis();
@@ -28,9 +29,18 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
 
   useEffect(() => {
     if (isAutoScrollRef.current && chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      
+      const delay = isStreaming ? 100 : 0; // 스트리밍 중에는 더 긴 지연
+      scrollTimeoutRef.current = setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
+      }, delay);
     }
-  }, [chatHistory, currentMessage]);
+  }, [chatHistory, currentMessage, isStreaming]);
 
   const startInitialAnalysis = async () => {
     setIsStreaming(true);
