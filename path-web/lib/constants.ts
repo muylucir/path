@@ -8,6 +8,7 @@ export const INPUT_TYPES = [
 
 export const DATA_SOURCE_TYPES = [
   "MCP Server",
+  "RAG",
   "API",
   "Database",
   "File (S3/Local)",
