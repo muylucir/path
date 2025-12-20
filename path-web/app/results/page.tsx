@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Step3ResultsSimplified } from "@/components/steps/Step3ResultsSimplified";
+import { Step3Results } from "@/components/steps/Step3Results";
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -97,7 +97,7 @@ export default function ResultsPage() {
         <StepIndicator currentStep={3} steps={STEPS} />
         
         <div className="mt-8 space-y-6">
-          <Step3ResultsSimplified
+          <Step3Results
             analysis={analysis}
             chatHistory={chatHistory}
             formData={formData}

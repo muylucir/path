@@ -153,7 +153,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               </Label>
               <div className="flex items-center justify-center gap-3 p-4 border rounded-lg">
                 <span className={`text-sm font-medium ${!useAgentCore ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  EC2/ECS/EKS
+                  EC2 / ECS / EKS
                 </span>
                 <Switch
                   id="agentcore-toggle"

@@ -98,7 +98,7 @@ export default function FrameworkPage() {
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <p className="font-semibold">데이터 접근성 (10점)</p>
-                  <p className="text-muted-foreground">MCP 서버 → API → 파일 → DB → 스크래핑</p>
+                  <p className="text-muted-foreground">MCP 서버 = RAG → API → 파일 → DB → 스크래핑</p>
                 </div>
                 <div>
                   <p className="font-semibold">판단 기준 명확성 (10점)</p>
