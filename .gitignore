@@ -79,5 +79,10 @@ path/.python-version
 prompt_v3.txt
 agent_pattern_v3.md
 
-imgs/
+
 .kiro/
+path-test-agent/
+path-test-agent/venv/
+path-strands-agent/venv/
+path-strands-agent/**/__pycache__/
+strands-skill-system/

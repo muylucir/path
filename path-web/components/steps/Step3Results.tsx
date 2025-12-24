@@ -68,6 +68,8 @@ export function Step3Results({
                 setSpecification(fullSpec);
                 sessionStorage.setItem("specification", fullSpec);
                 setIsGenerating(false);
+                // 명세서 생성 완료 후 자동 저장
+                await onSave(fullSpec);
                 return;
               }
               try {
@@ -186,15 +188,23 @@ export function Step3Results({
               <div>
                 <h3 className="font-semibold mb-4">Feasibility 점수</h3>
                 <div className="space-y-3">
-                  {Object.entries(feasibility_breakdown).map(([key, value]) => (
-                    <div key={key}>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>{key}</span>
-                        <span className="font-semibold">{value}/10</span>
+                  {Object.entries(feasibility_breakdown).map(([key, value]) => {
+                    const score = typeof value === 'object' && value !== null ? value.score : value;
+                    const reason = typeof value === 'object' && value !== null ? value.reason : '';
+                    
+                    return (
+                      <div key={key}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span>{key}</span>
+                          <span className="font-semibold">{score}/10</span>
+                        </div>
+                        <Progress value={(score / 10) * 100} />
+                        {reason && (
+                          <p className="text-xs text-muted-foreground mt-1">{reason}</p>
+                        )}
                       </div>
-                      <Progress value={(value / 10) * 100} />
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -364,24 +374,6 @@ export function Step3Results({
               <Separator />
 
               <div className="space-y-3">
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className="w-full gap-2"
-                  size="lg"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      저장 중...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-5 w-5" />
-                      이 분석 결과 저장
-                    </>
-                  )}
-                </Button>
               </div>
             </CardContent>
           </Card>

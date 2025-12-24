@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo, useLayoutEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,27 +20,55 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
-  const isAutoScrollRef = useRef(true);
-  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isUserScrollingRef = useRef(false);
+  const isFirstRenderRef = useRef(true);
 
   useEffect(() => {
     startInitialAnalysis();
   }, []);
 
+  // 사용자 스크롤 감지
   useEffect(() => {
-    if (isAutoScrollRef.current && chatContainerRef.current) {
-      if (scrollTimeoutRef.current) {
-        clearTimeout(scrollTimeoutRef.current);
-      }
+    const container = chatContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      // 하단에서 100px 이내면 자동 스크롤 허용
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      isUserScrollingRef.current = !isNearBottom;
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 첫 렌더링 최적화된 스크롤
+  useLayoutEffect(() => {
+    if (!chatContainerRef.current) return;
+
+    // 첫 메시지는 즉시 스크롤 (떨림 방지)
+    if (isFirstRenderRef.current && (chatHistory.length > 0 || currentMessage)) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+      isFirstRenderRef.current = false;
       
-      const delay = isStreaming ? 100 : 0; // 스트리밍 중에는 더 긴 지연
-      scrollTimeoutRef.current = setTimeout(() => {
+      // 다음 프레임에서 한 번 더 보정
+      requestAnimationFrame(() => {
         if (chatContainerRef.current) {
           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
-      }, delay);
+      });
+    } else if (!isUserScrollingRef.current) {
+      // 이후 메시지는 부드럽게
+      messagesEndRef.current?.scrollIntoView({ 
+        behavior: 'smooth',
+        block: 'end'
+      });
     }
-  }, [chatHistory, currentMessage, isStreaming]);
+  }, [chatHistory, currentMessage]);
+
+  // 스트리밍 중 스마트 스크롤 (기존 로직 제거)
+  // useLayoutEffect가 처리하므로 불필요
 
   const startInitialAnalysis = async () => {
     setIsStreaming(true);
@@ -79,8 +107,13 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
               }
               try {
                 const parsed = JSON.parse(data);
-                fullMessage += parsed.text;
-                setCurrentMessage(fullMessage);
+                if (parsed.text) {
+                  fullMessage += parsed.text;
+                  // 부드러운 업데이트를 위해 requestAnimationFrame 사용
+                  requestAnimationFrame(() => {
+                    setCurrentMessage(fullMessage);
+                  });
+                }
               } catch (e) {
                 // Ignore
               }
@@ -99,12 +132,6 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
 
     const message = userInput.trim();
     setUserInput("");
-
-    if (message.includes("분석 완료") || message.includes("완료")) {
-      const userMsg: ChatMessage = { role: "user", content: message };
-      await finalizeAnalysis([...chatHistory, userMsg]);
-      return;
-    }
 
     const userMsg: ChatMessage = { role: "user", content: message };
     const newHistory = [...chatHistory, userMsg];
@@ -182,6 +209,34 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
     }
   };
 
+// 메시지 컴포넌트 메모이제이션
+const MessageComponent = memo(({ message, index }: { message: ChatMessage; index: number }) => (
+  <div
+    className={`flex ${
+      message.role === "user" ? "justify-end" : "justify-start"
+    }`}
+  >
+    <div
+      className={`max-w-[80%] rounded-lg p-3 ${
+        message.role === "user"
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted"
+      }`}
+    >
+      <div className="text-xs font-semibold mb-1">
+        {message.role === "user" ? "You" : "Claude"}
+      </div>
+      <div className="text-sm whitespace-pre-wrap">
+        {message.content}
+      </div>
+    </div>
+  </div>
+), (prev, next) => {
+  return prev.message.content === next.message.content;
+});
+
+MessageComponent.displayName = 'MessageComponent';
+
   return (
     <div className="space-y-4">
       <Card>
@@ -195,33 +250,14 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
           <div className="space-y-4">
             <div 
               ref={chatContainerRef}
-              className="border rounded-lg p-4 min-h-[400px] max-h-[600px] overflow-y-auto space-y-4"
+              className="border rounded-lg p-4 min-h-[400px] max-h-[600px] overflow-y-scroll space-y-4 scroll-smooth"
+              style={{ scrollBehavior: 'smooth', minHeight: '400px' }}
             >
               {chatHistory.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`flex ${
-                    msg.role === "user" ? "justify-end" : "justify-start"
-                  }`}
-                >
-                  <div
-                    className={`max-w-[80%] rounded-lg p-3 ${
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    }`}
-                  >
-                    <div className="text-xs font-semibold mb-1">
-                      {msg.role === "user" ? "You" : "Claude"}
-                    </div>
-                    <div className="text-sm whitespace-pre-wrap">
-                      {msg.content}
-                    </div>
-                  </div>
-                </div>
+                <MessageComponent key={idx} message={msg} index={idx} />
               ))}
 
-              {currentMessage && (
+              {isStreaming && currentMessage && (
                 <div className="flex justify-start">
                   <div className="max-w-[80%] rounded-lg p-3 bg-muted">
                     <div className="text-xs font-semibold mb-1">Claude</div>
@@ -232,7 +268,7 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
                   </div>
                 </div>
               )}
-
+              
               <div ref={messagesEndRef} />
             </div>
 
