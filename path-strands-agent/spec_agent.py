@@ -1,17 +1,56 @@
-import { invokeClaudeStream } from "@/lib/aws/bedrock";
-import { NextRequest } from "next/server";
+"""
+Spec Agent with SKILL System - PATH 3단계 명세서 생성
 
-export const maxDuration = 60;
+원본 PATH 웹앱의 프롬프트를 그대로 사용하며 스트리밍 지원 추가
+"""
 
-export async function POST(req: NextRequest) {
-  try {
-    const { analysis, useAgentCore } = await req.json();
+from strands import Agent
+from typing import Dict, Any, AsyncIterator
+import json
+from prompts import SYSTEM_PROMPT
+from skill_tool import skill_tool
+from skills.skill_utils import initialize_skills
 
-    const systemPrompt = `당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.`;
 
-    const prompt = useAgentCore ? getAgentCoreSpecPrompt(analysis) : `다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요:
+class SpecAgent:
+    """명세서 생성 Agent (SKILL 기반)"""
+    
+    def __init__(self, model_id: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"):
+        # SKILL 시스템 초기화
+        available_skills, skill_prompt = initialize_skills(
+            skill_dirs=["./skills"],
+            verbose=False
+        )
+        
+        # 시스템 프롬프트에 SKILL 프롬프트 추가
+        enhanced_prompt = SYSTEM_PROMPT + skill_prompt
+        
+        # Agent 생성 (SKILL tool 포함)
+        self.agent = Agent(
+            model=model_id,
+            system_prompt=enhanced_prompt,
+            tools=[skill_tool]
+        )
+    
+    def generate_spec(self, analysis: Dict[str, Any], use_agentcore: bool = False) -> str:
+        """명세서 생성 - 동기 버전"""
+        prompt = self._get_selfhosted_prompt(analysis) if not use_agentcore else self._get_agentcore_prompt(analysis)
+        result = self.agent(prompt)
+        return result.message['content'][0]['text']
+    
+    async def generate_spec_stream(self, analysis: Dict[str, Any], use_agentcore: bool = False) -> AsyncIterator[str]:
+        """명세서 생성 - 스트리밍 버전"""
+        prompt = self._get_selfhosted_prompt(analysis) if not use_agentcore else self._get_agentcore_prompt(analysis)
+        
+        async for event in self.agent.stream_async(prompt):
+            if "data" in event:
+                yield event["data"]
+    
+    def _get_selfhosted_prompt(self, analysis: Dict[str, Any]) -> str:
+        """Self-hosted 명세서 프롬프트 - PATH 웹앱과 동일"""
+        return f"""다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요:
 
-${JSON.stringify(analysis, null, 2)}
+{json.dumps(analysis, indent=2, ensure_ascii=False)}
 
 # AI Agent Design Specification
 
@@ -31,10 +70,10 @@ ${JSON.stringify(analysis, null, 2)}
 - [패턴명]: [Graph 구조 설명 1-2문장]
 
 ### Graph 구조
-\`\`\`python
-nodes = {"node1": Agent(role="...", goal="...")}
+```python
+nodes = {{"node1": Agent(role="...", goal="...")}}
 edges = [("node1", "node2")]
-\`\`\`
+```
 
 ### Agent-as-Tool
 | Agent Name | Role | Input | Output | 사용 시점 |
@@ -51,20 +90,20 @@ edges = [("node1", "node2")]
 
 ## 3. Architecture
 
-\`\`\`mermaid
+```mermaid
 graph TB
     [Strands Graph 구조]
-\`\`\`
+```
 
-\`\`\`mermaid
+```mermaid
 sequenceDiagram
     [핵심 흐름만]
-\`\`\`
+```
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
     [처리 흐름]
-\`\`\`
+```
 
 ## 4. Problem Decomposition
 - INPUT: [트리거]
@@ -78,12 +117,14 @@ flowchart TD
 **중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
 **중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
 **중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
-**중요6**: 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.`;
+**중요6**: 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
+"""
+    
+    def _get_agentcore_prompt(self, analysis: Dict[str, Any]) -> str:
+        """AgentCore 명세서 프롬프트 - PATH 웹앱과 동일"""
+        return f"""다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요:
 
-function getAgentCoreSpecPrompt(analysis: any): string {
-  return `다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요:
-
-${JSON.stringify(analysis, null, 2)}
+{json.dumps(analysis, indent=2, ensure_ascii=False)}
 
 # AI Agent Design Specification
 
@@ -103,10 +144,10 @@ ${JSON.stringify(analysis, null, 2)}
 - [패턴명]: [Graph 구조 설명 1-2문장]
 
 ### Graph 구조
-\`\`\`python
-nodes = {"node1": Agent(role="...", goal="...")}
+```python
+nodes = {{"node1": Agent(role="...", goal="...")}}
 edges = [("node1", "node2")]
-\`\`\`
+```
 
 ### Agent-as-Tool
 | Agent Name | Role | Input | Output | 사용 시점 |
@@ -140,20 +181,20 @@ edges = [("node1", "node2")]
 
 ## 4. Architecture
 
-\`\`\`mermaid
+```mermaid
 graph TB
     [Strands Graph 구조]
-\`\`\`
+```
 
-\`\`\`mermaid
+```mermaid
 sequenceDiagram
     [핵심 흐름만]
-\`\`\`
+```
 
-\`\`\`mermaid
+```mermaid
 flowchart TD
     [처리 흐름]
-\`\`\`
+```
 
 ## 5. Problem Decomposition
 - INPUT: [트리거]
@@ -167,44 +208,31 @@ flowchart TD
 **중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
 **중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
 **중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
-**중요6**: 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
-**중요7**: 분석된 요구사항에 맞게 AgentCore 서비스(Runtime/Memory/Gateway/Identity/Browser/Code Interpreter) 중 필요한 것을 선택하고 활용 방법을 구체적으로 설명하세요.`;
-}
+**중요6**: 위 5개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
+**중요7**: 분석된 요구사항에 맞게 AgentCore 서비스(Runtime/Memory/Gateway/Identity/Browser/Code Interpreter) 중 필요한 것을 선택하고 활용 방법을 구체적으로 설명하세요.
+"""
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of invokeClaudeStream(prompt, systemPrompt)) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (error) {
-          console.error("Error in spec stream:", error);
-          controller.error(error);
-        }
-      },
-    });
 
-    return new Response(stream, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
-  } catch (error: any) {
-    console.error("Error in spec API:", error);
-    return new Response(
-      JSON.stringify({ 
-        error: "명세서 생성 중 오류가 발생했습니다",
-        details: error.message 
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-  }
-}
+# 테스트용 메인 함수
+if __name__ == "__main__":
+    import asyncio
+    
+    test_analysis = {
+        "painPoint": "고객 문의 이메일 자동 분류 및 답변",
+        "patterns": ["Multi-Agent", "Reflection"],
+        "feasibility_score": 37
+    }
+    
+    async def test_streaming():
+        print("🔍 Spec Agent 스트리밍 테스트 (AgentCore)")
+        print("="*80)
+        
+        spec_agent = SpecAgent()
+        
+        print("\n📡 스트리밍 시작...\n")
+        async for chunk in spec_agent.generate_spec_stream(test_analysis, use_agentcore=True):
+            print(chunk, end="", flush=True)
+        
+        print("\n\n✅ 스트리밍 완료!")
+    
+    asyncio.run(test_streaming())

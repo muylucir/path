@@ -46,18 +46,22 @@ export async function loadSession(sessionId: string): Promise<Session | null> {
   return (response.Item as Session) || null;
 }
 
-export async function listSessions(limit: number = 10): Promise<SessionListItem[]> {
+export async function listSessions(limit: number = 15, lastEvaluatedKey?: any): Promise<{ sessions: SessionListItem[], lastEvaluatedKey?: any }> {
   const response = await docClient.send(
     new ScanCommand({
       TableName: TABLE_NAME,
       Limit: limit,
       ProjectionExpression: "session_id, #ts, pain_point, feasibility_score",
       ExpressionAttributeNames: { "#ts": "timestamp" },
+      ...(lastEvaluatedKey && { ExclusiveStartKey: lastEvaluatedKey }),
     })
   );
 
   const items = (response.Items || []) as SessionListItem[];
-  return items.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return {
+    sessions: items.sort((a, b) => b.timestamp.localeCompare(a.timestamp)),
+    lastEvaluatedKey: response.LastEvaluatedKey,
+  };
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {

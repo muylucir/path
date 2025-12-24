@@ -19,10 +19,14 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const sessions = await listSessions(10);
-    return Response.json({ sessions });
+    const { searchParams } = new URL(req.url);
+    const lastKey = searchParams.get('lastKey');
+    const parsedLastKey = lastKey ? JSON.parse(decodeURIComponent(lastKey)) : undefined;
+    
+    const result = await listSessions(15, parsedLastKey);
+    return Response.json(result);
   } catch (error) {
     console.error("Error listing sessions:", error);
     return new Response(
