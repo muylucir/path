@@ -188,7 +188,7 @@ export function Step3Results({
               <div>
                 <h3 className="font-semibold mb-4">Feasibility 점수</h3>
                 <div className="space-y-3">
-                  {Object.entries(feasibility_breakdown).map(([key, value]) => {
+                  {feasibility_breakdown && Object.entries(feasibility_breakdown).map(([key, value]) => {
                     const score = typeof value === 'object' && value !== null ? value.score : value;
                     const reason = typeof value === 'object' && value !== null ? value.reason : '';
                     
@@ -225,7 +225,7 @@ export function Step3Results({
                     OUTPUT
                   </h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    {analysis.output_types.map((type, idx) => (
+                    {analysis.output_types?.map((type, idx) => (
                       <li key={idx}>• {type}</li>
                     ))}
                   </ul>
@@ -238,7 +238,7 @@ export function Step3Results({
                   PROCESS
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  {analysis.process_steps.map((step, idx) => (
+                  {analysis.process_steps?.map((step, idx) => (
                     <li key={idx}>{step}</li>
                   ))}
                 </ul>
@@ -247,7 +247,7 @@ export function Step3Results({
               <Separator />
 
               {/* Risks */}
-              {risks.length > 0 && (
+              {risks && risks.length > 0 && (
                 <div>
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
@@ -365,7 +365,7 @@ export function Step3Results({
                   다음 단계
                 </h3>
                 <ol className="space-y-2 text-sm">
-                  {next_steps.map((step, idx) => (
+                  {next_steps?.map((step, idx) => (
                     <li key={idx}>{idx + 1}. {step}</li>
                   ))}
                 </ol>
