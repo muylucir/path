@@ -53,7 +53,13 @@ export function MDXRenderer({ content }: MDXRendererProps) {
   useEffect(() => {
     const compileMDX = async () => {
       try {
-        const mdx = await serialize(content, {
+        // SKILL tool 태그 제거 (Agent가 생성한 태그)
+        const cleanedContent = content
+          .replace(/<skill_tool>.*?<\/skill_tool>/gs, '')
+          .replace(/<use_skill>.*?<\/use_skill>/gs, '')
+          .replace(/<skill name='.*?'>.*?<\/skill>/gs, '');
+        
+        const mdx = await serialize(cleanedContent, {
           mdxOptions: {
             remarkPlugins: [remarkGfm],
             development: false,

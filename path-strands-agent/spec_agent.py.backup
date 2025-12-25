@@ -7,7 +7,7 @@ Spec Agent with SKILL System - PATH 3단계 명세서 생성
 from strands import Agent
 from typing import Dict, Any, AsyncIterator
 import json
-from prompts import SYSTEM_PROMPT, get_selfhosted_spec_prompt, get_agentcore_spec_prompt
+from prompts import SYSTEM_PROMPT
 from skill_tool import skill_tool
 from skills.skill_utils import initialize_skills
 
@@ -22,11 +22,8 @@ class SpecAgent:
             verbose=False
         )
         
-        # 간단한 시스템 프롬프트 (역할만 정의)
-        simple_prompt = """당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다."""
-        
-        # SKILL 목록 추가
-        enhanced_prompt = simple_prompt + skill_prompt
+        # 시스템 프롬프트에 SKILL 프롬프트 추가
+        enhanced_prompt = SYSTEM_PROMPT + skill_prompt
         
         # Agent 생성 (SKILL tool 포함)
         self.agent = Agent(
@@ -37,30 +34,20 @@ class SpecAgent:
     
     def generate_spec(self, analysis: Dict[str, Any], use_agentcore: bool = False) -> str:
         """명세서 생성 - 동기 버전"""
-        prompt = self._get_agentcore_prompt(analysis) if use_agentcore else self._get_selfhosted_prompt(analysis)
+        prompt = self._get_selfhosted_prompt(analysis) if not use_agentcore else self._get_agentcore_prompt(analysis)
         result = self.agent(prompt)
-        
-        # SKILL 사용 여부 확인
-        if hasattr(result, 'metrics') and result.metrics:
-            tool_usage = result.metrics.get_summary().get('tool_usage', {})
-            if 'skill_tool' in tool_usage:
-                print(f"✅ SKILL 사용됨: {tool_usage['skill_tool']}")
-            else:
-                print("⚠️ SKILL 사용 안 됨")
-        
         return result.message['content'][0]['text']
     
     async def generate_spec_stream(self, analysis: Dict[str, Any], use_agentcore: bool = False) -> AsyncIterator[str]:
         """명세서 생성 - 스트리밍 버전"""
-        prompt = self._get_agentcore_prompt(analysis) if use_agentcore else self._get_selfhosted_prompt(analysis)
+        prompt = self._get_selfhosted_prompt(analysis) if not use_agentcore else self._get_agentcore_prompt(analysis)
         
         async for event in self.agent.stream_async(prompt):
             if "data" in event:
                 yield event["data"]
-
     
     def _get_selfhosted_prompt(self, analysis: Dict[str, Any]) -> str:
-        """Self-hosted 명세서 프롬프트"""
+        """Self-hosted 명세서 프롬프트 - PATH 웹앱과 동일"""
         return f"""다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
@@ -134,7 +121,7 @@ flowchart TD
 """
     
     def _get_agentcore_prompt(self, analysis: Dict[str, Any]) -> str:
-        """AgentCore 명세서 프롬프트"""
+        """AgentCore 명세서 프롬프트 - PATH 웹앱과 동일"""
         return f"""다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
