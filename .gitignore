@@ -83,4 +83,7 @@ agent_pattern_v3.md
 spec/
 .kiro/
 path-test-agent/
+path-test-agent/venv/
 path-strands-agent/venv/
+path-strands-agent/**/__pycache__/
+strands-skill-system/

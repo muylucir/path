@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Step3ResultsSimplified } from "@/components/steps/Step3ResultsSimplified";
+import { Step3Results } from "@/components/steps/Step3Results";
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ArrowLeft } from "lucide-react";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
 const STEPS = ["기본 정보", "Claude 분석", "결과 확인"];
@@ -24,13 +24,13 @@ export default function ResultsPage() {
     const formDataStr = sessionStorage.getItem("formData");
     const specData = sessionStorage.getItem("specification");
 
-    if (!analysisData || !chatData || !formDataStr) {
+    if (!analysisData || !formDataStr) {
       router.push("/");
       return;
     }
 
     setAnalysis(JSON.parse(analysisData));
-    setChatHistory(JSON.parse(chatData));
+    setChatHistory(chatData ? JSON.parse(chatData) : []);
     setFormData(JSON.parse(formDataStr));
     setSpecification(specData || "");
   }, [router]);
@@ -94,10 +94,22 @@ export default function ResultsPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-6 max-w-6xl">
+        {/* 세션 목록으로 돌아가기 버튼 */}
+        <div className="mb-4">
+          <Button
+            variant="outline"
+            onClick={() => router.push("/sessions")}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            세션 목록
+          </Button>
+        </div>
+        
         <StepIndicator currentStep={3} steps={STEPS} />
         
         <div className="mt-8 space-y-6">
-          <Step3ResultsSimplified
+          <Step3Results
             analysis={analysis}
             chatHistory={chatHistory}
             formData={formData}

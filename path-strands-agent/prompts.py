@@ -1,4 +1,8 @@
-export const SYSTEM_PROMPT = `당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.
+"""
+PATH 프레임워크 프롬프트 - TypeScript에서 Python으로 변환
+"""
+
+SYSTEM_PROMPT = """당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.
 
 # P.A.T.H 프레임워크란?
 
@@ -133,34 +137,35 @@ Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워�
 - 친절하고 전문적으로
 - 실무에서 바로 사용 가능한 분석 제공
 - 낙관적이지 않고 현실적으로 평가
-- 리스크를 숨기지 않고 명확히 제시`;
+- 리스크를 숨기지 않고 명확히 제시"""
 
-export function getInitialAnalysisPrompt(formData: {
-  painPoint: string;
-  inputType: string;
-  processSteps: string[];
-  outputTypes: string[];
-  humanLoop: string;
-  dataSources: Array<{ type: string; description: string }>;
-  errorTolerance: string;
-  additionalContext?: string;
-}): string {
-  const dataSourceStr = formData.dataSources
-    .filter((ds) => ds.type && ds.description)
-    .map((ds) => `- ${ds.type}: ${ds.description}`)
-    .join("\n");
 
-  return `다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
+def get_initial_analysis_prompt(form_data: dict) -> str:
+    """초기 분석 프롬프트 생성 - PATH 웹앱과 동일"""
+    data_sources = form_data.get('dataSources', [])
+    
+    # dataSources가 리스트인 경우
+    if isinstance(data_sources, list):
+        data_source_str = "\n".join([
+            f"- {ds.get('type', '')}: {ds.get('description', '')}"
+            for ds in data_sources
+            if ds.get('type') and ds.get('description')
+        ]) or "미지정"
+    else:
+        # 문자열인 경우 (하위 호환성)
+        data_source_str = data_sources or "미지정"
+    
+    return f"""다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
 
-**Pain Point**: ${formData.painPoint}
-**INPUT Type**: ${formData.inputType}
-**PROCESS Steps**: ${formData.processSteps.join(", ")}
-**OUTPUT Types**: ${formData.outputTypes.join(", ")}
-**HUMAN-IN-LOOP**: ${formData.humanLoop}
+**Pain Point**: {form_data.get('painPoint', '')}
+**INPUT Type**: {form_data.get('inputType', form_data.get('input', ''))}
+**PROCESS Steps**: {', '.join(form_data.get('processSteps', form_data.get('process', [])))}
+**OUTPUT Types**: {', '.join(form_data.get('outputTypes', form_data.get('output', [])))}
+**HUMAN-IN-LOOP**: {form_data.get('humanLoop', form_data.get('humanInLoop', ''))}
 **Data Sources**:
-${dataSourceStr || "미지정"}
-**Error Tolerance**: ${formData.errorTolerance}
-**Additional Context**: ${formData.additionalContext || "없음"}
+{data_source_str}
+**Error Tolerance**: {form_data.get('errorTolerance', '')}
+**Additional Context**: {form_data.get('additionalContext', '없음')}
 
 다음 작업을 수행하세요:
 
@@ -195,5 +200,5 @@ ${dataSourceStr || "미지정"}
 2. [질문2]
 3. [질문3]
 
-답변하시면 최종 분석을 진행합니다. 또는 "분석 완료"를 입력하면 현재 정보로 진행합니다.`;
-}
+답변하시면 최종 분석을 진행합니다. 또는 "분석 완료"를 입력하면 현재 정보로 진행합니다."""
+

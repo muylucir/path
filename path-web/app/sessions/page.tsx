@@ -13,6 +13,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Loader2, Trash2, Eye, CheckCircle, AlertTriangle, RefreshCw, Database } from "lucide-react";
 import { formatKST } from "@/lib/utils";
 import type { SessionListItem } from "@/lib/types";
@@ -22,17 +31,32 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<SessionListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"date" | "score">("date");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [pageKeys, setPageKeys] = useState<any[]>([undefined]); // 각 페이지의 시작 키
 
   useEffect(() => {
     loadSessions();
-  }, []);
+  }, [currentPage]);
 
   const loadSessions = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch("/api/sessions");
+      const lastKey = pageKeys[currentPage - 1];
+      const url = lastKey 
+        ? `/api/sessions?lastKey=${encodeURIComponent(JSON.stringify(lastKey))}`
+        : "/api/sessions";
+      
+      const response = await fetch(url);
       const data = await response.json();
+      
       setSessions(data.sessions || []);
+      setHasNextPage(!!data.lastEvaluatedKey);
+      
+      // 다음 페이지 키 저장
+      if (data.lastEvaluatedKey && !pageKeys[currentPage]) {
+        setPageKeys(prev => [...prev, data.lastEvaluatedKey]);
+      }
     } catch (error) {
       console.error("Error loading sessions:", error);
     } finally {
@@ -56,7 +80,7 @@ export default function SessionsPage() {
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
       }));
-      sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history));
+      sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history || []));
       sessionStorage.setItem("specification", session.specification || "");
       sessionStorage.setItem("analysis", JSON.stringify({
         pain_point: session.pain_point,
@@ -208,6 +232,37 @@ export default function SessionsPage() {
                 ))}
               </TableBody>
             </Table>
+          )}
+          
+          {/* 페이지네이션 */}
+          {!isLoading && sessions.length > 0 && (
+            <div className="mt-6 flex justify-center">
+              <Pagination>
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious 
+                      onClick={() => currentPage > 1 && setCurrentPage(currentPage - 1)}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  
+                  <PaginationItem>
+                    <PaginationLink isActive>
+                      {currentPage}
+                    </PaginationLink>
+                  </PaginationItem>
+                  
+                  {hasNextPage && (
+                    <PaginationItem>
+                      <PaginationNext 
+                        onClick={() => setCurrentPage(currentPage + 1)}
+                        className="cursor-pointer"
+                      />
+                    </PaginationItem>
+                  )}
+                </PaginationContent>
+              </Pagination>
+            </div>
           )}
         </CardContent>
       </Card>

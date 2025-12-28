@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Step1FormClean } from "@/components/steps/Step1FormClean";
+import { Step1Form } from "@/components/steps/Step1Form";
 import type { FormValues } from "@/lib/schema";
 
 export default function Home() {
@@ -28,7 +28,7 @@ export default function Home() {
           </p>
         </div>
 
-        <Step1FormClean onSubmit={handleSubmit} />
+        <Step1Form onSubmit={handleSubmit} />
       </div>
     </div>
   );

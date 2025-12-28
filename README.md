@@ -1,41 +1,40 @@
 # P.A.T.H Agent Designer
 
-AI Agent 아이디어를 **프로토타입으로 검증**하는 Streamlit 기반 웹 애플리케이션
+AI Agent 아이디어를 **프로토타입으로 검증**하는 Next.js 기반 웹 애플리케이션
 
 ## 개요
 
-P.A.T.H (Problem → Agent → Technical → Handoff) 프레임워크를 사용하여 AI Agent 아이디어를 구조화하고, 실현 가능성을 평가하며, 구현 명세서를 자동 생성합니다.
+P.A.T.H (Problem → Agent → Technical → Handoff) 프레임워크를 사용하여 AI Agent 아이디어를 구조화하고, 실현 가능성을 평가하며, **Strands Agent 기반 구현 명세서**를 자동 생성합니다.
 
 ### 주요 기능
 
 - 🤖 **Claude Sonnet 4.5 기반 분석** - 대화형 인터페이스로 아이디어 검증
 - 📊 **Feasibility 평가** - 5개 항목 50점 만점 평가
-- 📋 **자동 명세서 생성** - 시퀀스 다이어그램, 플로우차트 포함
+- 📋 **자동 명세서 생성** - Strands Agent 구현 가이드 포함
+- 🏗️ **호스팅 환경 선택** - EC2/ECS/EKS 또는 Amazon Bedrock AgentCore
 - 💾 **세션 저장/불러오기** - DynamoDB 기반 이력 관리
-- 🎯 **AI Agent 패턴** - Reflection, Tool Use, Planning, Multi-Agent
+- 🎯 **Strands Agent 패턴** - Graph, Agent-as-Tool, Invocation State
 
-## 설치
+## 설치 및 실행
 
 ### 1. 의존성 설치
 
 ```bash
-cd path
-pip install streamlit boto3
-```
-
-또는 uv 사용:
-```bash
-uv sync
+cd path-web
+npm install
 ```
 
 ### 2. DynamoDB 테이블 생성
 
 ```bash
-python create_dynamodb_table.py
+# AWS CLI로 테이블 생성
+aws dynamodb create-table \
+  --table-name path-agent-sessions \
+  --attribute-definitions AttributeName=id,AttributeType=S \
+  --key-schema AttributeName=id,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --region ap-northeast-2
 ```
-
-테이블 이름: `path-agent-sessions`
-리전: `ap-northeast-2`
 
 ### 3. AWS 자격증명 설정
 
@@ -47,29 +46,45 @@ export AWS_SECRET_ACCESS_KEY=your_secret
 export AWS_DEFAULT_REGION=ap-northeast-2
 ```
 
-## 실행
+### 4. 환경 변수 설정
+
+`path-web/.env.local` 파일 생성:
 
 ```bash
-streamlit run app.py
+AWS_REGION=ap-northeast-2
 ```
 
-브라우저에서 자동으로 열립니다: http://localhost:8501
+### 5. 개발 서버 실행
+
+```bash
+cd path-web
+npm run dev
+```
+
+브라우저에서 http://localhost:3000 접속
 
 ## 사용 방법
 
 ### Step 1: 기본 정보 입력
 
-1. **Pain Point** 입력 - 해결하고 싶은 문제
-2. **INPUT** 선택 - 트리거 타입 (Event-Driven, Scheduled, On-Demand, Streaming, Conditional)
-3. **PROCESS** 선택 - 필요한 작업 (복수 선택 가능)
-   - 데이터 수집
-   - 분석/분류
-   - 판단/평가
-   - 콘텐츠 생성
-   - 검증/개선
-   - 실행/연동
-4. **OUTPUT** 선택 - 결과물 타입 (Decision, Content, Notification, Action, Insight)
-5. **Human-in-Loop** 선택 - 사람 개입 시점 (None, Review, Exception, Collaborate)
+1. **호스팅 환경** 선택
+   - EC2/ECS/EKS ↔ AgentCore (토글 스위치)
+
+2. **Pain Point** 입력 - 해결하고 싶은 문제
+
+3. **INPUT** 선택 - 트리거 타입 (Event-Driven, Scheduled, On-Demand, Streaming, Conditional)
+
+4. **PROCESS** 선택 - 필요한 작업 (복수 선택 가능)
+   - 데이터 수집, 분석/분류, 판단/평가, 콘텐츠 생성, 검증/개선, 실행/연동
+
+5. **OUTPUT** 선택 - 결과물 타입 (복수 선택 가능)
+   - Decision, Content, Notification, Action, Insight
+
+6. **Human-in-Loop** 선택 - 사람 개입 시점 (None, Review, Exception, Collaborate)
+
+7. **Data Sources** 입력 - MCP Server, RAG, API, Database, File, Web Scraping
+
+8. **Error Tolerance** 선택
 
 ### Step 2: Claude 분석
 
@@ -79,11 +94,10 @@ streamlit run app.py
 
 ### Step 3: 결과 확인
 
-5개 탭으로 구성:
-- **📊 상세 분석** - Problem Decomposition, Feasibility 점수, 추천 패턴
+4개 탭으로 구성:
+- **📊 상세 분석** - Feasibility 점수, Strands Agent 구현 전략
 - **💬 대화 내역** - Step 2의 전체 대화
-- **📋 명세서** - 구현 명세서 생성 및 다운로드
-- **⚠️ 리스크** - 리스크 및 개선 사항
+- **📋 명세서** - Strands Agent 구현 명세서 생성 및 다운로드
 - **🚀 다음 단계** - 다음 액션 및 세션 저장
 
 ## P.A.T.H 프레임워크
@@ -95,16 +109,16 @@ Pain Point를 4가지 요소로 분해:
 - **OUTPUT**: 결과물은 무엇인가?
 - **HUMAN-IN-LOOP**: 사람 개입 시점은?
 
-### Phase 2: Agent Pattern Mapping
-Andrew Ng의 4가지 패턴:
-- **Reflection**: 품질 검증 후 자가 개선
-- **Tool Use**: 외부 도구/API 호출
-- **Planning**: 단계별 분해 실행
-- **Multi-Agent**: 여러 에이전트 협업
+### Phase 2: Strands Agent 구현 전략
+4가지 패턴을 Strands Agent로 구현:
+- **Reflection** → Graph의 순환 구조 (self-review loop)
+- **Tool Use** → Agent-as-Tool 직접 활용
+- **Planning** → Graph의 순차 노드 구조
+- **Multi-Agent** → Graph + Agent-as-Tool 조합
 
 ### Phase 3: Feasibility Check
 5개 항목 평가 (총 50점):
-1. 데이터 접근성 (10점)
+1. 데이터 접근성 (10점) - MCP/RAG: 10점, API: 9점
 2. 판단 기준 명확성 (10점)
 3. 오류 허용도 (10점)
 4. 지연 요구사항 (10점)
@@ -117,30 +131,56 @@ Andrew Ng의 4가지 패턴:
 - 20점 미만: ❌ 대안 모색
 
 ### Phase 4: Handoff Specification
-구현 명세서 자동 생성:
+호스팅 환경에 따른 명세서 생성:
+
+**Self-hosted (EC2/ECS/EKS)**
 1. Executive Summary
-2. Problem Decomposition
-3. Architecture (시퀀스 다이어그램, 플로우차트)
-4. Agent Components
-5. Technical Stack
+2. Strands Agent 구현
+3. Architecture (Mermaid 다이어그램)
+4. Problem Decomposition
+
+**Amazon Bedrock AgentCore**
+1. Executive Summary
+2. Strands Agent 구현 + **AgentCore 서비스 구성**
+3. Architecture (AgentCore 기반 다이어그램)
+4. Problem Decomposition
+
+## Amazon Bedrock AgentCore
+
+AgentCore를 선택하면 명세서에 다음 서비스 활용 가이드가 추가됩니다:
+
+- **AgentCore Runtime** (필수): 서버리스 에이전트 호스팅
+- **AgentCore Memory** (필요시): 단기/장기 메모리 관리
+- **AgentCore Gateway** (필요시): API/Lambda를 MCP 도구로 변환
+- **AgentCore Identity** (필요시): OAuth 연동 및 API 키 관리
+- **AgentCore Browser** (필요시): 웹 자동화
+- **AgentCore Code Interpreter** (필요시): 코드 실행
 
 ## 기술 스택
 
-- **Frontend**: Streamlit 1.x
-- **LLM**: Claude Sonnet 4.5 (AWS Bedrock)
+- **Frontend**: Next.js 15, React 19, TypeScript
+- **UI**: Tailwind CSS, shadcn/ui
+- **LLM**: Claude Sonnet 4.5, Haiku 4.5 (AWS Bedrock)
 - **Database**: DynamoDB (세션 저장)
-- **Language**: Python 3.12+
 - **Cloud**: AWS
 
 ## 프로젝트 구조
 
 ```
 path/
-├── app.py                      # 메인 Streamlit 애플리케이션
-├── create_dynamodb_table.py    # DynamoDB 테이블 생성 스크립트
-├── README.md                   # 이 파일
-├── pyproject.toml              # 프로젝트 설정
-└── .venv/                      # 가상환경
+├── path-web/                       # Next.js 웹 애플리케이션
+│   ├── app/
+│   │   ├── page.tsx                # Step 1: 기본 정보 입력
+│   │   ├── analyze/page.tsx        # Step 2: Claude 분석
+│   │   ├── results/page.tsx        # Step 3: 결과 확인
+│   │   ├── sessions/page.tsx       # 세션 관리
+│   │   └── api/bedrock/            # Bedrock API 라우트
+│   ├── components/                 # React 컴포넌트
+│   ├── lib/                        # 유틸리티 및 설정
+│   └── public/                     # 정적 파일
+├── spec/                           # 생성된 명세서 예시
+├── PATH.md                         # P.A.T.H 프레임워크 문서
+└── README.md                       # 이 파일
 ```
 
 ## 환경 변수
@@ -153,6 +193,24 @@ path/
 - `dynamodb:Scan` - 세션 목록 조회
 - `dynamodb:DeleteItem` - 세션 삭제
 
+## 배포
+
+### Vercel (권장)
+
+```bash
+cd path-web
+vercel --prod
+```
+
+### AWS Amplify
+
+1. GitHub 리포지토리 연결
+2. 빌드 설정:
+   - Build command: `npm run build`
+   - Output directory: `.next`
+   - Root directory: `path-web`
+3. 환경 변수 설정
+
 ## 주요 기능
 
 ### 1. 대화형 분석
@@ -160,15 +218,21 @@ path/
 - 실시간 스트리밍 응답
 - 최대 3턴 대화로 빠른 의사결정
 
-### 2. 자동 명세서 생성
-- 5개 핵심 섹션 (프로토타입 중심)
+### 2. Strands Agent 명세서 생성
+- Strands Agent 구현 가이드
+- Graph 구조 및 Agent-as-Tool 활용법
 - Mermaid 다이어그램 자동 생성
+- AgentCore 서비스 조합 가이드 (선택 시)
 - Markdown 다운로드
 
 ### 3. 세션 관리
 - DynamoDB에 분석 결과 저장
 - 이전 세션 불러오기
 - 세션 삭제
+
+### 4. 호스팅 환경 선택
+- Self-hosted (EC2/ECS/EKS): 직접 인프라 관리
+- AgentCore: 서버리스 관리형 환경
 
 ## 라이선스
 
@@ -180,6 +244,7 @@ MIT
 
 ## 참고
 
-- [P.A.T.H 프레임워크 문서](../PATH.md)
-- [Andrew Ng's Agentic Design Patterns](https://www.deeplearning.ai/the-batch/how-agents-can-improve-llm-performance/)
-- [Streamlit Documentation](https://docs.streamlit.io/)
+- [P.A.T.H 프레임워크 문서](PATH.md)
+- [Strands Agents](https://strandsagents.com/)
+- [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/)
+- [Next.js Documentation](https://nextjs.org/docs)

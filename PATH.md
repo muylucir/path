@@ -136,6 +136,7 @@ Human-in-Loop: Exception (불확실할 때만)
 **Claude 분석:**
 ```
 - 추천 패턴: Planning (분류 → 검색 → 생성)
+- Strands 구현: Graph의 순차 노드 구조
 - Feasibility: 42/50
   - 데이터 접근성: 9/10 (Gmail API)
   - 판단 명확성: 9/10 (1000+ 과거 이메일)
@@ -146,9 +147,9 @@ Human-in-Loop: Exception (불확실할 때만)
 ```
 
 **명세서 생성:**
-- Architecture 다이어그램 자동 생성
-- 3개 Agent 구조 제시
-- Technical Stack 추천
+- Strands Agent 구현 가이드
+- Graph 구조 및 Agent-as-Tool 활용법
+- MCP 서버 연동 방법
 
 **결과:**
 - 구현 가능 여부 확인
@@ -168,6 +169,7 @@ Human-in-Loop: Review (법무팀 최종 검토)
 **Claude 분석:**
 ```
 - 추천 패턴: Planning (파싱 → 분석 → 보고서)
+- Strands 구현: Graph의 순차 노드 구조
 - Feasibility: 35/50
   - 데이터 접근성: 9/10 (PDF)
   - 판단 명확성: 5/10 (법률 전문 지식 필요) ⚠️
@@ -198,16 +200,16 @@ Pain Point를 4가지 요소로 분해:
 | **OUTPUT** | 결과물은 무엇인가? | Decision, Content, Notification, Action, Insight |
 | **Human-in-Loop** | 사람 개입 시점은? | None, Review, Exception, Collaborate |
 
-### Phase 2: Agent Pattern Mapping
+### Phase 2: Strands Agent 구현 전략
 
-Andrew Ng의 4가지 패턴:
+4가지 패턴을 Strands Agent로 구현:
 
-| 패턴 | 언제 사용 | 예시 | 구현 시간 |
-|------|----------|------|----------|
-| **Reflection** | 품질 검증 후 자가 개선 | 코드 생성, 제안서 작성 |
-| **Tool Use** | 외부 도구/API 호출 | 웹 검색, DB 조회, 계산 |
-| **Planning** | 단계별 분해 실행 | 여행 계획, 보고서 작성 |
-| **Multi-Agent** | 여러 에이전트 협업 | 시장 조사, 코드 리뷰 |
+| 패턴 | Strands 구현 | 예시 | 구현 방법 |
+|------|-------------|------|----------|
+| **Reflection** | Graph의 순환 구조 | 코드 생성 → 검토 → 개선 | self-review loop |
+| **Tool Use** | Agent-as-Tool 직접 활용 | 웹 검색, DB 조회, 계산 | MCP 서버 연동 |
+| **Planning** | Graph의 순차 노드 구조 | 여행 계획, 보고서 작성 | 단계별 노드 체인 |
+| **Multi-Agent** | Graph + Agent-as-Tool 조합 | 시장 조사, 코드 리뷰 | 여러 Agent 협업 |
 
 ### Phase 3: Feasibility Check
 
@@ -229,12 +231,14 @@ Andrew Ng의 4가지 패턴:
 
 ### Phase 4: Handoff Specification
 
-자동 생성되는 명세서 (5개 섹션):
+자동 생성되는 명세서 (4개 섹션):
 1. Executive Summary
-2. Problem Decomposition
-3. Architecture (시퀀스 다이어그램, 플로우차트)
-4. Agent Components
-5. Technical Stack
+2. Strands Agent 구현 가이드
+   - Graph 구조 설계
+   - Agent-as-Tool 활용법
+   - MCP 서버 연동
+3. Architecture (Strands 기반 다이어그램)
+4. Problem Decomposition
 
 ---
 
@@ -243,9 +247,11 @@ Andrew Ng의 4가지 패턴:
 ### 1. 웹 애플리케이션 실행
 
 ```bash
-cd path
-streamlit run app.py
+cd path-web
+npm run dev
 ```
+
+브라우저에서 http://localhost:3000 접속
 
 ### 2. 3단계 프로세스
 
@@ -260,17 +266,16 @@ streamlit run app.py
 - "분석 완료" 클릭
 
 #### Step 3: 결과 확인
-- 📊 상세 분석: Feasibility 점수, 추천 패턴
+- 📊 상세 분석: Feasibility 점수, Strands Agent 구현 전략
 - 💬 대화 내역: Claude와의 전체 대화
-- 📋 명세서: 구현 명세서 자동 생성 및 다운로드
-- ⚠️ 리스크: 주의사항 및 개선 필요 항목
+- 📋 명세서: Strands Agent 구현 명세서 생성 및 다운로드
 - 🚀 다음 단계: 세션 저장
 
 ### 3. 결과물
 
 **즉시 얻을 수 있는 것:**
 - ✅ Go/No-Go 의사결정 근거
-- ✅ 추천 Agent 패턴
+- ✅ Strands Agent 구현 전략
 - ✅ Feasibility 점수 (50점 만점)
 - ✅ 구현 명세서 (Markdown)
-- ✅ Architecture 다이어그램 (Mermaid)
+- ✅ Strands 기반 다이어그램 (Mermaid)
