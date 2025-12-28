@@ -80,3 +80,7 @@ prompt_v3.txt
 agent_pattern_v3.md
 
 
+spec/
+.kiro/
+path-test-agent/
+path-strands-agent/venv/
