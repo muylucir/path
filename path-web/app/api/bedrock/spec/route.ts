@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 
 const STRANDS_API_URL = process.env.STRANDS_API_URL || "http://localhost:8001";
 
-export const maxDuration = 300;
+export const maxDuration = 600; // 10분 타임아웃
 
 export async function POST(req: NextRequest) {
   try {
