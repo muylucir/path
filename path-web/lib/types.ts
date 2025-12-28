@@ -57,6 +57,7 @@ export interface Session {
   data_source: string;
   error_tolerance: string;
   additional_context: string;
+  use_agentcore: boolean;
   pattern: string;
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;

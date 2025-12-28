@@ -47,11 +47,12 @@ export function SessionList() {
         painPoint: session.pain_point,
         inputType: session.input_type,
         processSteps: session.process_steps,
-        outputType: session.output_type,
+        outputTypes: [session.output_type],
         humanLoop: session.human_loop,
-        dataSource: session.data_source,
+        dataSources: [],
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
+        useAgentCore: session.use_agentcore || false,
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history));
       sessionStorage.setItem("analysis", JSON.stringify({

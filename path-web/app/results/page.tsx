@@ -48,6 +48,7 @@ export default function ResultsPage() {
         data_source: formData.dataSources?.map((ds: any) => `${ds.type}: ${ds.description}`).join(", ") || "",
         error_tolerance: formData.errorTolerance || "",
         additional_context: formData.additionalContext || "",
+        use_agentcore: formData.useAgentCore || false,
         pattern: analysis.pattern,
         pattern_reason: analysis.pattern_reason,
         feasibility_breakdown: analysis.feasibility_breakdown,

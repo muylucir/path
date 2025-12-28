@@ -1,30 +1,43 @@
 # P.A.T.H Agent Designer
 
-AI Agent 아이디어를 **프로토타입으로 검증**하는 Next.js 기반 웹 애플리케이션
+AI Agent 아이디어를 **프로토타입으로 검증**하는 3-Tier 웹 애플리케이션
 
 ## 개요
 
 P.A.T.H (Problem → Agent → Technical → Handoff) 프레임워크를 사용하여 AI Agent 아이디어를 구조화하고, 실현 가능성을 평가하며, **Strands Agent 기반 구현 명세서**를 자동 생성합니다.
 
+**Architecture**: Three-tier application
+- **Frontend**: Next.js 15 (TypeScript, React 19) on port 3009
+- **Backend**: FastAPI (Python) on port 8001
+- **LLM**: AWS Bedrock Claude Sonnet 4.5 via Strands Agents SDK
+
 ### 주요 기능
 
-- 🤖 **Claude Sonnet 4.5 기반 분석** - 대화형 인터페이스로 아이디어 검증
+- 🤖 **Strands Agents SDK 기반 분석** - 4단계 Agent 파이프라인으로 명세서 생성
 - 📊 **Feasibility 평가** - 5개 항목 50점 만점 평가
-- 📋 **자동 명세서 생성** - Strands Agent 구현 가이드 포함
-- 🏗️ **호스팅 환경 선택** - EC2/ECS/EKS 또는 Amazon Bedrock AgentCore
+- 📋 **자동 명세서 생성** - PatternAgent → AgentCoreAgent → ArchitectureAgent → AssemblerAgent
+- 🏗️ **호스팅 환경 선택** - Self-hosted 또는 Amazon Bedrock AgentCore
 - 💾 **세션 저장/불러오기** - DynamoDB 기반 이력 관리
-- 🎯 **Strands Agent 패턴** - Graph, Agent-as-Tool, Invocation State
+- 🎯 **Strands Agent 패턴** - Graph, Planning, Multi-Agent, Reflection, Agent-as-Tool
+- 🛠️ **Skill Tool System** - strands-agent-patterns, agentcore-services, mermaid-diagrams 스킬로 베스트 프랙티스 자동 반영
 
 ## 설치 및 실행
 
-### 1. 의존성 설치
+### 1. Frontend 의존성 설치
 
 ```bash
 cd path-web
 npm install
 ```
 
-### 2. DynamoDB 테이블 생성
+### 2. Backend 의존성 설치
+
+```bash
+cd path-strands-agent
+pip install -r requirements.txt
+```
+
+### 3. DynamoDB 테이블 생성
 
 ```bash
 # AWS CLI로 테이블 생성
@@ -36,7 +49,38 @@ aws dynamodb create-table \
   --region ap-northeast-2
 ```
 
-### 3. AWS 자격증명 설정
+**DynamoDB 스키마**:
+```typescript
+{
+  session_id: string,           // UUID (Primary Key)
+  timestamp: string,            // ISO8601
+  pain_point: string,
+  input_type: string,
+  process_steps: string[],
+  output_type: string,
+  human_loop: string,
+  error_tolerance: string,
+  additional_context: string,
+  use_agentcore: boolean,       // 호스팅 환경 선택 (추가됨)
+  pattern: string,
+  pattern_reason: string,
+  feasibility_breakdown: {
+    data_access: number,        // 0-10
+    decision_clarity: number,   // 0-10
+    error_tolerance: number,    // 0-10
+    latency: number,            // 0-10
+    integration: number         // 0-10
+  },
+  feasibility_score: number,    // 0-50
+  recommendation: string,
+  risks: string[],
+  next_steps: string[],
+  chat_history: Array<{role: string, content: string}>,
+  specification: string         // Markdown
+}
+```
+
+### 4. AWS 자격증명 설정
 
 ```bash
 aws configure
@@ -46,7 +90,7 @@ export AWS_SECRET_ACCESS_KEY=your_secret
 export AWS_DEFAULT_REGION=ap-northeast-2
 ```
 
-### 4. 환경 변수 설정
+### 5. 환경 변수 설정
 
 `path-web/.env.local` 파일 생성:
 
@@ -54,14 +98,23 @@ export AWS_DEFAULT_REGION=ap-northeast-2
 AWS_REGION=ap-northeast-2
 ```
 
-### 5. 개발 서버 실행
+### 6. 개발 서버 실행
 
+**Terminal 1 - Backend (FastAPI)**:
+```bash
+cd path-strands-agent
+python api_server.py
+# FastAPI 서버가 포트 8001에서 실행됩니다
+```
+
+**Terminal 2 - Frontend (Next.js)**:
 ```bash
 cd path-web
 npm run dev
+# Next.js 개발 서버가 포트 3009에서 실행됩니다
 ```
 
-브라우저에서 http://localhost:3000 접속
+브라우저에서 http://localhost:3009 접속
 
 ## 사용 방법
 
@@ -158,27 +211,55 @@ AgentCore를 선택하면 명세서에 다음 서비스 활용 가이드가 추�
 
 ## 기술 스택
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **UI**: Tailwind CSS, shadcn/ui
-- **LLM**: Claude Sonnet 4.5, Haiku 4.5 (AWS Bedrock)
+### Frontend
+- **Framework**: Next.js 15, React 19, TypeScript
+- **UI**: Tailwind CSS, shadcn/ui, react-markdown, mermaid
+- **State Management**: React Hooks, sessionStorage
+
+### Backend
+- **Framework**: FastAPI (Python)
+- **LLM SDK**: Strands Agents SDK
+- **Agent Architecture**: Multi-Stage Pipeline (4 Agents)
+
+### Infrastructure
+- **LLM**: AWS Bedrock Claude Sonnet 4.5, Haiku 4.5
 - **Database**: DynamoDB (세션 저장)
 - **Cloud**: AWS
+- **Deployment**: Vercel (Frontend), EC2 (Backend)
 
 ## 프로젝트 구조
 
 ```
 path/
-├── path-web/                       # Next.js 웹 애플리케이션
+├── path-web/                       # Next.js Frontend (Port 3009)
 │   ├── app/
 │   │   ├── page.tsx                # Step 1: 기본 정보 입력
 │   │   ├── analyze/page.tsx        # Step 2: Claude 분석
 │   │   ├── results/page.tsx        # Step 3: 결과 확인
 │   │   ├── sessions/page.tsx       # 세션 관리
-│   │   └── api/bedrock/            # Bedrock API 라우트
+│   │   └── api/
+│   │       ├── bedrock/            # Bedrock API 프록시 (→ FastAPI)
+│   │       └── sessions/           # DynamoDB 세션 관리
 │   ├── components/                 # React 컴포넌트
+│   │   ├── steps/                  # Step 1-3 컴포넌트
+│   │   ├── analysis/               # 분석 결과 컴포넌트
+│   │   └── sessions/               # 세션 관리 컴포넌트
 │   ├── lib/                        # 유틸리티 및 설정
 │   └── public/                     # 정적 파일
-├── spec/                           # 생성된 명세서 예시
+│
+├── path-strands-agent/             # FastAPI Backend (Port 8001)
+│   ├── api_server.py               # FastAPI 엔트리포인트
+│   ├── chat_agent.py               # AnalyzerAgent, ChatAgent, EvaluatorAgent
+│   ├── multi_stage_spec_agent.py   # 4단계 명세서 생성 파이프라인
+│   ├── prompts.py                  # 프롬프트 템플릿
+│   ├── skill_tool.py               # Skill Tool 시스템
+│   ├── skills/                     # Skill 디렉토리
+│   │   ├── strands-agent-patterns/ # Strands Agent 패턴 가이드
+│   │   ├── agentcore-services/     # AgentCore 서비스 베스트 프랙티스
+│   │   └── mermaid-diagrams/       # Mermaid 다이어그램 템플릿
+│   └── requirements.txt            # Python 의존성
+│
+├── CLAUDE.md                       # Claude Code 가이드
 ├── PATH.md                         # P.A.T.H 프레임워크 문서
 └── README.md                       # 이 파일
 ```
@@ -214,25 +295,51 @@ vercel --prod
 ## 주요 기능
 
 ### 1. 대화형 분석
-- Claude와 자연스러운 대화로 아이디어 검증
-- 실시간 스트리밍 응답
-- 최대 3턴 대화로 빠른 의사결정
+- **AnalyzerAgent**: 초기 분석 수행
+- **ChatAgent**: 세션 기반 대화 (최대 3턴)
+- **EvaluatorAgent**: 최종 Feasibility 평가 (50점 만점)
+- 실시간 Server-Sent Events (SSE) 스트리밍
 
-### 2. Strands Agent 명세서 생성
-- Strands Agent 구현 가이드
-- Graph 구조 및 Agent-as-Tool 활용법
-- Mermaid 다이어그램 자동 생성
-- AgentCore 서비스 조합 가이드 (선택 시)
-- Markdown 다운로드
+### 2. 4단계 명세서 생성 파이프라인
+**MultiStageSpecAgent**가 4개의 전문 Agent를 순차 실행:
 
-### 3. 세션 관리
-- DynamoDB에 분석 결과 저장
-- 이전 세션 불러오기
+1. **PatternAgent (0-25% 진행률)**:
+   - `<skill_tool>strands-agent-patterns</skill_tool>` 사용
+   - Graph, Planning, Multi-Agent, Reflection 패턴 분석
+   - Agent Components 테이블 생성
+   - Invocation State 설계
+
+2. **AgentCoreAgent (25-50%, 조건부)**:
+   - `<skill_tool>agentcore-services</skill_tool>` 사용
+   - **1개 Runtime으로 Multi-Agent Graph 호스팅** (핵심 원칙)
+   - Runtime, Memory, Gateway, Identity, Browser, Code Interpreter 서비스 구성
+   - useAgentCore=true일 때만 실행
+
+3. **ArchitectureAgent (50-75%)**:
+   - `<skill_tool>mermaid-diagrams</skill_tool>` 사용
+   - Graph Structure, Sequence Diagram, Architecture Flowchart 생성
+   - subgraph, classDef, activate/deactivate 패턴 활용
+
+4. **AssemblerAgent (75-100%)**:
+   - 위 3개 Agent 결과를 최종 Markdown으로 조합
+   - 스트리밍 출력 (100자 단위 청크)
+   - 진행률 75% → 95% → 100%
+
+### 3. Skill Tool System
+각 Agent가 베스트 프랙티스를 자동으로 참조:
+- **strands-agent-patterns**: Graph 구조, 조건부 라우팅, Reflection 루프
+- **agentcore-services**: "1 Runtime으로 Multi-Agent 호스팅" 원칙
+- **mermaid-diagrams**: Sequence Diagram activate/deactivate 오류 방지
+
+### 4. 세션 관리
+- DynamoDB에 분석 결과 + useAgentCore 저장
+- 이전 세션 불러오기 및 명세서 재생성
 - 세션 삭제
+- 페이지네이션 지원 (15개씩)
 
-### 4. 호스팅 환경 선택
-- Self-hosted (EC2/ECS/EKS): 직접 인프라 관리
-- AgentCore: 서버리스 관리형 환경
+### 5. 호스팅 환경 선택
+- **Self-hosted (EC2/ECS/EKS)**: 직접 인프라 관리
+- **AgentCore**: 서버리스 관리형 환경 (1개 Runtime 사용)
 
 ## 라이선스
 
@@ -242,9 +349,32 @@ MIT
 
 이슈 및 PR 환영합니다!
 
+## API 엔드포인트
+
+### FastAPI Backend (Port 8001)
+
+- `POST /analyze` - 초기 분석 (AnalyzerAgent, SSE 스트리밍)
+- `POST /chat` - 대화 (ChatAgent, SSE 스트리밍)
+- `POST /finalize` - 최종 평가 (EvaluatorAgent, JSON)
+- `POST /spec` - 명세서 생성 (MultiStageSpecAgent, SSE 스트리밍)
+- `GET /health` - 헬스체크
+
+### Next.js API Routes (Port 3009)
+
+- `POST /api/bedrock/analyze` → FastAPI `/analyze` 프록시
+- `POST /api/bedrock/chat` → FastAPI `/chat` 프록시
+- `POST /api/bedrock/finalize` → FastAPI `/finalize` 프록시
+- `POST /api/bedrock/spec` → FastAPI `/spec` 프록시
+- `GET /api/sessions` - DynamoDB 세션 목록
+- `POST /api/sessions` - DynamoDB 세션 저장
+- `GET /api/sessions/[id]` - DynamoDB 세션 로드
+- `DELETE /api/sessions/[id]` - DynamoDB 세션 삭제
+
 ## 참고
 
+- [CLAUDE.md](CLAUDE.md) - Claude Code 작업 가이드 (프로젝트 구조, 아키텍처, 명령어)
 - [P.A.T.H 프레임워크 문서](PATH.md)
 - [Strands Agents](https://strandsagents.com/)
 - [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/)
 - [Next.js Documentation](https://nextjs.org/docs)
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)

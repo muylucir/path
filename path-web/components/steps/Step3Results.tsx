@@ -39,15 +39,22 @@ export function Step3Results({
     }
   };
 
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState("");
+
   const generateSpec = async () => {
     setIsGenerating(true);
+    setProgress(0);
+    setStage("시작 중...");
     let fullSpec = "";
+
+    const useAgentCore = formData?.useAgentCore || false;
 
     try {
       const response = await fetch("/api/bedrock/spec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis, useAgentCore: formData?.useAgentCore }),
+        body: JSON.stringify({ analysis, useAgentCore }),
       });
 
       const reader = response.body?.getReader();
@@ -68,14 +75,28 @@ export function Step3Results({
                 setSpecification(fullSpec);
                 sessionStorage.setItem("specification", fullSpec);
                 setIsGenerating(false);
-                // 명세서 생성 완료 후 자동 저장
-                await onSave(fullSpec);
+                setProgress(100);
+                setStage("완료");
                 return;
               }
               try {
                 const parsed = JSON.parse(data);
-                fullSpec += parsed.text;
-                setSpecification(fullSpec);
+
+                // Progress 업데이트
+                if (parsed.progress !== undefined) {
+                  setProgress(parsed.progress);
+                }
+
+                // Stage 업데이트
+                if (parsed.stage) {
+                  setStage(parsed.stage);
+                }
+
+                // 명세서 텍스트 추가 (text 필드가 있을 때만)
+                if (parsed.text) {
+                  fullSpec += parsed.text;
+                  setSpecification(fullSpec);
+                }
               } catch (e) {
                 // Ignore
               }
@@ -188,7 +209,7 @@ export function Step3Results({
               <div>
                 <h3 className="font-semibold mb-4">Feasibility 점수</h3>
                 <div className="space-y-3">
-                  {Object.entries(feasibility_breakdown).map(([key, value]) => {
+                  {feasibility_breakdown && Object.entries(feasibility_breakdown).map(([key, value]) => {
                     const score = typeof value === 'object' && value !== null ? value.score : value;
                     const reason = typeof value === 'object' && value !== null ? value.reason : '';
                     
@@ -225,7 +246,7 @@ export function Step3Results({
                     OUTPUT
                   </h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
-                    {analysis.output_types.map((type, idx) => (
+                    {analysis.output_types?.map((type, idx) => (
                       <li key={idx}>• {type}</li>
                     ))}
                   </ul>
@@ -238,7 +259,7 @@ export function Step3Results({
                   PROCESS
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
-                  {analysis.process_steps.map((step, idx) => (
+                  {analysis.process_steps?.map((step, idx) => (
                     <li key={idx}>{step}</li>
                   ))}
                 </ul>
@@ -247,7 +268,7 @@ export function Step3Results({
               <Separator />
 
               {/* Risks */}
-              {risks.length > 0 && (
+              {risks && risks.length > 0 && (
                 <div>
                   <h3 className="font-semibold mb-3 flex items-center gap-2">
                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
@@ -315,24 +336,36 @@ export function Step3Results({
 
               {(specification || isGenerating) && (
                 <>
-                  <div className="flex gap-2">
-                    {!isGenerating && (
-                      <>
-                        <Button onClick={generateSpec} variant="outline" className="flex-1">
-                          <Loader2 className="h-4 w-4 mr-2" />
-                          재생성
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      {!isGenerating && (
+                        <>
+                          <Button onClick={generateSpec} variant="outline" className="flex-1">
+                            <Loader2 className="h-4 w-4 mr-2" />
+                            재생성
+                          </Button>
+                          <Button onClick={downloadSpec} className="flex-1">
+                            <Download className="h-4 w-4 mr-2" />
+                            다운로드
+                          </Button>
+                        </>
+                      )}
+                      {isGenerating && (
+                        <Button disabled className="w-full">
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          생성 중...
                         </Button>
-                        <Button onClick={downloadSpec} className="flex-1">
-                          <Download className="h-4 w-4 mr-2" />
-                          다운로드
-                        </Button>
-                      </>
-                    )}
+                      )}
+                    </div>
+
                     {isGenerating && (
-                      <Button disabled className="w-full">
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        생성 중...
-                      </Button>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{stage}</span>
+                          <span className="font-medium">{progress}%</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
                     )}
                   </div>
 
@@ -340,10 +373,6 @@ export function Step3Results({
                     {isGenerating ? (
                       <>
                         <pre className="text-sm whitespace-pre-wrap font-mono">{specification}</pre>
-                        <div className="flex items-center gap-2 mt-4">
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm text-muted-foreground">생성 중...</span>
-                        </div>
                       </>
                     ) : (
                       <MDXRenderer content={specification} />
@@ -365,7 +394,7 @@ export function Step3Results({
                   다음 단계
                 </h3>
                 <ol className="space-y-2 text-sm">
-                  {next_steps.map((step, idx) => (
+                  {next_steps?.map((step, idx) => (
                     <li key={idx}>{idx + 1}. {step}</li>
                   ))}
                 </ol>

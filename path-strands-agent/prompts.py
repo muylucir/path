@@ -2,6 +2,8 @@
 PATH 프레임워크 프롬프트 - TypeScript에서 Python으로 변환
 """
 
+import json
+
 SYSTEM_PROMPT = """당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.
 
 # P.A.T.H 프레임워크란?
@@ -202,3 +204,183 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 
 답변하시면 최종 분석을 진행합니다. 또는 "분석 완료"를 입력하면 현재 정보로 진행합니다."""
 
+
+
+
+def get_selfhosted_spec_prompt(analysis: dict) -> str:
+    """Self-hosted 명세서 프롬프트 - SKILL 사용"""
+    return f"""다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요:
+
+{json.dumps(analysis, indent=2, ensure_ascii=False)}
+
+**중요: 반드시 다음 순서로 SKILL을 사용하세요:**
+1. skill_tool을 사용하여 "strands-agent-patterns" SKILL 로드
+2. skill_tool을 사용하여 "mermaid-diagrams" SKILL 로드
+3. 로드한 SKILL의 정보를 바탕으로 명세서 작성
+
+# AI Agent Design Specification
+
+## 1. Executive Summary
+- **Problem**: 해결하려는 문제 (1문장)
+- **Solution**: Strands Agent 구현 방법 (1-2문장)
+- **Feasibility**: X/50 (판정)
+
+## 2. Strands Agent 구현
+
+### Agent Components
+| Agent Name | Role | Input | Output | LLM | Tools |
+|------------|------|-------|--------|-----|-------|
+
+### 패턴 분석
+선택된 패턴과 Strands Agent 구현 방법:
+- [패턴명]: [Graph 구조 설명 1-2문장]
+
+### Graph 구조
+```python
+nodes = {{"node1": Agent(role="...", goal="...")}}
+edges = [("node1", "node2")]
+```
+
+### Agent-as-Tool
+| Agent Name | Role | Input | Output | 사용 시점 |
+|------------|------|-------|--------|----------|
+
+### Invocation State 활용
+에이전트 간 상태 공유:
+- **용도**: [어떤 데이터를 공유할지]
+- **업데이트 시점**: [언제 상태를 업데이트할지]
+- **활용 방법**: [다음 노드에서 어떻게 사용할지]
+
+### MCP 연동
+- [MCP 서버명]: [용도]
+
+## 3. Architecture
+
+```mermaid
+graph TB
+    [Strands Graph 구조]
+```
+
+```mermaid
+sequenceDiagram
+    [핵심 흐름만]
+```
+
+```mermaid
+flowchart TD
+    [처리 흐름]
+```
+
+## 4. Problem Decomposition
+- INPUT: [트리거]
+- PROCESS: [핵심 단계만 3-5개]
+- OUTPUT: [결과물]
+- Human-in-Loop: [개입 시점]
+
+---
+**중요1**: 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요.
+**중요2**: Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요.
+**중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
+**중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
+**중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
+**중요6**: 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
+"""
+
+
+def get_agentcore_spec_prompt(analysis: dict) -> str:
+    """AgentCore 명세서 프롬프트 - SKILL 사용"""
+    return f"""다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요:
+
+{json.dumps(analysis, indent=2, ensure_ascii=False)}
+
+**중요: 반드시 다음 순서로 SKILL을 사용하세요:**
+1. skill_tool을 사용하여 "strands-agent-patterns" SKILL 로드
+2. skill_tool을 사용하여 "agentcore-services" SKILL 로드
+3. skill_tool을 사용하여 "mermaid-diagrams" SKILL 로드
+4. 로드한 SKILL의 정보를 바탕으로 명세서 작성 (특히 AgentCore Memory LTM은 TTL 없음)
+
+# AI Agent Design Specification
+
+## 1. Executive Summary
+- **Problem**: 해결하려는 문제 (1문장)
+- **Solution**: Strands Agent + Amazon Bedrock AgentCore 구현 방법 (1-2문장)
+- **Feasibility**: X/50 (판정)
+
+## 2. Strands Agent 구현
+
+### Agent Components
+| Agent Name | Role | Input | Output | LLM | Tools |
+|------------|------|-------|--------|-----|-------|
+
+### 패턴 분석
+선택된 패턴과 Strands Agent 구현 방법:
+- [패턴명]: [Graph 구조 설명 1-2문장]
+
+### Graph 구조
+```python
+nodes = {{"node1": Agent(role="...", goal="...")}}
+edges = [("node1", "node2")]
+```
+
+### Agent-as-Tool
+| Agent Name | Role | Input | Output | 사용 시점 |
+|------------|------|-------|--------|----------|
+
+### Invocation State 활용
+에이전트 간 상태 공유:
+- **용도**: [어떤 데이터를 공유할지]
+- **업데이트 시점**: [언제 상태를 업데이트할지]
+- **활용 방법**: [다음 노드에서 어떻게 사용할지]
+
+### MCP 연동
+- [MCP 서버명]: [용도]
+
+## 3. Amazon Bedrock AgentCore
+
+- **AgentCore Runtime** (필수): 서버리스 에이전트 호스팅
+- **AgentCore Memory** (필요시): 단기/장기 메모리 관리
+- **AgentCore Gateway** (필요시): API/Lambda를 MCP 도구로 변환
+- **AgentCore Identity** (필요시): OAuth 연동 및 API 키 관리
+- **AgentCore Browser** (필요시): 웹 자동화
+- **AgentCore Code Interpreter** (필요시): 코드 실행
+
+| 서비스 | 사용 여부 | 용도 | 설정 |
+|--------|-----------|------|------|
+| **AgentCore Memory** | ✅/❌ | 단기/장기 메모리 관리 | Event/Semantic Memory |
+| **AgentCore Gateway** | ✅/❌ | API/Lambda를 MCP 도구로 변환 | Target: Lambda/OpenAPI |
+| **AgentCore Identity** | ✅/❌ | OAuth 연동 및 API 키 관리 | Provider: GitHub/Google |
+| **AgentCore Browser** | ✅/❌ | 웹 자동화 | Headless Chrome |
+| **AgentCore Code Interpreter** | ✅/❌ | 코드 실행 | Python/Node.js |
+
+## 4. Architecture
+
+```mermaid
+graph TB
+    [Strands Graph 구조]
+```
+
+```mermaid
+sequenceDiagram
+    [핵심 흐름만]
+```
+
+```mermaid
+flowchart TD
+    [처리 흐름]
+```
+
+## 5. Problem Decomposition
+- INPUT: [트리거]
+- PROCESS: [핵심 단계만 3-5개]
+- OUTPUT: [결과물]
+- Human-in-Loop: [개입 시점]
+
+---
+**중요1**: 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요.
+**중요2**: Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요.
+**중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
+**중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
+**중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
+**중요6**: 위 5개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
+**중요7**: 분석된 요구사항에 맞게 AgentCore 서비스(Runtime/Memory/Gateway/Identity/Browser/Code Interpreter) 중 필요한 것을 선택하고 활용 방법을 구체적으로 작성하세요.
+"""

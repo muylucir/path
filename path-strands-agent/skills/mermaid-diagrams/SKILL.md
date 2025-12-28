@@ -9,6 +9,8 @@ Strands Agent의 Graph 구조를 Mermaid 다이어그램으로 시각화하는 �
 
 ## 기본 문법
 
+**중요: 다이어그램에 HTML 태그 금지.**
+
 ### Graph 방향
 ```mermaid
 graph TD    # Top Down (위에서 아래)
@@ -368,6 +370,281 @@ graph TD
     F & G --> H
 ```
 
+## Sequence Diagram (시퀀스 다이어그램)
+
+Sequence Diagram은 Agent 간 시간 순서에 따른 메시지 흐름을 표현합니다.
+
+### 기본 문법
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent1
+    participant Agent2
+
+    User->>Agent1: Request
+    activate Agent1
+    Agent1->>Agent2: Process
+    activate Agent2
+    Agent2-->>Agent1: Response
+    deactivate Agent2
+    Agent1-->>User: Final Response
+    deactivate Agent1
+```
+
+**코드:**
+```
+sequenceDiagram
+    participant User
+    participant Agent1
+    participant Agent2
+
+    User->>Agent1: Request
+    activate Agent1
+    Agent1->>Agent2: Process
+    activate Agent2
+    Agent2-->>Agent1: Response
+    deactivate Agent2
+    Agent1-->>User: Final Response
+    deactivate Agent1
+```
+
+### activate/deactivate 베스트 프랙티스
+
+**⚠️ 중요: activate와 deactivate는 반드시 쌍을 이뤄야 합니다.**
+
+#### ✅ 올바른 예제
+
+```mermaid
+sequenceDiagram
+    participant A
+    participant B
+
+    A->>B: Call
+    activate B
+    B->>B: Process
+    B-->>A: Return
+    deactivate B
+```
+
+#### ❌ 잘못된 예제 (오류 발생!)
+
+```mermaid
+sequenceDiagram
+    participant A
+    participant B
+
+    A->>B: Call
+    activate B
+    B->>B: Process
+    B-->>A: Return
+    # deactivate 누락 - 오류!
+```
+
+### alt/loop 블록에서의 activate/deactivate
+
+**핵심 규칙: alt/loop 블록 내에서 activate/deactivate를 하면 각 분기마다 상태가 달라집니다.**
+
+#### ✅ 방법 1: 블록 전에 deactivate
+
+```mermaid
+sequenceDiagram
+    participant Orch
+    participant Agent
+
+    Orch->>Agent: Process
+    activate Agent
+    Agent->>Agent: Work
+    Agent-->>Orch: Result
+    deactivate Agent
+
+    alt Success
+        Orch->>Agent: Next Step
+        activate Agent
+        Agent-->>Orch: Done
+        deactivate Agent
+    else Failure
+        Orch->>Agent: Retry
+        activate Agent
+        Agent-->>Orch: Done
+        deactivate Agent
+    end
+```
+
+#### ❌ 방법 2: 블록 내에서 deactivate (loop에서 오류!)
+
+```mermaid
+sequenceDiagram
+    participant Orch
+    participant Agent
+
+    loop Retry
+        Orch->>Agent: Process
+        activate Agent
+        Agent-->>Orch: Result
+        deactivate Agent  # 두 번째 반복에서 오류 발생!
+    end
+```
+
+**오류 메시지**: `Error: Trying to inactivate an inactive participant`
+
+#### ✅ Loop 올바른 사용법
+
+```mermaid
+sequenceDiagram
+    participant Orch
+    participant Agent
+
+    loop Retry (최대 3회)
+        Orch->>Agent: Process
+        activate Agent
+        Agent->>Agent: Work
+        Agent-->>Orch: Result
+        deactivate Agent
+
+        Note over Agent: 각 반복마다 activate/deactivate 쌍
+    end
+```
+
+### Reflection Pattern (Sequence Diagram)
+
+Reflection Pattern을 Sequence Diagram으로 표현할 때는 **alt 블록 전에 deactivate**하는 것이 안전합니다.
+
+```mermaid
+sequenceDiagram
+    participant Orch
+    participant Writer
+    participant Reviewer
+    participant State
+
+    Orch->>Writer: Write Draft
+    activate Writer
+    Writer->>State: Save Draft
+    Writer-->>Orch: Draft Complete
+    deactivate Writer
+
+    Orch->>Reviewer: Review
+    activate Reviewer
+    Reviewer->>State: Read Draft
+    Reviewer->>Reviewer: Evaluate
+    Reviewer->>State: Save Score
+    Reviewer-->>Orch: Review Complete
+    deactivate Reviewer
+
+    alt Score >= 80
+        Orch->>User: Publish
+    else Score < 80 and Retry < 2
+        Orch->>State: Increment Retry
+        Orch->>Writer: Revise (with feedback)
+        activate Writer
+        Note over Writer,State: Use feedback from State
+        Writer->>State: Save Revised Draft
+        Writer-->>Orch: Revision Complete
+        deactivate Writer
+        Orch->>Reviewer: Re-review
+        activate Reviewer
+        Note over Reviewer: Repeat review process
+        Reviewer->>State: Read Draft
+        Reviewer->>Reviewer: Re-evaluate
+        Reviewer-->>Orch: Re-review Complete
+        deactivate Reviewer
+    else Retry >= 2
+        Orch->>User: Manual Review Needed
+    end
+```
+
+**핵심 포인트**:
+1. Reviewer를 **alt 블록 전에 deactivate** (line 17)
+2. 각 분기에서 필요 시 **다시 activate** (line 24, 29)
+3. 각 분기 끝에서 **반드시 deactivate** (line 28, 33)
+
+### 일반적인 오류와 해결책
+
+#### 오류 1: "Trying to inactivate an inactive participant"
+
+**원인**: 이미 deactivate된 participant를 다시 deactivate 시도
+
+**해결책**:
+```
+❌ 잘못된 코드:
+    activate Agent
+    deactivate Agent
+    # ... 중간 코드 ...
+    deactivate Agent  # 오류!
+
+✅ 올바른 코드:
+    activate Agent
+    # ... 작업 ...
+    deactivate Agent
+    # 다시 사용 시 재활성화
+    activate Agent
+    # ... 작업 ...
+    deactivate Agent
+```
+
+#### 오류 2: alt 블록에서 상태 불일치
+
+**원인**: alt 분기마다 activate/deactivate 상태가 달라짐
+
+**해결책**: alt 블록 **전에** deactivate
+```
+✅ 올바른 패턴:
+    activate Agent
+    Agent-->>Orch: Result
+    deactivate Agent  # alt 블록 전에 deactivate!
+
+    alt Case1
+        # 필요 시 재활성화
+    else Case2
+        # 필요 시 재활성화
+    end
+```
+
+#### 오류 3: loop에서 중복 deactivate
+
+**원인**: loop 반복 시 이전 반복에서 이미 deactivate됨
+
+**해결책**: loop 내에서 매 반복마다 activate/deactivate 쌍 유지
+```
+✅ 올바른 패턴:
+    loop Retry
+        activate Agent  # 매 반복마다 activate
+        Agent->>Agent: Work
+        deactivate Agent  # 매 반복마다 deactivate
+    end
+```
+
+### 메시지 타입
+
+```mermaid
+sequenceDiagram
+    A->>B: 동기 호출 (실선 화살표)
+    A-->>B: 비동기 응답 (점선 화살표)
+    A-)B: 비동기 호출 (열린 화살표)
+    A-xB: 실패한 호출 (X 표시)
+```
+
+### Note와 Rect 활용
+
+```mermaid
+sequenceDiagram
+    participant A
+    participant B
+
+    Note over A,B: 전체 영역에 대한 설명
+
+    rect rgb(240, 240, 240)
+        Note over A,B: 중요한 프로세스 영역
+        A->>B: Important Process
+        activate B
+        B-->>A: Result
+        deactivate B
+    end
+
+    Note right of B: 오른쪽 노트
+    Note left of A: 왼쪽 노트
+```
+
 ## 명세서 작성 시 권장 사항
 
 1. **개요 다이어그램**: 전체 워크플로우 (5-10개 노드)
@@ -375,6 +652,8 @@ graph TD
 3. **AgentCore 통합**: 서비스 연결 관계 명시
 4. **조건 분기**: 의사결정 로직 시각화
 5. **피드백 루프**: 반복 횟수 제한 명시
+6. **Sequence Diagram**: Agent 간 실행 흐름과 State 공유 표현
+7. **activate/deactivate 쌍**: 반드시 확인하여 오류 방지
 
 ## 템플릿
 

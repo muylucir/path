@@ -47,7 +47,6 @@ interface Step1FormProps {
 }
 
 export function Step1Form({ onSubmit }: Step1FormProps) {
-  const [useAgentCore, setUseAgentCore] = useState(false);
   const [dataSources, setDataSources] = useState<DataSource[]>([
     { type: "", description: "" },
   ]);
@@ -69,11 +68,13 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       dataSources: [{ type: "", description: "" }],
       errorTolerance: "",
       additionalContext: "",
+      useAgentCore: false,
     },
   });
 
   const processSteps = watch("processSteps");
   const outputTypes = watch("outputTypes");
+  const useAgentCore = watch("useAgentCore");
 
   const toggleProcessStep = (step: string) => {
     const current = processSteps || [];
@@ -112,7 +113,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
   };
 
   const handleFormSubmit = (data: FormValues) => {
-    onSubmit({ ...data, dataSources, useAgentCore });
+    onSubmit({ ...data, dataSources });
   };
 
   return (
@@ -158,7 +159,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
                 <Switch
                   id="agentcore-toggle"
                   checked={useAgentCore}
-                  onCheckedChange={setUseAgentCore}
+                  onCheckedChange={(checked) => setValue("useAgentCore", checked)}
                 />
                 <span className={`text-sm font-medium ${useAgentCore ? 'text-foreground' : 'text-muted-foreground'}`}>
                   Amazon Bedrock AgentCore

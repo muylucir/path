@@ -1,28 +1,24 @@
-import { invokeClaudeStream } from "@/lib/aws/bedrock";
-import { getInitialAnalysisPrompt, SYSTEM_PROMPT } from "@/lib/prompts";
 import { NextRequest } from "next/server";
+
+const STRANDS_API_URL = process.env.STRANDS_API_URL || "http://localhost:8001";
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.json();
-    const prompt = getInitialAnalysisPrompt(formData);
 
-    const encoder = new TextEncoder();
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of invokeClaudeStream(prompt, SYSTEM_PROMPT)) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
-          }
-          controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-          controller.close();
-        } catch (error) {
-          controller.error(error);
-        }
-      },
+    // Strands Agent API 호출
+    const response = await fetch(`${STRANDS_API_URL}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(formData),
     });
 
-    return new Response(stream, {
+    if (!response.ok) {
+      throw new Error(`Strands API error: ${response.statusText}`);
+    }
+
+    // 스트리밍 응답 그대로 전달
+    return new Response(response.body, {
       headers: {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
