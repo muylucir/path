@@ -125,49 +125,70 @@ class EvaluatorAgent:
         )
     
     def evaluate(self, form_data: Dict[str, Any], conversation: List[Dict]) -> Dict[str, Any]:
-        """Feasibility 평가 수행"""
+        """Feasibility 평가 수행 - PATH 웹앱 형식"""
         conversation_text = "\n".join([
             f"{msg['role'].upper()}: {msg['content']}" 
             for msg in conversation
         ])
         
-        prompt = f"""다음 정보를 바탕으로 Feasibility를 평가하세요:
+        prompt = f"""다음은 지금까지의 분석 내용입니다:
 
-## 초기 입력
-**Pain Point**: {form_data.get('painPoint', '')}
-**INPUT**: {form_data.get('inputType', form_data.get('input', ''))}
-**PROCESS**: {', '.join(form_data.get('processSteps', form_data.get('process', [])))}
-**OUTPUT**: {', '.join(form_data.get('outputTypes', form_data.get('output', [])))}
-**HUMAN-IN-LOOP**: {form_data.get('humanLoop', form_data.get('humanInLoop', ''))}
-**Data Sources**: {json.dumps(form_data.get('dataSources', ''), ensure_ascii=False)}
-**Error Tolerance**: {form_data.get('errorTolerance', '')}
-
-## 대화 내용
 {conversation_text}
 
-다음 5개 항목을 평가하여 JSON 형식으로 반환하세요:
+이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
 
 {{
-  "data_accessibility": {{"score": 0-10, "reason": "평가 이유"}},
-  "decision_clarity": {{"score": 0-10, "reason": "평가 이유"}},
-  "error_tolerance": {{"score": 0-10, "reason": "평가 이유"}},
-  "latency_requirement": {{"score": 0-10, "reason": "평가 이유"}},
-  "integration_complexity": {{"score": 0-10, "reason": "평가 이유"}},
-  "total_score": 0-50,
-  "recommendation": "즉시 시작/조건부 진행/개선 후 재평가/대안 모색",
-  "patterns": ["추천 패턴들"],
-  "summary": "종합 평가 요약"
+  "pain_point": "사용자 Pain Point",
+  "input_type": "INPUT 타입",
+  "input_detail": "INPUT 상세",
+  "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
+  "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
+  "output_detail": "OUTPUT 상세",
+  "human_loop": "None/Review/Exception/Collaborate",
+  "pattern": "Reflection/Tool Use/Planning/Multi-Agent",
+  "pattern_reason": "패턴 선택 이유",
+  "feasibility_breakdown": {{
+    "data_access": 0-10,
+    "decision_clarity": 0-10,
+    "error_tolerance": 0-10,
+    "latency": 0-10,
+    "integration": 0-10
+  }},
+  "feasibility_score": 0-50,
+  "recommendation": "추천 사항",
+  "risks": ["리스크1", "리스크2"],
+  "next_steps": [
+    "Phase 1: 핵심 기능 프로토타입 - 설명",
+    "Phase 2: 검증 및 테스트 - 설명",
+    "Phase 3: (선택적) 개선 및 확장 - 설명"
+  ]
 }}
 
-**중요**: 반드시 유효한 JSON만 반환하세요.
+중요: next_steps는 주 단위 기간이 아닌 Phase/단계 중심으로 작성하세요.
+JSON만 출력하세요.
 """
-        result = self.agent(prompt)
+        
+        system_prompt_for_json = f"""{SYSTEM_PROMPT}
+
+당신은 지금까지의 대화를 바탕으로 최종 분석을 수행하고 JSON 형식으로 출력합니다.
+간결하고 정확하게 작성하세요."""
+        
+        # Agent 재생성 (JSON 전용 시스템 프롬프트)
+        json_agent = Agent(
+            model=self.agent.model.config['model_id'],
+            system_prompt=system_prompt_for_json
+        )
+        
+        result = json_agent(prompt)
         response_text = result.message['content'][0]['text']
         
         # JSON 추출
-        json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
-        if json_match:
-            return json.loads(json_match.group())
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
+        
+        if json_start != -1 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            return json.loads(json_str)
         else:
             raise ValueError("Failed to extract JSON from evaluation response")
 

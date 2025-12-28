@@ -79,6 +79,7 @@ export default function SessionsPage() {
         dataSources: [],
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
+        useAgentCore: session.use_agentcore || false,
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history || []));
       sessionStorage.setItem("specification", session.specification || "");

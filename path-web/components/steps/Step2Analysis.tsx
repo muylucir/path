@@ -22,8 +22,13 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
   const isFirstRenderRef = useRef(true);
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
+    // 중복 실행 방지
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    
     startInitialAnalysis();
   }, []);
 
@@ -198,7 +203,7 @@ export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
       const response = await fetch("/api/bedrock/finalize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation: history }),
+        body: JSON.stringify({ formData, conversation: history }),
       });
 
       const analysis = await response.json();
