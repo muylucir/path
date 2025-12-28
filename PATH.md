@@ -1,6 +1,8 @@
 # P.A.T.H Agent Designer 소개
 
-> AI Agent 아이디어를 검증하고 프로토타입 명세서를 자동 생성하는 도구
+> AI Agent 아이디어를 검증하고 프로토타입 명세서를 자동 생성하는 3-Tier 웹 애플리케이션
+
+**Architecture**: Frontend (Next.js 15) + Backend (FastAPI + Strands Agents SDK) + LLM (AWS Bedrock Claude Sonnet 4.5)
 
 ---
 
@@ -10,14 +12,23 @@
 
 고객의 막연한 AI Agent 아이디어를 **구조화된 프로토타입 계획**으로 변환하는 체계적인 프레임워크입니다.
 
+**4단계 Agent 파이프라인**으로 고품질 명세서를 자동 생성:
+1. **PatternAgent** - Strands Agent 패턴 분석
+2. **AgentCoreAgent** - AgentCore 서비스 구성 (조건부)
+3. **ArchitectureAgent** - Mermaid 다이어그램 생성
+4. **AssemblerAgent** - 최종 Markdown 조합
+
 ### 간단히 말하면
 
 ```
 "AI로 뭔가 할 수 있을 것 같은데..."
               ↓
-          구조화된 분석
+    4단계 Agent 파이프라인 실행
+    (PatternAgent → AgentCoreAgent → ArchitectureAgent → AssemblerAgent)
               ↓
-"Sequential 패턴, Feasibility 42점"
+"Planning + Multi-Agent 패턴, Feasibility 42점,
+ 1개 Runtime으로 9개 Agent 호스팅,
+ Mermaid 다이어그램 3개 포함 명세서"
 ```
 
 ---
@@ -48,10 +59,11 @@
 
 ### P.A.T.H가 해결하는 것
 
-✅ **아이디어 구조화** - INPUT/PROCESS/OUTPUT/Human-in-Loop 명확화  
-✅ **실현 가능성 정량 평가** - 50점 척도로 Go/No-Go 의사결정 지원  
-✅ **구현 패턴 추천** - 3-Axis 모델 기반 패턴 매칭  
-✅ **명세서 생성** - 시퀀스 다이어그램, 플로우차트 포함  
+✅ **아이디어 구조화** - INPUT/PROCESS/OUTPUT/Human-in-Loop 명확화
+✅ **실현 가능성 정량 평가** - 50점 척도로 Go/No-Go 의사결정 지원
+✅ **구현 패턴 추천** - PatternAgent가 Strands Agent 패턴 자동 분석
+✅ **명세서 자동 생성** - 4단계 Agent 파이프라인으로 고품질 명세서 생성 (시퀀스 다이어그램 3개 포함)
+✅ **베스트 프랙티스 자동 반영** - Skill Tool System으로 검증된 구현 패턴 적용
 ✅ **리스크 조기 발견** - 코딩 전 잠재적 문제 파악  
 
 ---
@@ -70,11 +82,12 @@
 
 **After P.A.T.H:**
 ```
-1. 미팅 중 P.A.T.H 실행
+1. 미팅 중 P.A.T.H 실행 (Frontend + Backend)
 2. Feasibility 38점 → "조건부 진행"
 3. 리스크 발견: "법무팀 리뷰 필수 (Human-in-Loop: Review)"
-4. 고객에게 공유: "가능하지만 법무팀 승인 프로세스 필요합니다"
-5. 범위 조정 후 프로토타입 계획 수립
+4. 4단계 파이프라인으로 명세서 자동 생성 (Mermaid 다이어그램 포함)
+5. 고객에게 공유: "가능하지만 법무팀 승인 프로세스 필요합니다"
+6. 범위 조정 후 프로토타입 계획 수립
 ```
 
 ### 활용 시나리오 2: 해커톤/워크샵
@@ -91,8 +104,9 @@
 **After P.A.T.H:**
 ```
 - 5개 아이디어 도출
-- 각 아이디어 P.A.T.H 분석
+- 각 아이디어 P.A.T.H 분석 (FastAPI Backend로 실시간 스트리밍)
 - 결과: Feasibility 점수로 정렬 → 최고 점수 1개 선택
+- 4단계 파이프라인으로 구현 명세서 자동 생성 (Graph 구조 + Agent Components 포함)
 - 선택된 아이디어 프로토타입 구현
 - 결과: 구현 가능성이 검증된 프로토타입
 ```
@@ -110,11 +124,17 @@
 
 **After P.A.T.H:**
 ```
-- P.A.T.H로 분석
-- 명세서 생성 (시퀀스 다이어그램 포함)
+- P.A.T.H로 분석 (Frontend에서 입력 → Backend로 처리)
+- 4단계 Agent 파이프라인으로 명세서 자동 생성
+  - PatternAgent: Strands Agent 패턴 분석
+  - AgentCoreAgent: 호스팅 환경 구성 (1개 Runtime)
+  - ArchitectureAgent: Mermaid 다이어그램 3개 생성
+  - AssemblerAgent: 최종 Markdown 조합
 - 제안서에 첨부:
-  - Architecture 다이어그램
-  - Agent Components 테이블
+  - Graph Structure 다이어그램
+  - Sequence Diagram (activate/deactivate 포함)
+  - Architecture Flowchart
+  - Agent Components 테이블 (TypedDict 포함)
   - Feasibility 42점 (높은 성공 가능성)
 ```
 
@@ -146,13 +166,15 @@ Human-in-Loop: Exception (불확실할 때만)
 - 판정: ✅ 즉시 프로토타입 시작
 ```
 
-**명세서 생성:**
-- Strands Agent 구현 가이드
-- Graph 구조 및 Agent-as-Tool 활용법
-- MCP 서버 연동 방법
+**명세서 생성 (4단계 파이프라인):**
+1. **PatternAgent**: Planning 패턴 분석, Agent Components 테이블 생성
+2. **AgentCoreAgent**: Runtime 1개로 3개 Agent 호스팅 (조건부)
+3. **ArchitectureAgent**: Graph Structure, Sequence Diagram, Flowchart 생성
+4. **AssemblerAgent**: 최종 Markdown 조합 (실시간 스트리밍)
 
 **결과:**
 - 구현 가능 여부 확인
+- Strands Agent 구현 가이드 (Graph 구조, MCP 서버 연동)
 - 명세서를 개발팀에 전달하여 구현 계획 수립
 
 ### Case 2: 계약서 검토 자동화
@@ -202,7 +224,7 @@ Pain Point를 4가지 요소로 분해:
 
 ### Phase 2: Strands Agent 구현 전략
 
-4가지 패턴을 Strands Agent로 구현:
+**PatternAgent**가 `<skill_tool>strands-agent-patterns</skill_tool>`을 사용하여 4가지 패턴을 분석:
 
 | 패턴 | Strands 구현 | 예시 | 구현 방법 |
 |------|-------------|------|----------|
@@ -210,6 +232,8 @@ Pain Point를 4가지 요소로 분해:
 | **Tool Use** | Agent-as-Tool 직접 활용 | 웹 검색, DB 조회, 계산 | MCP 서버 연동 |
 | **Planning** | Graph의 순차 노드 구조 | 여행 계획, 보고서 작성 | 단계별 노드 체인 |
 | **Multi-Agent** | Graph + Agent-as-Tool 조합 | 시장 조사, 코드 리뷰 | 여러 Agent 협업 |
+
+**출력**: Agent Components 테이블, Invocation State (TypedDict), Graph 구조 설명
 
 ### Phase 3: Feasibility Check
 
@@ -231,13 +255,35 @@ Pain Point를 4가지 요소로 분해:
 
 ### Phase 4: Handoff Specification
 
-자동 생성되는 명세서 (4개 섹션):
+**MultiStageSpecAgent**가 4단계 파이프라인으로 명세서 자동 생성:
+
+#### 1. PatternAgent (0-25% 진행률)
+- `<skill_tool>strands-agent-patterns</skill_tool>` 참조
+- Strands Agent 패턴 분석 (Reflection, Tool Use, Planning, Multi-Agent)
+- Agent Components 테이블 생성
+- Invocation State (TypedDict) 정의
+
+#### 2. AgentCoreAgent (25-50%, 조건부)
+- `<skill_tool>agentcore-services</skill_tool>` 참조
+- **핵심 원칙**: 1개 Runtime으로 전체 Multi-Agent Graph 호스팅
+- Runtime, Memory, Gateway, Identity, Browser, Code Interpreter 서비스 구성
+- useAgentCore=true일 때만 실행
+
+#### 3. ArchitectureAgent (50-75%)
+- `<skill_tool>mermaid-diagrams</skill_tool>` 참조
+- Graph Structure (subgraph, classDef)
+- Sequence Diagram (activate/deactivate)
+- Architecture Flowchart
+
+#### 4. AssemblerAgent (75-100%)
+- 위 3개 Agent 결과를 최종 Markdown으로 조합
+- 실시간 스트리밍 출력 (100자 단위 청크)
+- 진행률 75% → 95% → 100%
+
+**최종 명세서 구성**:
 1. Executive Summary
-2. Strands Agent 구현 가이드
-   - Graph 구조 설계
-   - Agent-as-Tool 활용법
-   - MCP 서버 연동
-3. Architecture (Strands 기반 다이어그램)
+2. Strands Agent 구현 가이드 (Graph 구조, Agent-as-Tool, MCP 서버)
+3. Architecture (Mermaid 다이어그램 3개)
 4. Problem Decomposition
 
 ---
@@ -246,12 +292,21 @@ Pain Point를 4가지 요소로 분해:
 
 ### 1. 웹 애플리케이션 실행
 
+**Terminal 1 - Backend (FastAPI) 시작:**
+```bash
+cd path-strands-agent
+python api_server.py
+# FastAPI 서버가 포트 8001에서 실행됩니다
+```
+
+**Terminal 2 - Frontend (Next.js) 시작:**
 ```bash
 cd path-web
 npm run dev
+# Next.js 개발 서버가 포트 3009에서 실행됩니다
 ```
 
-브라우저에서 http://localhost:3000 접속
+브라우저에서 http://localhost:3009 접속
 
 ### 2. 3단계 프로세스
 
@@ -266,16 +321,20 @@ npm run dev
 - "분석 완료" 클릭
 
 #### Step 3: 결과 확인
-- 📊 상세 분석: Feasibility 점수, Strands Agent 구현 전략
-- 💬 대화 내역: Claude와의 전체 대화
-- 📋 명세서: Strands Agent 구현 명세서 생성 및 다운로드
-- 🚀 다음 단계: 세션 저장
+- 📊 **상세 분석**: Feasibility 점수 (50점 만점), 패턴 추천
+- 💬 **대화 내역**: Claude와의 전체 대화 (MDX 렌더링)
+- 📋 **명세서**: 4단계 Agent 파이프라인으로 명세서 자동 생성
+  - PatternAgent → AgentCoreAgent → ArchitectureAgent → AssemblerAgent
+  - 실시간 스트리밍 (0% → 25% → 50% → 75% → 100%)
+  - Mermaid 다이어그램 3개 포함
+- 🚀 **다음 단계**: 세션 저장 (DynamoDB)
 
 ### 3. 결과물
 
 **즉시 얻을 수 있는 것:**
-- ✅ Go/No-Go 의사결정 근거
-- ✅ Strands Agent 구현 전략
-- ✅ Feasibility 점수 (50점 만점)
-- ✅ 구현 명세서 (Markdown)
-- ✅ Strands 기반 다이어그램 (Mermaid)
+- ✅ Go/No-Go 의사결정 근거 (Feasibility 50점 만점)
+- ✅ Strands Agent 패턴 추천 (PatternAgent 분석)
+- ✅ 구현 명세서 (Markdown, 다운로드 가능)
+- ✅ Graph Structure + Sequence Diagram + Flowchart (Mermaid)
+- ✅ Agent Components 테이블 + Invocation State (TypedDict)
+- ✅ AgentCore 서비스 구성 (1개 Runtime으로 Multi-Agent 호스팅)

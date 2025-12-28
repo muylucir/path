@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { Loader2, Download, AlertCircle } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -20,6 +21,8 @@ export function Specification({ analysis, onGenerated, initialSpec, useAgentCore
   const [spec, setSpec] = useState<string>(initialSpec || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string>("");
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState("");
   const mermaidInitialized = useRef(false);
 
   useEffect(() => {
@@ -53,6 +56,8 @@ export function Specification({ analysis, onGenerated, initialSpec, useAgentCore
   const generateSpec = async () => {
     setIsGenerating(true);
     setError("");
+    setProgress(0);
+    setStage("시작 중...");
     let fullSpec = "";
 
     try {
@@ -84,14 +89,34 @@ export function Specification({ analysis, onGenerated, initialSpec, useAgentCore
                 setSpec(fullSpec);
                 onGenerated?.(fullSpec);
                 setIsGenerating(false);
+                setProgress(100);
+                setStage("완료");
                 return;
               }
               try {
                 const parsed = JSON.parse(data);
-                fullSpec += parsed.text;
-                setSpec(fullSpec);
+                console.log("[SSE] Parsed:", JSON.stringify(parsed));
+
+                // Progress 업데이트
+                if (parsed.progress !== undefined) {
+                  console.log("[Progress]", parsed.progress);
+                  setProgress(parsed.progress);
+                }
+
+                // Stage 업데이트
+                if (parsed.stage) {
+                  console.log("[Stage]", parsed.stage);
+                  setStage(parsed.stage);
+                }
+
+                // 명세서 텍스트 추가
+                if (parsed.text) {
+                  console.log("[Text] Adding:", parsed.text.substring(0, 50));
+                  fullSpec += parsed.text;
+                  setSpec(fullSpec);
+                }
               } catch (e) {
-                // Ignore
+                console.error("[SSE] Parse error:", e);
               }
             }
           }
@@ -138,28 +163,34 @@ export function Specification({ analysis, onGenerated, initialSpec, useAgentCore
             🤖 Claude로 상세 명세서 생성
           </Button>
         )}
-        
-        {spec && (
+
+        {isGenerating && (
+          <div className="space-y-3">
+            <Button disabled className="w-full">
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              생성 중...
+            </Button>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">{stage}</span>
+                <span className="font-medium">{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+            </div>
+          </div>
+        )}
+
+        {spec && !isGenerating && (
           <>
             <div className="flex gap-2">
-              {!isGenerating && (
-                <>
-                  <Button onClick={generateSpec} variant="outline" className="flex-1">
-                    <Loader2 className="h-4 w-4 mr-2" />
-                    재생성
-                  </Button>
-                  <Button onClick={downloadSpec} className="flex-1">
-                    <Download className="h-4 w-4 mr-2" />
-                    다운로드
-                  </Button>
-                </>
-              )}
-              {isGenerating && (
-                <Button disabled className="w-full">
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  생성 중...
-                </Button>
-              )}
+              <Button onClick={generateSpec} variant="outline" className="flex-1">
+                <Loader2 className="h-4 w-4 mr-2" />
+                재생성
+              </Button>
+              <Button onClick={downloadSpec} className="flex-1">
+                <Download className="h-4 w-4 mr-2" />
+                다운로드
+              </Button>
             </div>
             
             <Tabs defaultValue="preview" className="w-full">

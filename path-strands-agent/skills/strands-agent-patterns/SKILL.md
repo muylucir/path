@@ -7,6 +7,11 @@ description: Strands Agent의 핵심 패턴 가이드 - Graph, Agent-as-Tool, Re
 
 Strands Agent의 5가지 핵심 패턴과 구현 방법을 제공합니다.
 
+**중요: 테이블에 HTML 태그 금지.**
+
+# LLM 선택 가이드
+**중요 : LLM은 Claude Sonnet/Haiku 4.5만 사용**
+
 ## 1. Graph Pattern (그래프 기반 워크플로우)
 
 ### 개념
@@ -417,3 +422,4 @@ builder.add_edge("worker2", "aggregator")
 
 graph = builder.build()
 ```
+

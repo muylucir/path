@@ -4,6 +4,21 @@ FastAPI 서버 - Strands Agent 호스팅
 PATH 웹앱의 2-3단계 API를 Strands Agent로 제공
 """
 
+# LLM 및 라이브러리 로그 출력 억제
+import logging
+import sys
+import os
+
+# 모든 로거 레벨을 ERROR로 설정
+logging.basicConfig(level=logging.ERROR)
+logging.getLogger("strands").setLevel(logging.ERROR)
+logging.getLogger("botocore").setLevel(logging.ERROR)
+logging.getLogger("boto3").setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.ERROR)
+
+# 환경 변수로도 억제
+os.environ["STRANDS_LOG_LEVEL"] = "ERROR"
+
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,7 +28,7 @@ import json
 import asyncio
 
 from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent
-from spec_agent import SpecAgent
+from multi_stage_spec_agent import MultiStageSpecAgent
 
 app = FastAPI(title="PATH Strands Agent API")
 
@@ -52,7 +67,7 @@ class SpecRequest(BaseModel):
 
 # Global agents (재사용)
 analyzer_agent = AnalyzerAgent()
-spec_agent = SpecAgent()
+multi_stage_spec_agent = MultiStageSpecAgent()  # 변경
 chat_sessions: Dict[str, ChatAgent] = {}  # 세션별 ChatAgent 관리
 
 
@@ -131,23 +146,13 @@ async def finalize(request: FinalizeRequest):
 
 @app.post("/spec")
 async def spec(request: SpecRequest):
-    """3단계 명세서 생성 - 스트리밍"""
+    """3단계 명세서 생성 - MultiStage 스트리밍"""
     try:
-        async def generate():
-            try:
-                async for chunk in spec_agent.generate_spec_stream(
-                    request.analysis, 
-                    use_agentcore=request.useAgentCore
-                ):
-                    yield f"data: {json.dumps({'text': chunk})}\n\n"
-                yield "data: [DONE]\n\n"
-            except GeneratorExit:
-                pass
-            except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
-        
         return StreamingResponse(
-            generate(),
+            multi_stage_spec_agent.generate_spec_stream(
+                request.analysis,
+                use_agentcore=request.useAgentCore
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -167,7 +172,10 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Starting PATH Strands Agent API Server...")
-    print("📍 http://localhost:8001")
-    print("📖 Docs: http://localhost:8001/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8001,
+        log_level="error",  # 에러만 출력
+        access_log=False    # 액세스 로그 비활성화
+    )

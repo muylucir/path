@@ -86,3 +86,7 @@ path-test-agent/venv/
 path-strands-agent/venv/
 path-strands-agent/**/__pycache__/
 strands-skill-system/
+
+CLAUDE.md
+.claude/
+.kiro/
