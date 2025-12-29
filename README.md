@@ -372,7 +372,6 @@ MIT
 
 ## 참고
 
-- [CLAUDE.md](CLAUDE.md) - Claude Code 작업 가이드 (프로젝트 구조, 아키텍처, 명령어)
 - [P.A.T.H 프레임워크 문서](PATH.md)
 - [Strands Agents](https://strandsagents.com/)
 - [Amazon Bedrock AgentCore](https://aws.amazon.com/bedrock/agentcore/)
