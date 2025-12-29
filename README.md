@@ -274,23 +274,6 @@ path/
 - `dynamodb:Scan` - 세션 목록 조회
 - `dynamodb:DeleteItem` - 세션 삭제
 
-## 배포
-
-### Vercel (권장)
-
-```bash
-cd path-web
-vercel --prod
-```
-
-### AWS Amplify
-
-1. GitHub 리포지토리 연결
-2. 빌드 설정:
-   - Build command: `npm run build`
-   - Output directory: `.next`
-   - Root directory: `path-web`
-3. 환경 변수 설정
 
 ## 주요 기능
 
