@@ -238,22 +238,6 @@ npm run lint
 npm run type-check
 ```
 
-## 배포
-
-### Vercel
-
-```bash
-vercel --prod
-```
-
-### AWS Amplify
-
-1. GitHub 리포지토리 연결
-2. 빌드 설정:
-   - Build command: `npm run build`
-   - Output directory: `.next`
-3. 환경 변수 설정
-
 ## 라이선스
 
 MIT
