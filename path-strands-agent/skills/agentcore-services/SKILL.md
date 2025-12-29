@@ -210,7 +210,10 @@ agentcore invoke '{"prompt": "Hello"}' --session-id "session-123"
 ### 개념
 - **Short-Term Memory (STM)**: 세션 내 대화 저장
 - **Long-Term Memory (LTM)**: 세션 간 정보 추출 및 저장
-- **자동 추출**: 사용자 선호도, 사실 정보 자동 추출
+- **메모리 전략략**: 
+    - Semantic memory strategy: The semantic memory strategy is designed to identify and extract key pieces of factual information and contextual knowledge from conversational data
+    - User preference strategy: designed to automatically identify and extract user preferences, choices, and styles from conversational data
+    - Summary strategy: responsible for generating condensed, real-time summaries of conversations within a single session
 
 ### 메모리 타입
 
@@ -522,7 +525,7 @@ AgentCore Runtime + Code Interpreter
 ### 완전한 구성
 ```
 AgentCore Runtime
-  + Memory (LTM)
+  + Memory (STM/LTM)
   + Gateway
   + Browser
   + Code Interpreter
@@ -532,7 +535,7 @@ AgentCore Runtime
 ## 비용 최적화
 
 1. **Memory**: STM은 LTM보다 저렴, 필요한 경우만 LTM 사용
-2. **Gateway**: 도구 수 최소화, 캐싱 활용
+2. **Gateway**: 도구 수 최소화, 캐싱 활용, 시멘틱 검색 활용
 3. **Browser**: 세션 시간 최소화, 필요한 경우만 사용
 4. **Code Interpreter**: 간단한 계산은 LLM으로 처리
 
