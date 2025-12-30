@@ -55,9 +55,9 @@ export function MDXRenderer({ content }: MDXRendererProps) {
       try {
         // SKILL tool 태그 제거 (Agent가 생성한 태그)
         const cleanedContent = content
-          .replace(/<skill_tool>.*?<\/skill_tool>/gs, '')
-          .replace(/<use_skill>.*?<\/use_skill>/gs, '')
-          .replace(/<skill name='.*?'>.*?<\/skill>/gs, '');
+          .replace(/<skill_tool>[\s\S]*?<\/skill_tool>/g, '')
+          .replace(/<use_skill>[\s\S]*?<\/use_skill>/g, '')
+          .replace(/<skill name='.*?'>[\s\S]*?<\/skill>/g, '');
         
         const mdx = await serialize(cleanedContent, {
           mdxOptions: {
