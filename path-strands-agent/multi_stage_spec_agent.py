@@ -10,26 +10,7 @@ from typing import Dict, Any, Optional, AsyncIterator
 import json
 from skill_tool import skill_tool
 from skills.skill_utils import initialize_skills
-import sys
-import os
-from contextlib import contextmanager
-
-# stdout 억제를 위한 컨텍스트 매니저
-@contextmanager
-def suppress_output():
-    """Agent 실행 중 stdout/stderr 억제"""
-    old_stdout = sys.stdout
-    old_stderr = sys.stderr
-    try:
-        sys.stdout = open(os.devnull, 'w')
-        sys.stderr = open(os.devnull, 'w')
-        yield
-    finally:
-        sys.stdout.close()
-        sys.stderr.close()
-        sys.stdout = old_stdout
-        sys.stderr = old_stderr
-
+from strands_utils import strands_utils
 
 # 공통 모델 설정
 def get_bedrock_model(max_tokens: int = 8192) -> BedrockModel:
@@ -53,19 +34,25 @@ class PatternAgent:
         system_prompt = """당신은 Strands Agent 패턴 전문가입니다."""
         enhanced_prompt = system_prompt + skill_prompt
         
-        self.agent = Agent(
-            model=get_bedrock_model(max_tokens=16000),
-            system_prompt=enhanced_prompt,
+        # strands_utils 사용하여 Agent 생성 (tool 호환성 보장)
+        self.agent = strands_utils.get_agent(
+            system_prompts=enhanced_prompt,
+            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            max_tokens=16000,
+            temperature=0.3,
             tools=[skill_tool]
         )
     
     def analyze(self, analysis: Dict[str, Any]) -> str:
-        """패턴 분석 - stdout 억제"""
+        """패턴 분석"""
         prompt = f"""다음 분석 결과를 바탕으로 Strands Agent 패턴을 분석하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
 
-**중요**: 먼저 <skill_tool>strands-agent-patterns</skill_tool>를 사용하여 적합한 패턴(Graph, Planning, Multi-Agent, Reflection, Agent-as-Tool)을 찾고, 해당 패턴의 구현 가이드를 참조하세요.
+**필수 1단계**: skill_tool을 호출하여 "strands-agent-patterns" 스킬을 로드하세요.
+**필수 2단계**: 로드된 SKILL 내용만을 사용하여 분석하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
+
+분석 형식:
 
 ### Agent Components
 | Agent Name | Role | Input | Output | LLM | Tools |
@@ -96,8 +83,7 @@ edges = [("node1", "node2")]
 - **활용 방법**: [다음 노드에서 어떻게 사용할지]
 
 """
-        with suppress_output():
-            result = self.agent(prompt)
+        result = self.agent(prompt)
         return result.message['content'][0]['text']
 
 
@@ -113,9 +99,12 @@ class AgentCoreAgent:
         system_prompt = """당신은 Amazon Bedrock AgentCore 전문가입니다."""
         enhanced_prompt = system_prompt + skill_prompt
         
-        self.agent = Agent(
-            model=get_bedrock_model(max_tokens=16000),
-            system_prompt=enhanced_prompt,
+        # strands_utils 사용하여 Agent 생성
+        self.agent = strands_utils.get_agent(
+            system_prompts=enhanced_prompt,
+            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            max_tokens=16000,
+            temperature=0.3,
             tools=[skill_tool]
         )
     
@@ -125,9 +114,10 @@ class AgentCoreAgent:
 
 {pattern_result}
 
-**중요**: 먼저 <skill_tool>agentcore-services</skill_tool>를 사용하여 각 서비스의 올바른 사용법과 베스트 프랙티스를 확인하세요.
+**필수 1단계**: skill_tool을 호출하여 "agentcore-services" 스킬을 로드하세요.
+**필수 2단계**: 로드된 SKILL 내용만을 사용하여 구성하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
 
-**핵심 원칙** (agentcore-services 스킬 참조):
+**핵심 원칙** (SKILL 참조):
 - **1개의 AgentCore Runtime**으로 전체 Multi-Agent Graph를 호스팅 (Agent별 Runtime 분리 금지 - 비용 N배, 레이턴시 증가)
 - Memory는 STM(Short-term)/LTM(Long-term) 용도에 맞게 선택
 - Gateway는 MCP 표준 준수
@@ -149,16 +139,16 @@ class AgentCoreAgent:
 | 서비스 | 사용 여부 | 용도 (위 Agent들 기준) | 설정 |
 |--------|-----------|----------------------|------|
 | **AgentCore Runtime** | ✅ | 전체 Multi-Agent가 Graph패턴일 때 호스팅 (1개만 사용) | [총 Agent 개수]개 Agent를 1개의 Runtime에서 호스팅 |
-| **AgentCore Memory** | ✅/❌ | [어떤 상태를 저장하는지] | Short-term/Long-term |
+| **AgentCore Memory** | ✅/❌ | [어떤 상태를 저장하는지] | Short-term Memory/Long-term Memory(어떤 메모리 전략을 사용하는지) |
 | **AgentCore Gateway** | ✅/❌ | [어떤 MCP를 연동하는지] | Lambda/OpenAPI/Self-hosted MCP |
 | **AgentCore Identity** | ✅/❌ | [어떤 API 인증이 필요한지] | API Key/OAuth |
 | **AgentCore Browser** | ✅/❌ | [웹 자동화 필요 여부] | - |
 | **AgentCore Code Interpreter** | ✅/❌ | [코드 실행 필요 여부] | - |
 
 **중요: 테이블에 HTML 태그 금지. 위 패턴 분석 결과에 나온 Agent들만 언급하세요.**
+**중요: AgentCore Memory의 Namespace 전략을 테이블 안에 표기하지 마세요.
 """
-        with suppress_output():
-            result = self.agent(prompt)
+        result = self.agent(prompt)
         return result.message['content'][0]['text']
 
 
@@ -174,9 +164,12 @@ class ArchitectureAgent:
         system_prompt = """당신은 아키텍처 시각화 전문가입니다."""
         enhanced_prompt = system_prompt + skill_prompt
         
-        self.agent = Agent(
-            model=get_bedrock_model(max_tokens=16000),
-            system_prompt=enhanced_prompt,
+        # strands_utils 사용하여 Agent 생성
+        self.agent = strands_utils.get_agent(
+            system_prompts=enhanced_prompt,
+            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            max_tokens=16000,
+            temperature=0.3,
             tools=[skill_tool]
         )
     
@@ -188,7 +181,9 @@ class ArchitectureAgent:
 
 패턴: {pattern_result}{agentcore_section}
 
-**중요**: <skill_tool>mermaid-diagrams</skill_tool>를 참조하여 패턴별 다이어그램 템플릿과 스타일 가이드를 사용하세요.
+**필수 1단계**: skill_tool을 호출하여 "mermaid-diagrams" 스킬을 로드하세요.
+**필수 2단계**: 로드된 SKILL의 템플릿과 베스트 프랙티스만을 사용하세요.
+**필수 3단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요 (SKILL의 핵심 규칙).
 
 다음 3가지 다이어그램을 생성:
 
@@ -208,10 +203,14 @@ class ArchitectureAgent:
    - 외부 서비스 연동 (MCP, API 등)
    - AgentCore 서비스 포함 (있는 경우)
 
+**출력 형식**:
+- 각 다이어그램은 ```mermaid 코드 블록 1개만 출력
+- 다이어그램 코드를 설명용으로 다시 출력하지 말 것
+- "**코드:**" 섹션 금지
+
 **중요: 다이어그램에 HTML 태그 금지. mermaid-diagrams 스킬의 템플릿 구조를 따르세요.**
 """
-        with suppress_output():
-            result = self.agent(prompt)
+        result = self.agent(prompt)
         return result.message['content'][0]['text']
 
 

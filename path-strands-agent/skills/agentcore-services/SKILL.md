@@ -208,107 +208,384 @@ agentcore invoke '{"prompt": "Hello"}' --session-id "session-123"
 ## 2. AgentCore Memory
 
 ### 개념
-- **Short-Term Memory (STM)**: 세션 내 대화 저장
-- **Long-Term Memory (LTM)**: 세션 간 정보 추출 및 저장
-- **메모리 전략략**: 
-    - Semantic memory strategy: The semantic memory strategy is designed to identify and extract key pieces of factual information and contextual knowledge from conversational data
-    - User preference strategy: designed to automatically identify and extract user preferences, choices, and styles from conversational data
-    - Summary strategy: responsible for generating condensed, real-time summaries of conversations within a single session
+LLM의 본질적 한계인 Statelessness를 해결하는 완전 관리형 메모리 서비스입니다.
+
+**핵심 가치:**
+- **Context Rot 방지**: 무작정 긴 Context Window 대신 선별적 기억으로 모델 성능 유지
+- **자동 추출**: 방대한 대화에서 핵심 정보만 의미론적으로 추출
+- **3계층 격리**: Memory → Actor → Session 구조로 데이터 보안 보장
+- **비용 효율**: 구조화된 메모리로 비용 90% 절감 (vs. 전체 대화 주입)
+
+### 3계층 데이터 격리 구조
+
+AgentCore Memory는 엔터프라이즈급 보안을 위해 3단계 계층 구조를 사용합니다.
+
+```
+memory_id (AWS 리소스 수준)
+  └─ actor_id (사용자 수준)
+      └─ session_id (대화 세션 수준)
+```
+
+**각 계층의 역할:**
+
+| 계층 | 설명 | 예시 |
+|------|------|------|
+| memory_id | AWS 리소스 ARN, 비용/관리 단위 | `arn:aws:bedrock-agentcore:us-west-2:123456789012:memory/customer-support-bot` |
+| actor_id | 개별 사용자 식별자 | `customer-12345`, `user@example.com` |
+| session_id | 대화 세션 식별자 | `chat-2025-12-30-140000` |
+
+**보안 특징:**
+- **논리적 격리**: `actor_id` 간 물리적 접근 차단
+- **암호화**: 모든 데이터 Encryption at Rest
+- **자동 생명주기**: `event_expiry_days`로 GDPR 준수
+
+```python
+# 실제 구현 예시
+memory_id = "customer-support-bot-production"
+actor_id = "customer-12345"
+session_id = "chat-2025-12-30-140000"
+
+# customer-12345와 customer-67890은 완전히 분리된 메모리 공간
+```
 
 ### 메모리 타입
 
-#### Short-Term Memory (STM)
+#### Short-Term Memory (STM) - 원본 대화 저장
+
+대화 내용을 있는 그대로 저장하는 공간입니다. 세션 내에서만 기억하며 즉시 조회 가능합니다.
+
 ```python
 from bedrock_agentcore.memory import MemoryClient
 
 client = MemoryClient(region_name='us-west-2')
 
-# STM 생성
+# STM 생성 (strategies 빈 배열)
 stm = client.create_memory_and_wait(
     name="MyAgent_STM",
-    strategies=[],  # 빈 배열 = STM
+    strategies=[],  # 빈 배열 = STM만 활성화
     event_expiry_days=7  # 7일 후 자동 삭제
 )
 ```
 
 **특징:**
-- 원본 대화 그대로 저장
+- 원본 대화 그대로 저장 (턴 단위 원자적 저장)
 - 세션 내에서만 기억
-- 즉시 조회 가능
-- TTL 설정 가능 (1-365일)
+- 동기 처리 (저장 즉시 조회 가능)
+- TTL 필수 (1-365일)
 
-#### Long-Term Memory (LTM)
+#### Long-Term Memory (LTM) - 자동 정보 추출
+
+STM에서 의미 있는 정보만 추출하여 세션 간 공유하는 공간입니다.
+
 ```python
-# LTM 생성
+# LTM 생성 (4가지 전략 조합)
 ltm = client.create_memory_and_wait(
     name="MyAgent_LTM",
     strategies=[
-        # 사용자 선호도 추출
-        {"userPreferenceMemoryStrategy": {
-            "name": "preferences",
-            "namespaces": ["/user/preferences"]
-        }},
-        # 사실 정보 추출
-        {"semanticMemoryStrategy": {
-            "name": "facts",
-            "namespaces": ["/user/facts"]
-        }}
+        # 1. Semantic Memory - 사실 정보 추출
+        {
+            "semanticMemoryStrategy": {
+                "name": "facts",
+                "namespaces": ["/facts/{actorId}"]
+            }
+        },
+        # 2. User Preference Memory - 선호도 추출
+        {
+            "userPreferenceMemoryStrategy": {
+                "name": "preferences",
+                "namespaces": ["/preferences/{actorId}"]
+            }
+        },
+        # 3. Summary Memory - 대화 요약
+        {
+            "summaryMemoryStrategy": {
+                "name": "summaries",
+                "namespaces": ["/summaries/{actorId}/{sessionId}"]
+            }
+        },
+        # 4. Episodic Memory - 구조화된 에피소드 학습
+        {
+            "episodicMemoryStrategy": {
+                "name": "episodes",
+                "namespaces": ["/episodes/{actorId}"]
+            }
+        }
     ],
     event_expiry_days=30  # 원본 이벤트 30일 보관
 )
 ```
 
-**특징:**
-- STM 기능 + 자동 추출
-- 세션 간 정보 공유
-- 추출 처리 시간: 5-10초
-- **중요**: 추출된 정보는 TTL 없음 (영구 저장)
+**4가지 메모리 전략 상세:**
 
-### Agent 통합
+대화 예시:
+```
+USER: 오늘 뭐 먹지?
+ASSISTANT: 치킨, 피자, 족발을 추천 드립니다!
+USER: 오 나 치킨 좋아하긴 해.
+ASSISTANT: 탁월한 선택이십니다. 치킨을 주문해드릴까요?
+USER: 응.
+ASSISTANT: 치킨을 주문했습니다! 30분 후에 도착 예정입니다.
+```
+
+| 전략 | 추출 내용 | 예시 |
+|------|----------|------|
+| **Semantic Memory** | 사실(Fact)과 지식 | "사용자는 치킨을 주문했습니다." |
+| **User Preference Memory** | 명시적/암묵적 선호도 | `{"context":"사용자가 치킨을 좋아한다고 명시적으로 언급함", "preference":"치킨을 좋아함","categories":["음식"]}` |
+| **Summary Memory** | 대화 세션 요약 | `<topic name="식사 선택">사용자가 무엇을 먹을지 질문하자 치킨, 피자, 족발이 추천됨. 사용자는 치킨을 좋아한다고 하여 치킨을 선택함...</topic>` |
+| **Episodic Memory** | 구조화된 에피소드 (맥락, 추론, 행동, 결과) | 과거 경험에서 학습하여 의사결정 패턴 개선 |
+
+**LTM 처리 프로세스:**
+1. **추출 (Extraction)**: 백그라운드에서 LLM이 대화 분석 (비동기, 5-10초 소요)
+2. **통합 (Consolidation)**: 기존 기억과 대조
+   - Skip: 중복 정보
+   - Add: 새로운 정보
+   - Update: 변경된 정보 (예: 취향 변화)
+3. **저장**: 추출된 정보는 TTL 없음 (영구 저장)
+
+**Namespace 구조화:**
+
+파일 시스템처럼 Namespace로 데이터를 논리적으로 분류합니다. `{actorId}`, `{sessionId}` 템플릿 변수 사용 가능.
+
 ```python
-from strands.hooks import AgentInitializedEvent, MessageAddedEvent, HookProvider
+# Namespace 예시
+"/facts/{actorId}"                    # 사용자별 사실 정보
+"/preferences/{actorId}"              # 사용자별 선호도
+"/summaries/{actorId}/{sessionId}"    # 세션별 요약
+"/episodes/{actorId}"                 # 사용자별 에피소드
+```
 
-class MemoryHook(HookProvider):
-    def on_agent_initialized(self, event):
-        """Agent 시작 시 이전 대화 로드"""
-        turns = memory_client.get_last_k_turns(
-            memory_id=MEMORY_ID,
-            actor_id="user",
-            session_id=event.agent.state.get("session_id"),
-            k=3  # 최근 3턴
-        )
-        if turns:
-            context = "\n".join([f"{m['role']}: {m['content']['text']}"
-                               for t in turns for m in t])
-            event.agent.system_prompt += f"\n\nPrevious:\n{context}"
-    
-    def on_message_added(self, event):
-        """메시지 추가 시 Memory에 저장"""
-        msg = event.agent.messages[-1]
-        memory_client.create_event(
-            memory_id=MEMORY_ID,
-            actor_id="user",
-            session_id=event.agent.state.get("session_id"),
-            messages=[(str(msg["content"]), msg["role"])]
-        )
-    
-    def register_hooks(self, registry):
-        registry.add_callback(AgentInitializedEvent, self.on_agent_initialized)
-        registry.add_callback(MessageAddedEvent, self.on_message_added)
+### 기본 사용법
 
-# Agent에 Hook 추가
-agent = Agent(
-    model="...",
-    hooks=[MemoryHook()]
+#### 1. 이벤트 저장
+
+```python
+# 대화 내용 저장 (턴 단위)
+messages = [
+    ("오늘 뭐 먹지?", "USER"),
+    ("치킨, 피자, 족발을 추천 드립니다!", "ASSISTANT"),
+    ("오 나 치킨 좋아하긴 해.", "USER"),
+    ("탁월한 선택이십니다. 치킨을 주문해드릴까요?", "ASSISTANT"),
+    ("응.", "USER"),
+    ("치킨을 주문했습니다! 30분 후에 도착 예정입니다.", "ASSISTANT")
+]
+
+client.create_event(
+    memory_id=ltm['id'],
+    actor_id="minsukim",
+    session_id="session-123",
+    messages=messages  # 리스트 전체가 순서대로 저장
 )
 ```
 
+**이벤트 저장 5단계 파이프라인:**
+1. 요청 접수
+2. 검증 (actor_id, session_id 유효성, 권한 확인)
+3. 이벤트 생성 (고유 eventId 발급, 타임스탬프 기록)
+4. 저장소 기록 (암호화 저장, 인덱스 업데이트)
+5. 완료 반환 (동기 처리, 즉시 조회 가능)
+
+#### 2. 단기 기억 조회
+
+```python
+# 최근 k개 턴 조회
+conversation = client.get_last_k_turns(
+    memory_id=ltm['id'],
+    actor_id="minsukim",
+    session_id="session-123",
+    k=2  # 최근 2턴
+)
+
+# 출력 예시:
+# [
+#     [
+#         {'content': {'text': '오 나 치킨 좋아하긴 해'}, 'role': 'USER'}, 
+#         {'content': {'text': '탁월한 선택이십니다. 치킨을 주문해드릴까요?'}, 'role': 'ASSISTANT'}
+#     ], 
+#     [
+#         {'content': {'text': '응.'}, 'role': 'USER'}, 
+#         {'content': {'text': '치킨을 주문했습니다! 30분 후에 도착 예정입니다.'}, 'role': 'ASSISTANT'}
+#     ]
+# ]
+```
+
+#### 3. 장기 기억 조회
+
+**중요**: 장기 기억은 비동기 추출이므로 저장 후 120초 대기 필요.
+
+```python
+import time
+time.sleep(120)  # 추출 대기
+
+# 사실 정보 검색 (Semantic Search)
+facts = client.retrieve_memories(
+    memory_id=ltm['id'],
+    namespace=f"/facts/minsukim",
+    query="사용자 정보",
+    top_k=5
+)
+# 출력: [{'content': {'text': '사용자는 치킨을 주문했다.'}, 'score': 0.37856376, ...}]
+
+# 선호도 검색
+prefs = client.retrieve_memories(
+    memory_id=ltm['id'],
+    namespace=f"/preferences/minsukim",
+    query="선호도",
+    top_k=5
+)
+# 출력: [{'content': {'text': '{"context":"사용자가 치킨을 좋아한다고 명시적으로 언급함", ...}'}]
+
+# 요약 검색
+summaries = client.retrieve_memories(
+    memory_id=ltm['id'],
+    namespace=f"/summaries/minsukim/session-123",
+    query="요약",
+    top_k=5
+)
+# 출력: [{'content': {'text': '<topic name="식사 선택">사용자가 무엇을 먹을지 질문하자...</topic>'}]
+```
+
+### Strands Agents 자동 통합
+
+수동 SDK 호출 대신 `AgentCoreMemorySessionManager`로 자동화합니다.
+
+```python
+from bedrock_agentcore.memory.integrations.strands.config import (
+    AgentCoreMemoryConfig,
+    RetrievalConfig
+)
+from bedrock_agentcore.memory.integrations.strands.session_manager import (
+    AgentCoreMemorySessionManager
+)
+from strands import Agent
+
+# 1. 메모리 설정
+config = AgentCoreMemoryConfig(
+    memory_id="my-memory-id",
+    session_id="session-1",
+    actor_id="chanhosoh",
+    retrieval_config={
+        "/preferences/{actorId}": RetrievalConfig(
+            top_k=5,
+            relevance_score=0.6  # 유사도 컷오프 점수
+        ),
+        "/facts/{actorId}": RetrievalConfig(
+            top_k=10,
+            relevance_score=0.3
+        )
+    }
+)
+
+# 2. 세션 매니저 생성
+session_manager = AgentCoreMemorySessionManager(
+    agentcore_memory_config=config,
+    region_name="us-west-2"
+)
+
+# 3. Agent에 주입
+agent = Agent(
+    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    session_manager=session_manager
+)
+
+# 4. 대화 (자동 저장/로드)
+agent("안녕 내 이름은 찬호야")
+agent("나는 서울에서 일하는 개발자야")
+agent("나는 Python이랑 Rust를 좋아해")
+
+# 동일 세션 내 질문 (STM 활용)
+agent("내 직업이 뭐라고 그랬지?")
+
+# 새로운 세션 (LTM 활용)
+time.sleep(120)  # 추출 대기
+new_session_manager = AgentCoreMemorySessionManager(
+    agentcore_memory_config=AgentCoreMemoryConfig(
+        memory_id="my-memory-id",
+        session_id="session-2",  # 새 세션
+        actor_id="chanhosoh",
+        retrieval_config=config.retrieval_config
+    ),
+    region_name="us-west-2"
+)
+agent = Agent(session_manager=new_session_manager)
+agent("내 이름이 뭐야?")  # LTM에서 자동 검색
+```
+
+**자동화 기능:**
+- `create_event()` 자동 호출 (메시지 추가 시)
+- `get_last_k_turns()` 자동 호출 (Agent 초기화 시)
+- `retrieve_memories()` 자동 호출 (RAG, 프롬프트 주입)
+- 세션 생명주기 관리 (메모리 누수 방지)
+
+**로그 예시:**
+```
+INFO: bedrock_agentcore.memory.client: Created event: 0000001764903427355#5d6b9f20
+INFO: bedrock_agentcore.memory.client: Retrieved memories from namespace: /preferences/chanhosoh
+INFO: bedrock_agentcore.memory.client: Retrieved memories from namespace: /facts/chanhosoh
+```
+
+### 심화 기능: Memory Forking
+
+대화의 특정 시점에서 가지치기(Branching)하여 여러 가능성을 탐색합니다.
+
+**사용 사례:**
+1. **Undo/Redo**: 잘못된 코드 생성 시점으로 롤백 (컨텍스트 오염 방지)
+2. **A/B 테스팅**: 메인 브랜치는 안정 프롬프트, 실험 브랜치는 새 프롬프트
+3. **타임 머신 디버깅**: 오류 발생 시점으로 돌아가 수정 후 재실행
+
+```python
+# 1. 초기 대화 (Main Branch)
+event1 = client.create_event(
+    memory_id=memory['id'],
+    actor_id="user-003",
+    session_id="session-003",
+    messages=[
+        ("오늘 날씨가 어때?", "USER"),
+        ("오늘은 맑고 화창합니다.", "ASSISTANT")
+    ]
+)
+root_event_id = event1.get('eventId')  # 분기점
+
+# 2. 메인 대화 계속
+client.create_event(
+    memory_id=memory['id'],
+    actor_id="user-003",
+    session_id="session-003",
+    messages=[("내일은?", "USER"), ("내일은 비가 옵니다.", "ASSISTANT")]
+)
+
+# 3. Memory Forking - 다른 가능성 탐색
+forked_event = client.fork_conversation(
+    memory_id=memory['id'],
+    actor_id="user-003",
+    session_id="session-003",
+    root_event_id=root_event_id,       # 1번 시점으로 돌아가서
+    branch_name="weather-alternative", # 새 브랜치 생성
+    new_messages=[                     # 새로운 대화 흐름
+        ("다음 주는 어떨까?", "USER"),
+        ("다음 주는 대체로 흐릴 것으로 예상됩니다.", "ASSISTANT")
+    ]
+)
+
+# 4. 대화 트리 구조 조회
+conversation_tree = client.get_conversation_tree(
+    memory_id=memory['id'],
+    actor_id="user-003",
+    session_id="session-003"
+)
+# 출력: main 브랜치와 weather-alternative 브랜치가 root_event_id에서 분기
+```
+
+**Forking의 가치:**
+- **컨텍스트 오염 방지**: 실패한 시도가 메모리에서 완전히 소멸
+- **리스크 없는 실험**: 사용자는 안정 버전 사용, 백그라운드에서 새 프롬프트 테스트
+- **완벽한 재현**: 특정 시점으로 돌아가 다른 선택지 탐색
+
 ### 제약사항
-- **STM**: 원본 이벤트만 저장, TTL 필수 (1-365일)
-- **LTM**: 추출된 정보는 TTL 없음 (영구 저장), 원본 이벤트는 TTL 적용
+- **STM**: 원본 이벤트만 저장, TTL 필수 (1-365일), 동기 처리
+- **LTM**: 추출 5-10초 소요 (비동기), 추출된 정보는 TTL 없음 (영구 저장)
 - 메모리 크기: 세션당 최대 100MB
 - 추출 전략: 최대 5개
-- 조회 성능: STM 즉시, LTM 추출 5-10초
+- Namespace 깊이: 최대 10단계
 
 ## 3. AgentCore Gateway
 
@@ -463,89 +740,349 @@ response = agent("Calculate the mean of [1, 2, 3, 4, 5] using Python")
 ## 6. AgentCore Identity
 
 ### 개념
-- **OAuth 연동**: 외부 서비스 인증
-- **API 키 관리**: 안전한 자격증명 저장
-- **권한 관리**: IAM 기반 접근 제어
+Amazon Cognito 기반의 AI Agent 전용 신원 및 자격증명 관리 서비스입니다.
 
-### 사용 방법
+**핵심 기능:**
+- **중앙화된 Agent 신원 관리**: 모든 Agent에 고유 ARN 부여, 단일 디렉토리로 관리
+- **Token Vault**: OAuth 2.0 토큰, API 키, 클라이언트 시크릿을 KMS 암호화하여 안전하게 저장
+- **OAuth 2.0 플로우 지원**: 2LO (Client Credentials), 3LO (Authorization Code) 자동 처리
+- **위임 인증**: Agent가 사용자 대신 리소스 접근, 감사 추적 유지
+- **Identity-Aware Authorization**: 사용자 컨텍스트 기반 동적 권한 제어
+
+### 주요 특징
+
+#### 1. 중앙화된 Agent 신원 관리
+모든 Agent에 고유한 ARN을 부여하고 중앙 디렉토리에서 관리합니다.
+
 ```python
-# OAuth 토큰 저장
 from bedrock_agentcore.identity import IdentityClient
 
-identity_client = IdentityClient(region_name="us-west-2")
+client = IdentityClient(region_name="us-west-2")
 
-# API 키 저장
-identity_client.store_credential(
-    name="github_token",
-    credential_type="api_key",
-    value="ghp_..."
+# Agent 신원 생성
+workload_identity = client.create_workload_identity(
+    name="CalendarSchedulerAgent",
+    description="Schedules meetings in Google Calendar on behalf of users"
 )
 
-# Agent에서 사용
-credential = identity_client.get_credential("github_token")
+# ARN 예시: arn:aws:bedrock-agentcore:us-west-2:123456789012:workload-identity/abc123
+print(workload_identity["workloadIdentityArn"])
 ```
+
+**장점:**
+- AWS, Self-hosted, Hybrid 배포 모두 단일 뷰로 관리
+- Agent별 고유 식별자로 감사 추적 가능
+- 메타데이터 기반 검색 및 필터링
+
+#### 2. Token Vault - 안전한 자격증명 저장소
+
+OAuth 2.0 Access/Refresh 토큰, API 키, 클라이언트 시크릿을 KMS 암호화하여 저장합니다.
+
+**보안 특징:**
+- AWS KMS 암호화 (고객 관리형 키 지원)
+- Agent별 접근 제어 (최소 권한 원칙)
+- 사용자별 토큰 격리 (Agent는 해당 사용자 토큰만 접근)
+- 자동 토큰 갱신 (Refresh Token 활용)
+
+```python
+# Token Vault는 자동으로 관리됨 (명시적 저장 불필요)
+# OAuth 플로우 완료 시 자동으로 Token Vault에 저장
+```
+
+**토큰 갱신 플로우:**
+1. Agent가 만료된 Access Token으로 리소스 접근 시도
+2. 리소스 서버가 401 Unauthorized 반환
+3. Agent가 Token Vault에서 Refresh Token 자동 조회
+4. 새 Access Token 획득 후 Token Vault에 자동 저장
+5. 재시도 성공
+
+#### 3. OAuth 2.0 플로우 지원
+
+##### 3.1 Two-Legged OAuth (2LO) - Client Credentials Grant
+
+Agent가 자체 자격증명으로 리소스 접근 (사용자 개입 없음)
+
+```python
+# OAuth 2.0 Credential Provider 생성
+provider = client.create_oauth2_credential_provider(
+    name="SlackProvider",
+    oauth_config={
+        "clientId": "slack-client-id",
+        "clientSecret": "slack-client-secret",
+        "tokenEndpoint": "https://slack.com/api/oauth.v2.access",
+        "scopes": ["chat:write", "channels:read"]
+    }
+)
+
+# Agent가 토큰 획득 (2LO)
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+app = BedrockAgentCoreApp()
+
+@app.entrypoint
+def invoke(payload, context):
+    # Agent 자체 Access Token 획득
+    agent_token = client.get_workload_access_token(
+        workload_identity_id=context.workload_identity_id
+    )
+    
+    # OAuth 리소스 토큰 획득 (2LO)
+    resource_token = client.get_resource_oauth2_token(
+        workload_access_token=agent_token,
+        credential_provider_id=provider["id"],
+        grant_type="client_credentials"
+    )
+    
+    # Slack API 호출
+    import requests
+    response = requests.post(
+        "https://slack.com/api/chat.postMessage",
+        headers={"Authorization": f"Bearer {resource_token['access_token']}"},
+        json={"channel": "#general", "text": "Hello from Agent!"}
+    )
+    return response.json()
+```
+
+**사용 사례:**
+- Slack 봇 메시지 전송
+- GitHub Actions 트리거
+- 내부 API 호출
+
+##### 3.2 Three-Legged OAuth (3LO) - Authorization Code Grant
+
+사용자가 직접 인증하고 Agent에게 권한 위임 (사용자 개입 필요)
+
+```python
+# Google Calendar OAuth Provider 생성
+google_provider = client.create_oauth2_credential_provider(
+    name="GoogleCalendarProvider",
+    oauth_config={
+        "clientId": "google-client-id.apps.googleusercontent.com",
+        "clientSecret": "google-client-secret",
+        "authorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+        "tokenEndpoint": "https://oauth2.googleapis.com/token",
+        "scopes": ["https://www.googleapis.com/auth/calendar.events"],
+        "callbackUrl": "https://myapp.example.com/oauth/callback"
+    }
+)
+
+@app.entrypoint
+def invoke(payload, context):
+    user_jwt = payload.get("user_access_token")  # 사용자의 Cognito JWT
+    
+    # Agent Access Token 획득 (사용자 컨텍스트 바인딩)
+    agent_token = client.get_workload_access_token_for_jwt(
+        workload_identity_id=context.workload_identity_id,
+        jwt_token=user_jwt  # 사용자 신원 바인딩
+    )
+    
+    # Google OAuth 토큰 획득 (3LO)
+    try:
+        resource_token = client.get_resource_oauth2_token(
+            workload_access_token=agent_token,
+            credential_provider_id=google_provider["id"],
+            grant_type="authorization_code"
+        )
+    except NeedsUserConsentError as e:
+        # 최초 인증 시 사용자 동의 필요
+        return {
+            "status": "needs_consent",
+            "authorization_url": e.authorization_url
+        }
+    
+    # Google Calendar API 호출
+    import requests
+    response = requests.post(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        headers={"Authorization": f"Bearer {resource_token['access_token']}"},
+        json={
+            "summary": "Team Meeting",
+            "start": {"dateTime": "2025-12-30T14:00:00+09:00"},
+            "end": {"dateTime": "2025-12-30T15:00:00+09:00"}
+        }
+    )
+    return response.json()
+```
+
+**3LO 플로우 상세:**
+1. 사용자가 웹 앱에 로그인 (Cognito JWT 획득)
+2. Agent가 사용자 대신 Google 접근 시도
+3. Token Vault에 토큰 없음 → Authorization URL 반환
+4. 사용자가 Google 로그인 및 권한 동의
+5. Authorization Code가 AgentCore Identity로 전달
+6. Access Token + Refresh Token 획득 후 Token Vault에 저장
+7. 이후 요청은 Token Vault에서 자동 조회 (동의 불필요)
+
+#### 4. Identity-Aware Authorization
+
+사용자 컨텍스트를 Agent 코드에 전달하여 동적 권한 제어를 구현합니다.
+
+```python
+@app.entrypoint
+def invoke(payload, context):
+    user_jwt = payload.get("user_access_token")
+    
+    # JWT 검증 및 사용자 정보 추출
+    import jwt
+    user_info = jwt.decode(
+        user_jwt,
+        options={"verify_signature": False}  # AgentCore Identity가 이미 검증
+    )
+    
+    user_id = user_info["sub"]
+    user_email = user_info["email"]
+    user_groups = user_info.get("cognito:groups", [])
+    
+    # 동적 권한 제어
+    if "admin" in user_groups:
+        # 관리자는 모든 캘린더 접근
+        calendar_id = payload.get("calendar_id")
+    else:
+        # 일반 사용자는 본인 캘린더만 접근
+        calendar_id = f"{user_id}@example.com"
+    
+    # 사용자별 리소스 접근
+    resource_token = client.get_resource_oauth2_token(...)
+    # ...
+```
+
+**사용 사례:**
+- 사용자 역할 기반 데이터 필터링
+- 부서별 리소스 접근 제어
+- 개인정보 보호 규정 준수
+
+#### 5. AgentCore SDK 통합
+
+선언적 어노테이션으로 자격증명 자동 주입 (보일러플레이트 코드 제거)
+
+```python
+from bedrock_agentcore.decorators import with_oauth_token
+
+@app.entrypoint
+@with_oauth_token(provider="GoogleCalendarProvider")
+def invoke(payload, context, oauth_token):
+    """
+    oauth_token이 자동으로 주입됨
+    - 토큰 만료 시 자동 갱신
+    - 사용자 동의 필요 시 예외 발생
+    """
+    import requests
+    response = requests.get(
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        headers={"Authorization": f"Bearer {oauth_token}"}
+    )
+    return response.json()
+```
+
+### 실전 예제: Google Calendar Agent
+
+```python
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from bedrock_agentcore.identity import IdentityClient
+from strands import Agent
+
+app = BedrockAgentCoreApp()
+identity_client = IdentityClient(region_name="us-west-2")
+
+# 1. Agent 신원 생성 (배포 전 1회)
+workload_identity = identity_client.create_workload_identity(
+    name="CalendarAgent",
+    description="Manages Google Calendar events"
+)
+
+# 2. Google OAuth Provider 생성 (배포 전 1회)
+google_provider = identity_client.create_oauth2_credential_provider(
+    name="GoogleCalendar",
+    oauth_config={
+        "clientId": "YOUR_GOOGLE_CLIENT_ID",
+        "clientSecret": "YOUR_GOOGLE_CLIENT_SECRET",
+        "authorizationEndpoint": "https://accounts.google.com/o/oauth2/v2/auth",
+        "tokenEndpoint": "https://oauth2.googleapis.com/token",
+        "scopes": ["https://www.googleapis.com/auth/calendar.events"],
+        "callbackUrl": "https://myapp.example.com/oauth/callback"
+    }
+)
+
+# 3. Agent 정의
+calendar_agent = Agent(
+    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    system_prompt="You help users manage their Google Calendar."
+)
+
+@app.entrypoint
+def invoke(payload, context):
+    user_jwt = payload["user_access_token"]
+    user_prompt = payload["prompt"]
+    
+    # Agent Access Token 획득 (사용자 바인딩)
+    agent_token = identity_client.get_workload_access_token_for_jwt(
+        workload_identity_id=workload_identity["id"],
+        jwt_token=user_jwt
+    )
+    
+    # Google Access Token 획득
+    try:
+        google_token = identity_client.get_resource_oauth2_token(
+            workload_access_token=agent_token,
+            credential_provider_id=google_provider["id"],
+            grant_type="authorization_code"
+        )
+    except Exception as e:
+        if "needs_consent" in str(e):
+            return {"error": "User consent required", "auth_url": e.authorization_url}
+        raise
+    
+    # Agent에 Google API 도구 제공
+    def list_events():
+        import requests
+        response = requests.get(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {google_token['access_token']}"}
+        )
+        return response.json()
+    
+    def create_event(summary, start_time, end_time):
+        import requests
+        response = requests.post(
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            headers={"Authorization": f"Bearer {google_token['access_token']}"},
+            json={
+                "summary": summary,
+                "start": {"dateTime": start_time},
+                "end": {"dateTime": end_time}
+            }
+        )
+        return response.json()
+    
+    calendar_agent.tools = [list_events, create_event]
+    
+    # Agent 실행
+    response = calendar_agent(user_prompt)
+    return response.message['content'][0]['text']
+```
+
+### 보안 모범 사례
+
+1. **최소 권한 원칙**
+   - OAuth Scope를 필요한 최소한으로 제한
+   - Agent별 IAM 역할 분리
+
+2. **토큰 관리**
+   - Refresh Token 활용으로 Access Token 수명 단축
+   - 고객 관리형 KMS 키 사용 (규정 준수)
+
+3. **감사 추적**
+   - CloudTrail로 모든 Token Vault 접근 로깅
+   - Agent ARN 기반 사용자 추적
+
+4. **사용자 동의**
+   - 3LO 플로우에서 명시적 동의 획득
+   - 동의 범위를 사용자에게 명확히 표시
 
 ### 제약사항
-- 자격증명당 최대 4KB
-- 계정당 최대 100개 자격증명
-- 자동 만료 지원 (선택)
+- Credential Provider당 최대 10개 OAuth 스코프
+- Token Vault 토큰 크기: 최대 4KB
+- 계정당 최대 100개 Workload Identity
+- Refresh Token 유효기간: Provider 설정에 따름 (Google: 6개월)
+- Authorization Code 유효기간: 10분
 
-## 서비스 조합 가이드
-
-### 기본 구성 (필수)
-```
-AgentCore Runtime
-```
-
-### 대화형 Agent
-```
-AgentCore Runtime + Memory (STM)
-```
-
-### 크로스 세션 Agent
-```
-AgentCore Runtime + Memory (LTM)
-```
-
-### 도구 통합 Agent
-```
-AgentCore Runtime + Gateway + (선택) Identity
-```
-
-### 웹 자동화 Agent
-```
-AgentCore Runtime + Browser
-```
-
-### 데이터 분석 Agent
-```
-AgentCore Runtime + Code Interpreter
-```
-
-### 완전한 구성
-```
-AgentCore Runtime
-  + Memory (STM/LTM)
-  + Gateway
-  + Browser
-  + Code Interpreter
-  + Identity
-```
-
-## 비용 최적화
-
-1. **Memory**: STM은 LTM보다 저렴, 필요한 경우만 LTM 사용
-2. **Gateway**: 도구 수 최소화, 캐싱 활용, 시멘틱 검색 활용
-3. **Browser**: 세션 시간 최소화, 필요한 경우만 사용
-4. **Code Interpreter**: 간단한 계산은 LLM으로 처리
-
-## 배포 체크리스트
-
-- [ ] Runtime 설정 완료
-- [ ] Memory ID 환경 변수 설정 (필요 시)
-- [ ] Gateway 생성 및 도구 추가 (필요 시)
-- [ ] IAM 권한 설정
-- [ ] VPC 설정 (프라이빗 리소스 접근 시)
-- [ ] 환경 변수 설정
-- [ ] 로컬 테스트 완료
-- [ ] 배포 및 검증

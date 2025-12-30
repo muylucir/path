@@ -92,3 +92,4 @@ CLAUDE.md
 .claude/
 .kiro/
 .gitignore
+spec/

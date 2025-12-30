@@ -403,6 +403,29 @@ export function Step3Results({
               <Separator />
 
               <div className="space-y-3">
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving || !specification}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      저장 중...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      세션 저장
+                    </>
+                  )}
+                </Button>
+                {!specification && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    명세서를 먼저 생성해주세요
+                  </p>
+                )}
               </div>
             </CardContent>
           </Card>
