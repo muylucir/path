@@ -10,6 +10,7 @@ P.A.T.H (Problem → Agent → Technical → Handoff) 프레임워크를 사용�
 - **Frontend**: Next.js 15 (TypeScript, React 19) on port 3009
 - **Backend**: FastAPI (Python) on port 8001
 - **LLM**: AWS Bedrock Claude Sonnet 4.5 via Strands Agents SDK
+- **Skill System**: Dynamic skill loading for accurate spec generation
 
 ### 주요 기능
 
@@ -20,24 +21,38 @@ P.A.T.H (Problem → Agent → Technical → Handoff) 프레임워크를 사용�
 - 💾 **세션 저장/불러오기** - DynamoDB 기반 이력 관리
 - 🎯 **Strands Agent 패턴** - Graph, Planning, Multi-Agent, Reflection, Agent-as-Tool
 - 🛠️ **Skill Tool System** - strands-agent-patterns, agentcore-services, mermaid-diagrams 스킬로 베스트 프랙티스 자동 반영
+- ✨ **실시간 Skill 로딩** - @tool decorator 기반 동적 스킬 시스템
 
 ## 설치 및 실행
 
-### 1. Frontend 의존성 설치
+### 1. 저장소 클론
+
+```bash
+git clone <repository-url>
+cd path
+```
+
+### 2. Backend 설정
+
+```bash
+cd path-strands-agent
+
+# 가상환경 생성 및 활성화
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+```
+
+### 3. Frontend 설정
 
 ```bash
 cd path-web
 npm install
 ```
 
-### 2. Backend 의존성 설치
-
-```bash
-cd path-strands-agent
-pip install -r requirements.txt
-```
-
-### 3. DynamoDB 테이블 생성
+### 4. DynamoDB 테이블 생성
 
 ```bash
 # AWS CLI로 테이블 생성
@@ -83,6 +98,39 @@ aws dynamodb create-table \
 ### 4. AWS 자격증명 설정
 
 ```bash
+aws configure
+# 또는 환경변수 설정
+export AWS_ACCESS_KEY_ID=your_key
+export AWS_SECRET_ACCESS_KEY=your_secret
+export AWS_DEFAULT_REGION=ap-northeast-2
+```
+
+### 5. 환경 변수 설정
+
+`path-web/.env.local` 파일 생성:
+
+```bash
+AWS_REGION=ap-northeast-2
+```
+
+### 6. 개발 서버 실행
+
+**Terminal 1 - Backend (FastAPI)**:
+```bash
+cd path-strands-agent
+source venv/bin/activate  # 가상환경 활성화
+python api_server.py
+# FastAPI 서버가 포트 8001에서 실행됩니다
+```
+
+**Terminal 2 - Frontend (Next.js)**:
+```bash
+cd path-web
+npm run dev
+# Next.js 개발 서버가 포트 3009에서 실행됩니다
+```
+
+브라우저에서 http://localhost:3009 접속
 aws configure
 # 또는 환경변수 설정
 export AWS_ACCESS_KEY_ID=your_key

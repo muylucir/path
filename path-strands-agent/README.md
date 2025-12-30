@@ -14,18 +14,45 @@ P.A.T.H Agent Designer의 **Backend 서버**로, Strands Agents SDK를 사용하
 
 ## 기술 스택
 
-- **Python**: 3.11
+- **Python**: 3.11+
 - **Framework**: FastAPI
-- **LLM SDK**: Strands Agents SDK 1.20.0
+- **LLM SDK**: Strands Agents SDK 1.20.0+
 - **LLM**: AWS Bedrock Claude Sonnet 4.5, Haiku 4.5
+- **Skill System**: @tool decorator 기반 동적 스킬 로딩
 - **Port**: 8001
+
+## 아키텍처
+
+### Skill Tool System
+
+```
+skills/
+├── strands-agent-patterns/    # Strands Agent 패턴 가이드
+├── agentcore-services/         # AgentCore 서비스 베스트 프랙티스
+└── mermaid-diagrams/           # Mermaid 다이어그램 템플릿
+
+skill_tool.py                   # @tool decorator 기반 스킬 로더
+strands_utils.py                # Strands SDK 호환 Agent 생성 유틸
+```
+
+### Multi-Stage Spec Agent Pipeline
+
+```
+PatternAgent (strands-agent-patterns 스킬)
+    ↓
+AgentCoreAgent (agentcore-services 스킬)
+    ↓
+ArchitectureAgent (mermaid-diagrams 스킬)
+    ↓
+AssemblerAgent (최종 조합)
+```
 
 ## 설치
 
 ### 1. Python 가상환경 생성
 
 ```bash
-python3.11 -m venv venv
+python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # venv\Scripts\activate   # Windows
 ```
@@ -34,14 +61,6 @@ source venv/bin/activate  # Linux/Mac
 
 ```bash
 pip install -r requirements.txt
-```
-
-**requirements.txt**:
-```
-strands==1.20.0
-fastapi
-uvicorn
-boto3
 ```
 
 ### 3. AWS 자격증명 설정
