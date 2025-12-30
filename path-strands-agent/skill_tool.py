@@ -5,9 +5,9 @@ Skill Tool - Strands Agent SDK용 스킬 도구
 """
 
 import logging
-from typing import Any, Annotated
+from typing import Annotated
 
-from strands.types.tools import ToolResult, ToolUse
+from strands import tool
 
 from skills.loader import SkillLoader, SkillNotFoundError
 
@@ -16,31 +16,10 @@ logger = logging.getLogger(__name__)
 # Global reference to loader (set by skill_utils.setup_skill_tool)
 _loader: SkillLoader | None = None
 
-TOOL_SPEC = {
-    "name": "skill_tool",
-    "description": (
-        "Load specialized skill instructions for specific tasks. "
-        "Use this when you need detailed guidance on a particular topic."
-    ),
-    "inputSchema": {
-        "json": {
-            "type": "object",
-            "properties": {
-                "skill_name": {
-                    "type": "string",
-                    "description": "Name of the skill to invoke (e.g., 'pdf', 'docx', 'xlsx')"
-                }
-            },
-            "required": ["skill_name"]
-        }
-    }
-}
-
 
 def setup_skill_tool(loader: SkillLoader, available_skills: dict[str, dict]):
     """
     Initialize the skill tool with loader and available skills.
-    Updates TOOL_SPEC with available skill list.
 
     Args:
         loader: SkillLoader instance
@@ -48,49 +27,35 @@ def setup_skill_tool(loader: SkillLoader, available_skills: dict[str, dict]):
     """
     global _loader
     _loader = loader
-
-    # Update TOOL_SPEC description with available skills
-    skill_list = "\n".join([
-        f"  - {name}: {info['description']}"
-        for name, info in available_skills.items()
-    ])
-    TOOL_SPEC["description"] = (
-        "Load specialized skill instructions for specific tasks. "
-        "Use this when you need detailed guidance on a particular topic.\n\n"
-        f"Available skills:\n{skill_list}"
-    )
-    # Update the function attribute as well
-    skill_tool.TOOL_SPEC = TOOL_SPEC
-
+    
     logger.info(f"Skill tool initialized with {len(available_skills)} skills")
 
 
-def handle_skill_tool(
-    skill_name: Annotated[str, "Name of the skill to invoke"]
-) -> str:
+@tool
+def skill_tool(skill_name: Annotated[str, "Name of the skill to invoke (e.g., 'strands-agent-patterns', 'agentcore-services', 'mermaid-diagrams')"]) -> str:
     """
-    Load and return the full content of a skill.
-
+    Load specialized skill instructions for specific tasks.
+    Use this when you need detailed guidance on a particular topic.
+    
     Args:
         skill_name: The name of the skill to load
-
+    
     Returns:
-        Formatted skill content with instructions
-
-    Raises:
-        ValueError: If skill_tool is not initialized or skill_name is invalid
+        Full skill content with instructions
     """
     if _loader is None:
         raise ValueError("Skill tool not initialized. Call setup_skill_tool() first.")
-
+    
     if not skill_name:
         raise ValueError("skill_name is required")
-
+    
+    print(f"🔧 [SKILL] Loading: {skill_name}")
     logger.info(f"Loading skill: {skill_name}")
-
+    
     try:
         skill_content = _loader.load(skill_name)
-
+        print(f"✅ [SKILL] Loaded: {skill_name} ({len(skill_content)} chars)")
+        
         # 스킬 내용을 XML 태그로 감싸서 반환
         formatted_content = (
             f"<skill name='{skill_name}'>\n"
@@ -99,51 +64,11 @@ def handle_skill_tool(
             f"The skill '{skill_name}' has been loaded. "
             f"Follow the instructions above to complete the task."
         )
-
+        
         return formatted_content
-
+    
     except SkillNotFoundError as e:
+        print(f"❌ [SKILL] Not found: {skill_name}")
         logger.warning(f"Skill not found: {skill_name}")
         raise ValueError(str(e))
 
-
-def skill_tool(tool: ToolUse, **kwargs: Any) -> ToolResult:
-    """
-    Strands SDK wrapper for skill tool.
-
-    Args:
-        tool: Strands ToolUse object (toolUseId, input)
-        **kwargs: Additional parameters (e.g., agent)
-
-    Returns:
-        ToolResult with skill content or error message
-    """
-    tool_use_id = tool["toolUseId"]
-    skill_name = tool["input"].get("skill_name", "")
-
-    try:
-        result = handle_skill_tool(skill_name)
-        return {
-            "toolUseId": tool_use_id,
-            "status": "success",
-            "content": [{"text": result}]
-        }
-
-    except ValueError as e:
-        logger.error(f"Error in skill_tool: {e}")
-        return {
-            "toolUseId": tool_use_id,
-            "status": "error",
-            "content": [{"text": str(e)}]
-        }
-    except Exception as e:
-        logger.error(f"Unexpected error in skill_tool: {e}")
-        return {
-            "toolUseId": tool_use_id,
-            "status": "error",
-            "content": [{"text": f"Error loading skill: {str(e)}"}]
-        }
-
-
-# Attach TOOL_SPEC to the function so Strands SDK can find it
-skill_tool.TOOL_SPEC = TOOL_SPEC

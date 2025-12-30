@@ -9,16 +9,6 @@ import logging
 import sys
 import os
 
-# 모든 로거 레벨을 ERROR로 설정
-logging.basicConfig(level=logging.ERROR)
-logging.getLogger("strands").setLevel(logging.ERROR)
-logging.getLogger("botocore").setLevel(logging.ERROR)
-logging.getLogger("boto3").setLevel(logging.ERROR)
-logging.getLogger("urllib3").setLevel(logging.ERROR)
-
-# 환경 변수로도 억제
-os.environ["STRANDS_LOG_LEVEL"] = "ERROR"
-
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -175,7 +165,5 @@ if __name__ == "__main__":
     uvicorn.run(
         app,
         host="0.0.0.0",
-        port=8001,
-        log_level="error",  # 에러만 출력
-        access_log=False    # 액세스 로그 비활성화
+        port=8001
     )
