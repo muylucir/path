@@ -54,10 +54,16 @@ export function MDXRenderer({ content }: MDXRendererProps) {
     const compileMDX = async () => {
       try {
         // SKILL tool 태그 제거 (Agent가 생성한 태그)
-        const cleanedContent = content
+        let cleanedContent = content
           .replace(/<skill_tool>[\s\S]*?<\/skill_tool>/g, '')
           .replace(/<use_skill>[\s\S]*?<\/use_skill>/g, '')
           .replace(/<skill name='.*?'>[\s\S]*?<\/skill>/g, '');
+        
+        // 코드 블록 내 중괄호 이스케이프 (MDX가 JSX로 해석하지 않도록)
+        cleanedContent = cleanedContent.replace(
+          /(```[\s\S]*?```)/g,
+          (match) => match.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;')
+        );
         
         const mdx = await serialize(cleanedContent, {
           mdxOptions: {
