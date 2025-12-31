@@ -297,16 +297,214 @@ ltm = client.create_memory_and_wait(
 )
 ```
 
-## 4가지 메모리 전략
+## 4가지 메모리 전략 상세
 
-| 전략 | 추출 내용 | 예시 |
-|------|----------|------|
-| **Semantic Memory** | 사실(Fact)과 지식 | "사용자는 치킨을 주문했습니다." |
-| **User Preference Memory** | 명시적/암묵적 선호도 | `{"preference":"치킨을 좋아함"}` |
-| **Summary Memory** | 대화 세션 요약 | `<topic name="식사 선택">...</topic>` |
-| **Episodic Memory** | 구조화된 에피소드 | 맥락, 추론, 행동, 결과 |
+### 1. User Preference Memory Strategy
 
-## Strands Agents 자동 통합
+**용도**: 사용자 선호도, 선택, 스타일을 자동으로 식별하고 추출하여 개인화된 프로필 구축
+
+**처리 단계:**
+1. **Extraction**: Short-term Memory에서 유용한 인사이트 식별
+2. **Consolidation**: 새 레코드 생성 또는 기존 레코드 업데이트 결정
+
+**출력 형식**: JSON (context, preference, categories)
+```json
+{
+  "context": "사용자가 치킨을 좋아한다고 명시적으로 언급함",
+  "preference": "치킨을 좋아함",
+  "categories": ["음식"]
+}
+```
+
+**사용 사례:**
+- 고객의 선호 배송사 또는 쇼핑 브랜드
+- 개발자의 선호 코딩 스타일 또는 프로그래밍 언어
+- 사용자의 커뮤니케이션 선호도 (공식적/비공식적 톤)
+
+**기본 Namespace**: `/strategy/{memoryStrategyId}/actors/{actorId}`
+
+**구현 예시:**
+```python
+from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import UserPreferenceStrategy
+
+strategies=[
+    UserPreferenceStrategy(
+        name="UserPreferenceExtractor",
+        namespaces=["/users/{actorId}/preferences"]
+    )
+]
+```
+
+---
+
+### 2. Semantic Memory Strategy
+
+**용도**: 사실 정보와 맥락 지식을 식별하고 추출하여 지속적인 지식 베이스 구축
+
+**처리 단계:**
+1. **Extraction**: 대화에서 핵심 사실 정보 추출
+2. **Consolidation**: 중복 제거 및 기존 지식 업데이트
+
+**출력 형식**: 텍스트 (사실 진술)
+```
+"주문 #ABC-123은 특정 지원 티켓과 관련되어 있습니다."
+```
+
+**사용 사례:**
+- 고객 지원: 주문 번호와 티켓 연결
+- 프로젝트 관리: 작업 의존성 및 마일스톤
+- 지식 관리: 제품 사양 및 정책
+
+**기본 Namespace**: `/strategy/{memoryStrategyId}/actors/{actorId}`
+
+**구현 예시:**
+```python
+from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import SemanticStrategy
+
+strategies=[
+    SemanticStrategy(
+        name="FactExtractor",
+        namespaces=["/support_cases/{sessionId}/facts"]
+    )
+]
+```
+
+---
+
+### 3. Summary Memory Strategy
+
+**용도**: 단일 세션 내 대화의 실시간 요약 생성으로 긴 대화의 맥락 빠르게 파악
+
+**처리 단계:**
+1. **Extraction**: 대화 진행 중 주요 토픽과 결정사항 요약
+2. **Consolidation**: 세션 내 요약 업데이트
+
+**출력 형식**: XML (topic 기반 구조화)
+```xml
+<topic name="문제 해결">
+사용자가 소프트웨어 v2.1 문제 보고,
+재시작 시도,
+지식 베이스 문서 링크 제공됨
+</topic>
+```
+
+**사용 사례:**
+- 30분 문제 해결 세션 후 빠른 컨텍스트 복원
+- 긴 회의록 요약
+- 복잡한 워크플로우 진행 상황 추적
+
+**기본 Namespace**: `/strategy/{memoryStrategyId}/actors/{actorId}/sessions/{sessionId}`
+
+**구현 예시:**
+```python
+from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import SummaryStrategy
+
+strategies=[
+    SummaryStrategy(
+        name="SessionSummarizer",
+        namespaces=["/summaries/{actorId}/{sessionId}"]
+    )
+]
+```
+
+---
+
+### 4. Episodic Memory Strategy
+
+**용도**: 구조화된 에피소드로 상호작용을 캡처하여 과거 경험에서 학습하고 패턴 적용
+
+**처리 단계:**
+1. **Extraction**: 진행 중인 에피소드 분석 및 완료 여부 판단
+2. **Consolidation**: 에피소드 완료 시 단일 에피소드 레코드로 결합
+3. **Reflection**: 여러 에피소드에서 인사이트 생성 (백그라운드)
+
+**출력 형식**: XML (situation, intent, assessment, justification, reflection)
+```xml
+<episode>
+  <situation>코드 배포 중 오류 발생</situation>
+  <intent>대체 접근법으로 배포 완료</intent>
+  <assessment>특정 도구 조합이 성공적</assessment>
+  <justification>오류 로그 분석 후 결정</justification>
+  <reflection>향후 유사 상황에서 이 패턴 재사용 가능</reflection>
+</episode>
+```
+
+**Reflection 예시:**
+- 특정 작업 유형에서 일관되게 성공하는 도구 조합 식별
+- 실패 시도 패턴 및 해결 접근법 인식
+- 유사 시나리오의 여러 성공 에피소드에서 베스트 프랙티스 추출
+
+**사용 사례:**
+- 코드 배포: 도구 선택, 오류 발생, 대체 접근법으로 해결
+- 약속 재조정: 사용자 의도, Agent 결정, 성공적 결과
+- 데이터 처리: 특정 데이터 타입에 최적 성능을 낸 파라미터 문서화
+
+**Namespace 패턴:**
+
+Episodes는 다음 중 하나로 저장:
+- `/strategy/{memoryStrategyId}` - 전략 레벨 (모든 actor/session)
+- `/strategy/{memoryStrategyId}/actor/{actorId}` - Actor 레벨 (모든 session)
+- `/strategy/{memoryStrategyId}/actor/{actorId}/session/{sessionId}` - Session 레벨
+
+Reflections는 Episodes보다 덜 중첩 가능:
+- Episodes: `/strategy/{memoryStrategyId}/actor/{actorId}`
+- Reflections: `/strategy/{memoryStrategyId}` (모든 actor의 인사이트 통합)
+
+**⚠️ 중요**: Reflection이 여러 actor를 포함할 경우 프라이버시 고려 필요
+
+**구현 예시:**
+```python
+from bedrock_agentcore_starter_toolkit.operations.memory.models.strategies import EpisodicStrategy
+
+strategies=[
+    EpisodicStrategy(
+        name="EpisodicStrategy",
+        namespaces=["strategy/{memoryStrategyId}/actors/{actorId}/sessions/{sessionId}"],
+        reflection={
+            "namespaces": ["strategy/{memoryStrategyId}/actors/{actorId}/"]  # Actor 레벨 reflection
+        }
+    )
+]
+```
+
+**검색 최적화:**
+- Episodes는 "intent"로 인덱싱됨
+- Reflections는 "use case"로 인덱싱됨
+- 새 작업 시작 시 유사 에피소드 및 reflection 쿼리
+- 성공한 에피소드는 턴을 선형화하여 Agent에 제공 (주요 단계만 집중)
+
+**주의사항:**
+- 에피소드는 완료 감지 후에만 생성됨 (다른 전략보다 시간 소요)
+- `CreateEvent` 시 `TOOL` 결과 포함하면 최적 결과
+
+---
+
+## 메모리 전략 선택 가이드
+
+| 요구사항 | 추천 전략 | 이유 |
+|---------|----------|------|
+| 사용자 맞춤형 경험 | User Preference | 선호도 기반 추천, 톤 적응 |
+| 지식 베이스 구축 | Semantic | 사실 정보 누적, 엔티티 관계 |
+| 긴 대화 요약 | Summary | 빠른 컨텍스트 복원 |
+| 과거 경험 학습 | Episodic | 성공 패턴 재사용, 실패 회피 |
+| 복합 요구사항 | 2개 이상 조합 | 최대 5개까지 가능 |
+
+**조합 예시:**
+```python
+# E-commerce Agent: 선호도 + 사실 + 요약
+strategies=[
+    UserPreferenceStrategy(name="prefs", namespaces=["/users/{actorId}/preferences"]),
+    SemanticStrategy(name="facts", namespaces=["/users/{actorId}/facts"]),
+    SummaryStrategy(name="summaries", namespaces=["/summaries/{actorId}/{sessionId}"])
+]
+
+# Support Agent: 사실 + 요약 + 에피소드
+strategies=[
+    SemanticStrategy(name="facts", namespaces=["/cases/{sessionId}/facts"]),
+    SummaryStrategy(name="summaries", namespaces=["/summaries/{actorId}/{sessionId}"]),
+    EpisodicStrategy(name="episodes", namespaces=["/episodes/{actorId}"])
+]
+```
 
 ```python
 from bedrock_agentcore.memory.integrations.strands.config import (
