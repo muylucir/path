@@ -3,6 +3,7 @@
 ## 개념
 LLM의 본질적 한계인 Statelessness를 해결하는 완전 관리형 메모리 서비스입니다.
 
+
 **핵심 가치:**
 - **Context Rot 방지**: 무작정 긴 Context Window 대신 선별적 기억으로 모델 성능 유지
 - **자동 추출**: 방대한 대화에서 핵심 정보만 의미론적으로 추출
@@ -11,7 +12,7 @@ LLM의 본질적 한계인 Statelessness를 해결하는 완전 관리형 메모
 
 ## 데이터 구조
 
-AgentCore Memory는 3가지 식별자로 데이터를 구성합니다:
+AgentCore Short-term Memory는 3가지 식별자로 데이터를 구성합니다:
 
 ```
 memory_id (AWS 리소스 수준)
@@ -296,6 +297,8 @@ ltm = client.create_memory_and_wait(
     event_expiry_days=30
 )
 ```
+
+**중요** : LTM은 단독으로 사용 불가능. STM에 저장되면 메모리 전략에 따라 정보가 추출되어 LTM에 저장되는 방식. 따라서 LTM만 단독으로 사용하는 방식은 잘못된것.
 
 ## 4가지 메모리 전략 상세
 
