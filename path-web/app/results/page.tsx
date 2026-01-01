@@ -94,7 +94,7 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-6xl">
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
         {/* 세션 목록으로 돌아가기 버튼 */}
         <div className="mb-4">
           <Button

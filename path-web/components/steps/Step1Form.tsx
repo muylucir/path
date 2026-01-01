@@ -27,9 +27,9 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { 
-  Plus, 
-  Trash2, 
+import {
+  Plus,
+  Trash2,
   Sparkles,
   Download,
   Settings,
@@ -38,7 +38,9 @@ import {
   Users,
   AlertCircle,
   FileText,
-  Cloud
+  Cloud,
+  MessageCircleQuestion,
+  Sliders
 } from "lucide-react";
 import type { DataSource } from "@/lib/types";
 
@@ -117,11 +119,14 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6 max-w-4xl mx-auto">
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
       {/* Pain Point */}
       <Card>
         <CardHeader>
-          <CardTitle>해결하고 싶은 문제</CardTitle>
+          <CardTitle>
+            <MessageCircleQuestion className="h-5 w-5 text-primary" />
+            해결하고 싶은 문제
+          </CardTitle>
           <CardDescription>
             AI Agent로 자동화하고 싶은 Pain Point를 구체적으로 작성하세요
           </CardDescription>
@@ -141,7 +146,10 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       {/* Core Settings */}
       <Card>
         <CardHeader>
-          <CardTitle>핵심 설정</CardTitle>
+          <CardTitle>
+            <Settings className="h-5 w-5 text-primary" />
+            핵심 설정
+          </CardTitle>
           <CardDescription>호스팅 환경과 INPUT, PROCESS, OUTPUT을 선택하세요</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -263,7 +271,10 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       {/* Additional Settings */}
       <Card>
         <CardHeader>
-          <CardTitle>추가 설정</CardTitle>
+          <CardTitle>
+            <Sliders className="h-5 w-5 text-primary" />
+            추가 설정
+          </CardTitle>
           <CardDescription>데이터 소스, Human-in-Loop, 오류 허용도를 설정하세요</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -380,8 +391,8 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       {/* Optional: Additional Context */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileText className="h-5 w-5" />
+          <CardTitle>
+            <FileText className="h-5 w-5 text-primary" />
             추가 정보
           </CardTitle>
           <CardDescription>선택사항: 추가로 알려주고 싶은 내용이 있다면 작성하세요</CardDescription>
@@ -397,7 +408,11 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
 
       {/* Submit */}
       <div className="flex justify-center pt-4">
-        <Button type="submit" size="lg" className="w-full max-w-md gap-2">
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full max-w-md gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300"
+        >
           <Sparkles className="h-5 w-5" />
           Claude 분석 시작
         </Button>

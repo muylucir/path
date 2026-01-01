@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, memo, useLayoutEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft, MessageSquare, Keyboard } from "lucide-react";
 import type { ChatMessage } from "@/lib/types";
 
 interface Step2AnalysisProps {
@@ -13,6 +14,7 @@ interface Step2AnalysisProps {
 }
 
 export function Step2Analysis({ formData, onComplete }: Step2AnalysisProps) {
+  const router = useRouter();
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -244,19 +246,34 @@ MessageComponent.displayName = 'MessageComponent';
 
   return (
     <div className="space-y-4">
+      {/* Back Navigation */}
+      <Button
+        variant="ghost"
+        onClick={() => router.push("/")}
+        className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        이전 단계로
+      </Button>
+
       <Card>
         <CardHeader>
-          <CardTitle>2️⃣ Claude 분석 및 보완</CardTitle>
+          <CardTitle>
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Claude 분석 및 보완
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Claude가 분석하고 추가 질문을 합니다. 답변하거나 "분석 완료"를 입력하세요.
+            Claude가 분석하고 추가 질문을 합니다. 답변하거나 "분석 완료"를 클릭하세요.
           </p>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div 
+            <div
               ref={chatContainerRef}
               className="border rounded-lg p-4 min-h-[400px] max-h-[600px] overflow-y-scroll space-y-4 scroll-smooth"
               style={{ scrollBehavior: 'smooth', minHeight: '400px' }}
+              aria-live="polite"
+              aria-label="대화 내용"
             >
               {chatHistory.map((msg, idx) => (
                 <MessageComponent key={idx} message={msg} index={idx} />
@@ -277,37 +294,43 @@ MessageComponent.displayName = 'MessageComponent';
               <div ref={messagesEndRef} />
             </div>
 
-            <div className="flex gap-2">
-              <Textarea
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && e.ctrlKey) {
-                    e.preventDefault();
-                    handleUserMessage();
-                  }
-                }}
-                placeholder="답변을 입력하세요 (Ctrl+Enter로 전송)..."
-                disabled={isStreaming || isAnalyzing}
-                className="min-h-[80px] resize-none"
-              />
-              <Button
-                onClick={handleUserMessage}
-                disabled={isStreaming || isAnalyzing || !userInput.trim()}
-              >
-                {isStreaming ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "전송"
-                )}
-              </Button>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && e.ctrlKey) {
+                      e.preventDefault();
+                      handleUserMessage();
+                    }
+                  }}
+                  placeholder="답변을 입력하세요..."
+                  disabled={isStreaming || isAnalyzing}
+                  className="min-h-[80px] resize-none"
+                  aria-label="답변 입력"
+                />
+                <Button
+                  onClick={handleUserMessage}
+                  disabled={isStreaming || isAnalyzing || !userInput.trim()}
+                >
+                  {isStreaming ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "전송"
+                  )}
+                </Button>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Keyboard className="h-3 w-3" />
+                <span>Ctrl + Enter로 전송</span>
+              </div>
             </div>
 
             <Button
               onClick={() => finalizeAnalysis(chatHistory)}
               disabled={isStreaming || isAnalyzing || chatHistory.length === 0}
-              variant="outline"
-              className="w-full"
+              className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:shadow-none disabled:scale-100"
             >
               {isAnalyzing ? (
                 <>

@@ -3,7 +3,11 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Step1Form } from "@/components/steps/Step1Form";
+import { HeroSection } from "@/components/layout/HeroSection";
+import { StepIndicator } from "@/components/layout/StepIndicator";
 import type { FormValues } from "@/lib/schema";
+
+const STEPS = ["입력", "분석", "결과"];
 
 export default function Home() {
   const router = useRouter();
@@ -21,13 +25,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-5xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">AI Agent 아이디어 분석</h1>
-          <p className="text-muted-foreground">
-            P.A.T.H 프레임워크로 실현 가능성을 빠르게 검증하세요
-          </p>
-        </div>
-
+        <StepIndicator currentStep={1} steps={STEPS} />
+        <HeroSection />
         <Step1Form onSubmit={handleSubmit} />
       </div>
     </div>
