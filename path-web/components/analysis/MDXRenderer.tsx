@@ -60,8 +60,9 @@ export function MDXRenderer({ content }: MDXRendererProps) {
           .replace(/<skill name='.*?'>[\s\S]*?<\/skill>/g, '');
         
         // 코드 블록 내 중괄호 이스케이프 (MDX가 JSX로 해석하지 않도록)
+        // 단, mermaid 코드 블록은 제외 (Mermaid가 직접 파싱해야 함)
         cleanedContent = cleanedContent.replace(
-          /(```[\s\S]*?```)/g,
+          /(```(?!mermaid)[\s\S]*?```)/g,
           (match) => match.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;')
         );
         

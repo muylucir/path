@@ -176,13 +176,28 @@ class ArchitectureAgent:
             tools=[skill_tool]
         )
     
-    def generate_diagrams(self, pattern_result: str, agentcore_result: Optional[str] = None) -> str:
+    def generate_diagrams(self, pattern_result: str, agentcore_result: Optional[str] = None, use_agentcore: bool = False) -> str:
         """다이어그램 생성"""
         agentcore_section = f"\n\nAgentCore: {agentcore_result}" if agentcore_result else ""
+
+        # 호스팅 환경에 따른 아키텍처 지침
+        if use_agentcore:
+            architecture_instruction = """3. **Architecture Flowchart**:
+   - 전체 시스템 아키텍처 (Amazon Bedrock AgentCore 기반)
+   - AgentCore Runtime, Gateway, Identity, Memory 등 서비스 포함
+   - 외부 서비스 연동 (MCP, API 등)"""
+        else:
+            architecture_instruction = """3. **Architecture Flowchart**:
+   - 전체 시스템 아키텍처 (EC2/ECS/EKS 기반, AgentCore 미사용)
+   - **중요: AgentCore Runtime, Gateway, Identity 등을 포함하지 마세요**
+   - Python 애플리케이션이 직접 외부 서비스 호출
+   - 외부 서비스 연동 (MCP 서버, API 등)"""
 
         prompt = f"""Mermaid 다이어그램 3개를 생성하세요:
 
 패턴: {pattern_result}{agentcore_section}
+
+**호스팅 환경**: {"Amazon Bedrock AgentCore" if use_agentcore else "EC2/ECS/EKS (AgentCore 미사용)"}
 
 **필수 1단계**: skill_tool을 호출하여 "mermaid-diagrams" 스킬을 로드하세요.
 **필수 2단계**: 로드된 SKILL의 템플릿과 베스트 프랙티스만을 사용하세요.
@@ -200,18 +215,22 @@ class ArchitectureAgent:
    - 사용자 요청부터 최종 응답까지의 호출 흐름
    - Agent 간 메시지 전달 순서
    - 조건부 분기 표현 (alt/opt)
+   - {"AgentCore Runtime을 중앙 오케스트레이터로 사용" if use_agentcore else "AgentCore를 사용하지 않고 Python 애플리케이션이 직접 Agent 호출"}
 
-3. **Architecture Flowchart**:
-   - 전체 시스템 아키텍처
-   - 외부 서비스 연동 (MCP, API 등)
-   - AgentCore 서비스 포함 (있는 경우)
+{architecture_instruction}
 
 **출력 형식**:
 - 각 다이어그램은 ```mermaid 코드 블록 1개만 출력
 - 다이어그램 코드를 설명용으로 다시 출력하지 말 것
 - "**코드:**" 섹션 금지
 
+**중요 - 특수 문자 이스케이프 (필수)**:
+- 노드 텍스트에 `>=`, `>`, `<`, `?`, `&` 등 특수 문자가 있으면 **반드시 따옴표로 감싸세요**
+- 잘못된 예: `{{Score >= 70?}}`
+- 올바른 예: `{{"Score >= 70?"}}`
+
 **중요: 다이어그램에 HTML 태그 금지. mermaid-diagrams 스킬의 템플릿 구조를 따르세요.**
+{"**중요: AgentCore 서비스(Runtime, Gateway, Identity, Memory 등)를 다이어그램에 포함하지 마세요.**" if not use_agentcore else ""}
 """
         result = self.agent(prompt)
         return result.message['content'][0]['text']
@@ -380,7 +399,7 @@ class MultiStageSpecAgent:
             # 2단계: 아키텍처 (50-75%)
             yield f"data: {json.dumps({'progress': 50, 'stage': '아키텍처 생성 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
-                self.architecture_agent.generate_diagrams, pattern_result, agentcore_result
+                self.architecture_agent.generate_diagrams, pattern_result, agentcore_result, use_agentcore
             ))
             progress = 55
             while not task.done():
