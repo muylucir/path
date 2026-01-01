@@ -22,6 +22,16 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Loader2, Trash2, Eye, CheckCircle, AlertTriangle, RefreshCw, Database } from "lucide-react";
 import { formatKST } from "@/lib/utils";
 import type { SessionListItem } from "@/lib/types";
@@ -34,6 +44,8 @@ export default function SessionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(false);
   const [pageKeys, setPageKeys] = useState<any[]>([undefined]); // 각 페이지의 시작 키
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadSessions();
@@ -105,14 +117,22 @@ export default function SessionsPage() {
     }
   };
 
-  const handleDelete = async (sessionId: string) => {
-    if (!confirm("이 세션을 삭제하시겠습니까?")) return;
+  const openDeleteDialog = (sessionId: string) => {
+    setSessionToDelete(sessionId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!sessionToDelete) return;
 
     try {
-      await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
-      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+      await fetch(`/api/sessions/${sessionToDelete}`, { method: "DELETE" });
+      setSessions((prev) => prev.filter((s) => s.session_id !== sessionToDelete));
     } catch (error) {
       console.error("Error deleting session:", error);
+    } finally {
+      setDeleteDialogOpen(false);
+      setSessionToDelete(null);
     }
   };
 
@@ -126,19 +146,19 @@ export default function SessionsPage() {
 
   const getScoreBadge = (score: number) => {
     if (score >= 40) return (
-      <Badge className="bg-green-600 flex items-center gap-1">
+      <Badge variant="success" className="flex items-center gap-1">
         <CheckCircle className="h-3 w-3" />
         Go
       </Badge>
     );
     if (score >= 30) return (
-      <Badge className="bg-yellow-600 flex items-center gap-1">
+      <Badge variant="warning" className="flex items-center gap-1">
         <AlertTriangle className="h-3 w-3" />
         조건부
       </Badge>
     );
     return (
-      <Badge className="bg-red-600 flex items-center gap-1">
+      <Badge variant="error" className="flex items-center gap-1">
         <RefreshCw className="h-3 w-3" />
         개선 필요
       </Badge>
@@ -185,33 +205,30 @@ export default function SessionsPage() {
               </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>날짜</TableHead>
-                  <TableHead>Pain Point</TableHead>
-                  <TableHead className="text-center">Feasibility</TableHead>
-                  <TableHead className="text-center">판정</TableHead>
-                  <TableHead className="text-right">액션</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <>
+              {/* Mobile Card View */}
+              <div className="md:hidden space-y-4">
                 {sortedSessions.map((session) => (
-                  <TableRow key={session.session_id}>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatKST(session.timestamp)}
-                    </TableCell>
-                    <TableCell className="max-w-md">
-                      <p className="text-sm truncate">{session.pain_point}</p>
-                    </TableCell>
-                    <TableCell className="text-center font-semibold">
-                      {session.feasibility_score}/50
-                    </TableCell>
-                    <TableCell className="text-center">
+                  <div
+                    key={session.session_id}
+                    className="border rounded-lg p-4 space-y-3 bg-card"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate pr-2">
+                          {session.pain_point}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatKST(session.timestamp)}
+                        </p>
+                      </div>
                       {getScoreBadge(session.feasibility_score)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <span className="text-sm font-semibold">
+                        Feasibility: {session.feasibility_score}/50
+                      </span>
+                      <div className="flex gap-2">
                         <Button
                           variant="outline"
                           size="sm"
@@ -223,16 +240,68 @@ export default function SessionsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDelete(session.session_id)}
+                          onClick={() => openDeleteDialog(session.session_id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </div>
+                  </div>
                 ))}
-              </TableBody>
-            </Table>
+              </div>
+
+              {/* Desktop Table View */}
+              <div className="hidden md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>날짜</TableHead>
+                      <TableHead>Pain Point</TableHead>
+                      <TableHead className="text-center">Feasibility</TableHead>
+                      <TableHead className="text-center">판정</TableHead>
+                      <TableHead className="text-right">액션</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedSessions.map((session) => (
+                      <TableRow key={session.session_id}>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatKST(session.timestamp)}
+                        </TableCell>
+                        <TableCell className="max-w-md">
+                          <p className="text-sm truncate">{session.pain_point}</p>
+                        </TableCell>
+                        <TableCell className="text-center font-semibold">
+                          {session.feasibility_score}/50
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {getScoreBadge(session.feasibility_score)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleLoad(session.session_id)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              보기
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => openDeleteDialog(session.session_id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
           
           {/* 페이지네이션 */}
@@ -267,6 +336,24 @@ export default function SessionsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>세션 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              이 세션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

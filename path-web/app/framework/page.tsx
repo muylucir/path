@@ -5,7 +5,7 @@ import { Search, Target, BarChart3, FileText } from "lucide-react";
 export default function FrameworkPage() {
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-5xl">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">P.A.T.H 프레임워크</h1>
           <p className="text-muted-foreground">

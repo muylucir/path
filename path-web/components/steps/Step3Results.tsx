@@ -328,7 +328,11 @@ export function Step3Results({
           <Card>
             <CardContent className="pt-6 space-y-4">
               {!specification && !isGenerating && (
-                <Button onClick={generateSpec} className="w-full gap-2" size="lg">
+                <Button
+                  onClick={generateSpec}
+                  className="w-full gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300"
+                  size="lg"
+                >
                   <Sparkles className="h-5 w-5" />
                   Claude로 상세 명세서 생성
                 </Button>
