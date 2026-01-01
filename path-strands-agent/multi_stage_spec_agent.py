@@ -132,7 +132,10 @@ class AgentCoreAgent:
 위 Agent Components 테이블을 보고:
 1. 각 Agent가 사용하는 Tools를 확인
 2. 필요한 AgentCore 서비스 판단
-3. 서비스별 구체적 설정 제시
+3. 서비스별 구체적 설정 제시 
+- Memory는 메모리 전략, Namespace 구성 등을 자세히 기술
+- Identity는 어떤 인증정보를 어떻게 저장하고 어디서 사용하는지 자세히 명시
+- Gateway는 어떤 도구를 등록하고 어떤 Identity로부터 인증방식을 사용하는지 명시 
 
 ### 서비스 구성 테이블
 
