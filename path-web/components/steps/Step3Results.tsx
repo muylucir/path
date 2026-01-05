@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, ArrowDown, ArrowUp, Settings, CheckCircle, RefreshCw, AlertCircle } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, ArrowDown, ArrowUp, Settings, CheckCircle, RefreshCw, AlertCircle, Workflow } from "lucide-react";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
 
@@ -25,10 +26,12 @@ export function Step3Results({
   initialSpecification,
   onSave,
 }: Step3ResultsProps) {
+  const router = useRouter();
   const { feasibility_score, pattern, feasibility_breakdown, risks, next_steps } = analysis;
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isNavigatingToBuilder, setIsNavigatingToBuilder] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -120,6 +123,37 @@ export function Step3Results({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const navigateToBuilder = async () => {
+    if (!specification) return;
+    setIsNavigatingToBuilder(true);
+
+    try {
+      // 명세서를 Canvas State로 변환
+      const response = await fetch("/api/builder/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ spec: specification, analysis }),
+      });
+
+      if (response.ok) {
+        const canvasState = await response.json();
+        // sessionStorage에 저장
+        sessionStorage.setItem("agentCanvasState", JSON.stringify(canvasState));
+        // Builder 페이지로 이동
+        router.push("/builder");
+      } else {
+        console.error("Failed to parse spec");
+        // 실패해도 기본 상태로 이동
+        router.push("/builder");
+      }
+    } catch (error) {
+      console.error("Error navigating to builder:", error);
+      router.push("/builder");
+    } finally {
+      setIsNavigatingToBuilder(false);
+    }
   };
 
   return (
@@ -348,9 +382,21 @@ export function Step3Results({
                             <Loader2 className="h-4 w-4 mr-2" />
                             재생성
                           </Button>
-                          <Button onClick={downloadSpec} className="flex-1">
+                          <Button onClick={downloadSpec} variant="outline" className="flex-1">
                             <Download className="h-4 w-4 mr-2" />
                             다운로드
+                          </Button>
+                          <Button
+                            onClick={navigateToBuilder}
+                            disabled={isNavigatingToBuilder}
+                            className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
+                          >
+                            {isNavigatingToBuilder ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Workflow className="h-4 w-4 mr-2" />
+                            )}
+                            빌더로 이동
                           </Button>
                         </>
                       )}

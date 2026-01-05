@@ -19,6 +19,8 @@ import asyncio
 
 from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent
 from multi_stage_spec_agent import MultiStageSpecAgent
+from spec_parser import parse_spec_to_canvas
+from code_generator import generate_code_from_canvas, generate_zip_from_canvas
 
 app = FastAPI(title="PATH Strands Agent API")
 
@@ -53,6 +55,15 @@ class FinalizeRequest(BaseModel):
 class SpecRequest(BaseModel):
     analysis: Dict[str, Any]
     useAgentCore: bool = False
+
+
+class ParseSpecRequest(BaseModel):
+    spec: str
+    analysis: Optional[Dict[str, Any]] = None
+
+
+class GenerateCodeRequest(BaseModel):
+    canvasState: Dict[str, Any]
 
 
 # Global agents (재사용)
@@ -148,6 +159,43 @@ async def spec(request: SpecRequest):
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "X-Accel-Buffering": "no",
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/spec/parse")
+async def parse_spec(request: ParseSpecRequest):
+    """명세서 Markdown을 Canvas State JSON으로 변환"""
+    try:
+        canvas_state = parse_spec_to_canvas(request.spec, request.analysis)
+        return canvas_state
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/code/generate")
+async def generate_code(request: GenerateCodeRequest):
+    """Canvas State를 Python 코드로 변환"""
+    try:
+        files = generate_code_from_canvas(request.canvasState)
+        return files
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/code/download")
+async def download_code(request: GenerateCodeRequest):
+    """Canvas State를 ZIP 파일로 다운로드"""
+    from fastapi.responses import Response
+    try:
+        zip_bytes = generate_zip_from_canvas(request.canvasState)
+        return Response(
+            content=zip_bytes,
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=agent-code.zip"
             }
         )
     except Exception as e:
