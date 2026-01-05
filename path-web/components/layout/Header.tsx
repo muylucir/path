@@ -35,6 +35,14 @@ export function Header() {
                 세션 목록
               </Link>
               <Link
+                href="/settings"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  pathname === "/settings" ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                통합 설정
+              </Link>
+              <Link
                 href="/framework"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
                   pathname === "/framework" ? "text-primary" : "text-muted-foreground"
