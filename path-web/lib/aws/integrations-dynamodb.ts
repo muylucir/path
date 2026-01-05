@@ -111,7 +111,7 @@ export async function listIntegrations(
       new ScanCommand({
         TableName: TABLE_NAME,
         FilterExpression: "#type = :type",
-        ExpressionAttributeNames: { "#type": "type" },
+        ExpressionAttributeNames: { "#type": "type", "#name": "name" },
         ExpressionAttributeValues: { ":type": type },
         Limit: limit,
         ProjectionExpression: "id, #type, #name, description, createdAt, updatedAt",
