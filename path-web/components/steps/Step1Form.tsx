@@ -40,9 +40,12 @@ import {
   FileText,
   Cloud,
   MessageCircleQuestion,
-  Sliders
+  Sliders,
+  X,
 } from "lucide-react";
 import type { DataSource } from "@/lib/types";
+import { IntegrationPicker } from "./IntegrationPicker";
+import { Badge } from "@/components/ui/badge";
 
 interface Step1FormProps {
   onSubmit: (data: FormValues) => void;
@@ -52,6 +55,8 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
   const [dataSources, setDataSources] = useState<DataSource[]>([
     { type: "", description: "" },
   ]);
+  const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>([]);
+  const [integrationNames, setIntegrationNames] = useState<Record<string, string>>({});
 
   const {
     register,
@@ -71,8 +76,42 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       errorTolerance: "",
       additionalContext: "",
       useAgentCore: false,
+      selectedIntegrations: [],
     },
   });
+
+  // Fetch integration names when selection changes
+  const fetchIntegrationNames = async (ids: string[]) => {
+    const names: Record<string, string> = {};
+    for (const id of ids) {
+      if (!integrationNames[id]) {
+        try {
+          const response = await fetch(`/api/integrations/${id}`);
+          if (response.ok) {
+            const data = await response.json();
+            names[id] = data.integration?.name || id;
+          }
+        } catch {
+          names[id] = id;
+        }
+      } else {
+        names[id] = integrationNames[id];
+      }
+    }
+    setIntegrationNames((prev) => ({ ...prev, ...names }));
+  };
+
+  const handleIntegrationChange = (ids: string[]) => {
+    setSelectedIntegrations(ids);
+    setValue("selectedIntegrations", ids);
+    fetchIntegrationNames(ids);
+  };
+
+  const removeIntegration = (id: string) => {
+    const updated = selectedIntegrations.filter((i) => i !== id);
+    setSelectedIntegrations(updated);
+    setValue("selectedIntegrations", updated);
+  };
 
   const processSteps = watch("processSteps");
   const outputTypes = watch("outputTypes");
@@ -115,7 +154,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
   };
 
   const handleFormSubmit = (data: FormValues) => {
-    onSubmit({ ...data, dataSources });
+    onSubmit({ ...data, dataSources, selectedIntegrations });
   };
 
   return (
@@ -280,10 +319,38 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
         <CardContent className="space-y-6">
           {/* Data Sources */}
           <div className="space-y-3">
-            <Label className="text-base font-semibold flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              데이터 소스
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                데이터 소스
+              </Label>
+              <IntegrationPicker
+                selectedIds={selectedIntegrations}
+                onSelectionChange={handleIntegrationChange}
+              />
+            </div>
+
+            {/* Selected Integrations */}
+            {selectedIntegrations.length > 0 && (
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                <p className="text-xs text-muted-foreground mb-2">선택된 통합:</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedIntegrations.map((id) => (
+                    <Badge key={id} variant="secondary" className="flex items-center gap-1">
+                      {integrationNames[id] || id.slice(0, 8)}
+                      <button
+                        type="button"
+                        onClick={() => removeIntegration(id)}
+                        className="ml-1 hover:text-red-500"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {dataSources.map((source, index) => (
               <div key={index} className="flex gap-2">
                 <Select

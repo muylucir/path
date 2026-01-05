@@ -15,6 +15,7 @@ export const formSchema = z.object({
   errorTolerance: z.string().min(1, "오류 허용도를 선택해주세요"),
   additionalContext: z.string().optional(),
   useAgentCore: z.boolean(),
+  selectedIntegrations: z.array(z.string()).optional(),
 });
 
 export type DataSource = z.infer<typeof dataSourceSchema>;
