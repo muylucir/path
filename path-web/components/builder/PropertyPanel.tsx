@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import type { Node } from "@xyflow/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -13,7 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, X, Brain, GitBranch, Database, Link, Shield } from "lucide-react";
+import { Trash2, Brain, GitBranch, Database, Link, Shield, Plus, Loader2, Globe, Server } from "lucide-react";
+import type { IntegrationListItem } from "@/lib/types";
 
 interface PropertyPanelProps {
   node: Node | null;
@@ -29,12 +32,33 @@ export function PropertyPanel({
   readOnly = false,
 }: PropertyPanelProps) {
   const [editedData, setEditedData] = useState<Record<string, unknown>>({});
+  const [integrations, setIntegrations] = useState<IntegrationListItem[]>([]);
+  const [loadingIntegrations, setLoadingIntegrations] = useState(false);
+
+  const fetchIntegrations = useCallback(async () => {
+    setLoadingIntegrations(true);
+    try {
+      const response = await fetch("/api/integrations");
+      if (response.ok) {
+        const data = await response.json();
+        setIntegrations(data.integrations || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch integrations:", err);
+    } finally {
+      setLoadingIntegrations(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (node) {
       setEditedData(node.data as Record<string, unknown>);
+      // Fetch integrations when gateway node is selected
+      if (node.type === "gateway") {
+        fetchIntegrations();
+      }
     }
-  }, [node]);
+  }, [node, fetchIntegrations]);
 
   if (!node) {
     return (
@@ -264,6 +288,81 @@ export function PropertyPanel({
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 {((editedData.targets as unknown[]) || []).length} target(s) 연결됨
               </p>
+            </div>
+
+            {/* Integration Selection */}
+            <div className="space-y-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <Label className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                등록된 통합에서 추가
+              </Label>
+
+              {loadingIntegrations ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
+                </div>
+              ) : integrations.length === 0 ? (
+                <p className="text-xs text-gray-500">
+                  등록된 통합이 없습니다.{" "}
+                  <a href="/settings" className="text-blue-500 hover:underline">
+                    설정 페이지
+                  </a>
+                  에서 추가하세요.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {integrations
+                    .filter((i) => i.type === "api" || i.type === "mcp")
+                    .map((integration) => {
+                      const targets = (editedData.targets as { integrationId?: string }[]) || [];
+                      const isSelected = targets.some((t) => t.integrationId === integration.id);
+
+                      return (
+                        <div
+                          key={integration.id}
+                          className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                            isSelected
+                              ? "border-primary bg-primary/5"
+                              : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                          }`}
+                          onClick={() => {
+                            if (readOnly) return;
+                            const currentTargets = (editedData.targets as { integrationId?: string; type: string; name: string; config: Record<string, unknown> }[]) || [];
+                            if (isSelected) {
+                              // Remove
+                              handleChange(
+                                "targets",
+                                currentTargets.filter((t) => t.integrationId !== integration.id)
+                              );
+                            } else {
+                              // Add
+                              handleChange("targets", [
+                                ...currentTargets,
+                                {
+                                  integrationId: integration.id,
+                                  type: integration.type === "api" ? "rest-api" : "mcp-server",
+                                  name: integration.name,
+                                  config: {},
+                                },
+                              ]);
+                            }
+                          }}
+                        >
+                          <Checkbox checked={isSelected} disabled={readOnly} />
+                          {integration.type === "api" ? (
+                            <Globe className="w-4 h-4 text-blue-500" />
+                          ) : (
+                            <Server className="w-4 h-4 text-purple-500" />
+                          )}
+                          <span className="text-sm flex-1 truncate">{integration.name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {integration.type.toUpperCase()}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
           </>
         )}

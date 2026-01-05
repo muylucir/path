@@ -184,3 +184,112 @@ export interface AgentCanvasState {
     updatedAt: string;
   };
 }
+
+// Integration Types for Settings Page
+
+export interface APIEndpoint {
+  path: string;
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  summary: string;
+  description?: string;
+  parameters?: {
+    name: string;
+    in: 'query' | 'path' | 'header' | 'body';
+    required: boolean;
+    type: string;
+    description?: string;
+  }[];
+  requestBody?: {
+    contentType: string;
+    schema: Record<string, unknown>;
+  };
+  responses?: Record<string, {
+    description: string;
+    schema?: Record<string, unknown>;
+  }>;
+}
+
+export interface APIIntegration {
+  id: string;
+  type: 'api';
+  name: string;
+  description?: string;
+  config: {
+    baseUrl: string;
+    authType: 'none' | 'api-key' | 'oauth2' | 'basic';
+    authConfig?: {
+      apiKeyHeader?: string;
+      apiKeyValue?: string;
+      oauth2TokenUrl?: string;
+      oauth2ClientId?: string;
+      oauth2Scopes?: string[];
+      basicUsername?: string;
+      basicPassword?: string;
+    };
+    endpoints: APIEndpoint[];
+    openApiSpec?: Record<string, unknown>;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MCPTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export interface MCPIntegration {
+  id: string;
+  type: 'mcp';
+  name: string;
+  description?: string;
+  config: {
+    serverUrl: string;
+    transport: 'stdio' | 'sse' | 'websocket';
+    command?: string;
+    args?: string[];
+    env?: Record<string, string>;
+    tools: MCPTool[];
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RAGIntegration {
+  id: string;
+  type: 'rag';
+  name: string;
+  description?: string;
+  config: {
+    provider: 'bedrock-kb' | 'pinecone' | 'opensearch';
+    bedrockKb?: {
+      knowledgeBaseId: string;
+      region: string;
+    };
+    pinecone?: {
+      apiKey?: string;
+      environment: string;
+      indexName: string;
+    };
+    opensearch?: {
+      endpoint: string;
+      indexName: string;
+      username?: string;
+      password?: string;
+    };
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type Integration = APIIntegration | MCPIntegration | RAGIntegration;
+
+export interface IntegrationListItem {
+  id: string;
+  type: 'api' | 'mcp' | 'rag';
+  name: string;
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
