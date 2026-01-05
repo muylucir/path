@@ -8,7 +8,7 @@ import {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") as "api" | "mcp" | "rag" | null;
+    const type = searchParams.get("type") as "api" | "mcp" | "rag" | "s3" | null;
 
     const integrations = await listIntegrations(type || undefined);
     return NextResponse.json({ integrations });
@@ -34,9 +34,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!["api", "mcp", "rag"].includes(type)) {
+    if (!["api", "mcp", "rag", "s3"].includes(type)) {
       return NextResponse.json(
-        { error: "Invalid type. Must be one of: api, mcp, rag" },
+        { error: "Invalid type. Must be one of: api, mcp, rag, s3" },
         { status: 400 }
       );
     }

@@ -12,6 +12,7 @@ import type {
   APIIntegration,
   MCPIntegration,
   RAGIntegration,
+  S3Integration,
   IntegrationListItem,
 } from "@/lib/types";
 
@@ -99,7 +100,7 @@ export async function deleteIntegration(id: string): Promise<void> {
 }
 
 export async function listIntegrations(
-  type?: "api" | "mcp" | "rag",
+  type?: "api" | "mcp" | "rag" | "s3",
   limit: number = 50
 ): Promise<IntegrationListItem[]> {
   let response;
