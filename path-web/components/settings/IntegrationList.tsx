@@ -6,7 +6,7 @@ import type { IntegrationListItem } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
 interface IntegrationListProps {
-  type: "api" | "mcp" | "rag";
+  type: "api" | "mcp" | "rag" | "s3";
   onEdit: (id: string) => void;
   onRefresh: () => void;
 }

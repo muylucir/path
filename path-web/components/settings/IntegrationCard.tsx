@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Server, Database, Pencil, Trash2 } from "lucide-react";
+import { Globe, Server, Database, HardDrive, Pencil, Trash2 } from "lucide-react";
 import type { IntegrationListItem } from "@/lib/types";
 
 interface IntegrationCardProps {
@@ -27,6 +27,11 @@ const typeConfig = {
     icon: Database,
     color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300",
     label: "RAG",
+  },
+  s3: {
+    icon: HardDrive,
+    color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
+    label: "S3",
   },
 };
 
