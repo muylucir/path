@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Upload, Check, AlertCircle } from "lucide-react";
+import { Loader2, Check, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import type { APIIntegration, APIEndpoint } from "@/lib/types";
 
 interface APIIntegrationFormProps {
@@ -31,6 +31,8 @@ export function APIIntegrationForm({
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parseSuccess, setParseSuccess] = useState(false);
+  const [showOpenApiUpload, setShowOpenApiUpload] = useState(false);
+  const [showEndpointForm, setShowEndpointForm] = useState(false);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -40,6 +42,11 @@ export function APIIntegrationForm({
   const [apiKeyValue, setApiKeyValue] = useState("");
   const [endpoints, setEndpoints] = useState<APIEndpoint[]>([]);
   const [openApiSpec, setOpenApiSpec] = useState<Record<string, unknown> | null>(null);
+
+  // Manual endpoint entry
+  const [newEndpointMethod, setNewEndpointMethod] = useState<"GET" | "POST" | "PUT" | "DELETE" | "PATCH">("GET");
+  const [newEndpointPath, setNewEndpointPath] = useState("");
+  const [newEndpointSummary, setNewEndpointSummary] = useState("");
 
   const fetchIntegration = useCallback(async () => {
     if (!integrationId) return;
@@ -112,6 +119,25 @@ export function APIIntegrationForm({
     }
   };
 
+  const addEndpoint = () => {
+    if (!newEndpointPath.trim()) return;
+
+    const newEndpoint: APIEndpoint = {
+      method: newEndpointMethod,
+      path: newEndpointPath.trim(),
+      summary: newEndpointSummary.trim() || `${newEndpointMethod} ${newEndpointPath.trim()}`,
+    };
+
+    setEndpoints([...endpoints, newEndpoint]);
+    setNewEndpointPath("");
+    setNewEndpointSummary("");
+    setNewEndpointMethod("GET");
+  };
+
+  const removeEndpoint = (index: number) => {
+    setEndpoints(endpoints.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -156,31 +182,6 @@ export function APIIntegrationForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* OpenAPI Upload */}
-      <div className="p-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg">
-        <Label className="text-sm font-medium">OpenAPI 스펙 업로드</Label>
-        <p className="text-xs text-slate-500 mb-2">
-          OpenAPI/Swagger JSON 파일을 업로드하면 자동으로 파싱됩니다
-        </p>
-        <div className="flex items-center gap-2">
-          <Input
-            type="file"
-            accept=".json"
-            onChange={handleFileUpload}
-            disabled={parsing}
-            className="flex-1"
-          />
-          {parsing && <Loader2 className="w-4 h-4 animate-spin" />}
-          {parseSuccess && <Check className="w-4 h-4 text-green-500" />}
-        </div>
-        {parseError && (
-          <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" />
-            {parseError}
-          </p>
-        )}
-      </div>
-
       {/* Name */}
       <div className="space-y-2">
         <Label htmlFor="name">이름 *</Label>
@@ -258,15 +259,108 @@ export function APIIntegrationForm({
         </div>
       )}
 
-      {/* Endpoints Preview */}
-      {endpoints.length > 0 && (
-        <div className="space-y-2">
-          <Label>파싱된 엔드포인트 ({endpoints.length}개)</Label>
+      {/* Endpoints Section */}
+      <div className="space-y-3 border rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">엔드포인트 ({endpoints.length}개)</Label>
+          <p className="text-xs text-slate-500">선택사항</p>
+        </div>
+
+        {/* OpenAPI Upload (Optional) */}
+        <div>
+          <button
+            type="button"
+            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+            onClick={() => setShowOpenApiUpload(!showOpenApiUpload)}
+          >
+            {showOpenApiUpload ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            OpenAPI 스펙으로 가져오기
+          </button>
+
+          {showOpenApiUpload && (
+            <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
+              <p className="text-xs text-slate-500 mb-2">
+                OpenAPI/Swagger JSON 파일을 업로드하면 엔드포인트가 자동으로 추가됩니다
+              </p>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileUpload}
+                  disabled={parsing}
+                  className="flex-1"
+                />
+                {parsing && <Loader2 className="w-4 h-4 animate-spin" />}
+                {parseSuccess && <Check className="w-4 h-4 text-green-500" />}
+              </div>
+              {parseError && (
+                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  {parseError}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Manual Endpoint Entry */}
+        <div>
+          <button
+            type="button"
+            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+            onClick={() => setShowEndpointForm(!showEndpointForm)}
+          >
+            {showEndpointForm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            직접 엔드포인트 추가
+          </button>
+
+          {showEndpointForm && (
+            <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg space-y-2">
+              <div className="flex gap-2">
+                <Select
+                  value={newEndpointMethod}
+                  onValueChange={(v) => setNewEndpointMethod(v as typeof newEndpointMethod)}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GET">GET</SelectItem>
+                    <SelectItem value="POST">POST</SelectItem>
+                    <SelectItem value="PUT">PUT</SelectItem>
+                    <SelectItem value="DELETE">DELETE</SelectItem>
+                    <SelectItem value="PATCH">PATCH</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  value={newEndpointPath}
+                  onChange={(e) => setNewEndpointPath(e.target.value)}
+                  placeholder="/users/{id}"
+                  className="flex-1"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  value={newEndpointSummary}
+                  onChange={(e) => setNewEndpointSummary(e.target.value)}
+                  placeholder="설명 (선택)"
+                  className="flex-1"
+                />
+                <Button type="button" size="sm" onClick={addEndpoint} disabled={!newEndpointPath.trim()}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Endpoints List */}
+        {endpoints.length > 0 && (
           <div className="max-h-40 overflow-y-auto border rounded-lg p-2 space-y-1">
-            {endpoints.slice(0, 10).map((endpoint, idx) => (
+            {endpoints.map((endpoint, idx) => (
               <div
                 key={idx}
-                className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400"
+                className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 group"
               >
                 <Badge
                   variant="outline"
@@ -279,22 +373,24 @@ export function APIIntegrationForm({
                       ? "text-orange-600"
                       : endpoint.method === "DELETE"
                       ? "text-red-600"
-                      : ""
+                      : "text-purple-600"
                   }
                 >
                   {endpoint.method}
                 </Badge>
-                <span className="font-mono truncate">{endpoint.path}</span>
+                <span className="font-mono truncate flex-1">{endpoint.path}</span>
+                <button
+                  type="button"
+                  onClick={() => removeEndpoint(idx)}
+                  className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-600 p-1"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
               </div>
             ))}
-            {endpoints.length > 10 && (
-              <p className="text-xs text-slate-400">
-                ... 외 {endpoints.length - 10}개
-              </p>
-            )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-4">
