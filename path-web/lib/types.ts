@@ -283,11 +283,26 @@ export interface RAGIntegration {
   updatedAt: string;
 }
 
-export type Integration = APIIntegration | MCPIntegration | RAGIntegration;
+export interface S3Integration {
+  id: string;
+  type: 's3';
+  name: string;
+  description?: string;
+  config: {
+    bucketName: string;
+    region: string;
+    prefix?: string;
+    accessType: 'read' | 'write' | 'read-write';
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type Integration = APIIntegration | MCPIntegration | RAGIntegration | S3Integration;
 
 export interface IntegrationListItem {
   id: string;
-  type: 'api' | 'mcp' | 'rag';
+  type: 'api' | 'mcp' | 'rag' | 's3';
   name: string;
   description?: string;
   createdAt: string;

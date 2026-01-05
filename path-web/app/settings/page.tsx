@@ -4,11 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Globe, Server, Database, Plus } from "lucide-react";
+import { ArrowLeft, Globe, Server, Database, HardDrive, Plus } from "lucide-react";
 import { IntegrationList } from "@/components/settings/IntegrationList";
 import { APIIntegrationForm } from "@/components/settings/APIIntegrationForm";
 import { MCPIntegrationForm } from "@/components/settings/MCPIntegrationForm";
 import { RAGIntegrationForm } from "@/components/settings/RAGIntegrationForm";
+import { S3IntegrationForm } from "@/components/settings/S3IntegrationForm";
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"api" | "mcp" | "rag">("api");
+  const [activeTab, setActiveTab] = useState<"api" | "mcp" | "rag" | "s3">("api");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -58,6 +59,11 @@ export default function SettingsPage() {
       label: "RAG",
       description: "Knowledge Base 및 벡터 DB를 등록합니다",
     },
+    s3: {
+      icon: HardDrive,
+      label: "S3",
+      description: "Amazon S3 버킷을 등록합니다",
+    },
   };
 
   return (
@@ -77,7 +83,7 @@ export default function SettingsPage() {
                 통합 설정
               </h1>
               <p className="text-sm text-slate-600 dark:text-slate-400">
-                API, MCP, RAG 통합을 등록하여 PATH 분석에 활용하세요
+                API, MCP, RAG, S3 통합을 등록하여 PATH 분석에 활용하세요
               </p>
             </div>
           </div>
@@ -90,9 +96,9 @@ export default function SettingsPage() {
         {/* Tabs */}
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "api" | "mcp" | "rag")}
+          onValueChange={(v) => setActiveTab(v as "api" | "mcp" | "rag" | "s3")}
         >
-          <TabsList className="grid w-full grid-cols-3 mb-6">
+          <TabsList className="grid w-full grid-cols-4 mb-6">
             {Object.entries(tabConfig).map(([key, config]) => (
               <TabsTrigger
                 key={key}
@@ -114,7 +120,7 @@ export default function SettingsPage() {
               </div>
               <IntegrationList
                 key={`${key}-${refreshKey}`}
-                type={key as "api" | "mcp" | "rag"}
+                type={key as "api" | "mcp" | "rag" | "s3"}
                 onEdit={handleEdit}
                 onRefresh={() => setRefreshKey((k) => k + 1)}
               />
@@ -146,6 +152,13 @@ export default function SettingsPage() {
             )}
             {activeTab === "rag" && (
               <RAGIntegrationForm
+                integrationId={editingId}
+                onSaved={handleSaved}
+                onCancel={handleClose}
+              />
+            )}
+            {activeTab === "s3" && (
+              <S3IntegrationForm
                 integrationId={editingId}
                 onSaved={handleSaved}
                 onCancel={handleClose}
