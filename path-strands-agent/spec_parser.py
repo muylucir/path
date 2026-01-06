@@ -7,7 +7,7 @@ Spec Parser - Markdown 명세서를 JSON Canvas State로 변환
 
 import re
 import json
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
@@ -81,10 +81,18 @@ class SpecParser:
         # 3. AgentCore 서비스 테이블 파싱
         agentcore_config = self._parse_agentcore_table(spec_markdown)
 
-        # 4. Entry point 결정
-        entry_point = self._determine_entry_point(nodes, edges)
+        # 4. AgentCore 서비스 노드 생성 (Memory, Gateway, Identity)
+        if agentcore_config:
+            service_nodes, service_edges = self._create_agentcore_nodes(
+                agentcore_config, agent_nodes
+            )
+            nodes.extend(service_nodes)
+            edges.extend(service_edges)
 
-        # 5. 메타데이터 생성
+        # 5. Entry point 결정 (Agent 노드만 대상으로)
+        entry_point = self._determine_entry_point(agent_nodes, parsed_edges)
+
+        # 6. 메타데이터 생성
         pattern = self._extract_pattern(spec_markdown, analysis)
         metadata = {
             "pattern": pattern,
@@ -247,6 +255,143 @@ class SpecParser:
 
         return config
 
+    def _create_agentcore_nodes(
+        self,
+        agentcore_config: Dict[str, Any],
+        agent_nodes: List[Dict[str, Any]]
+    ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        AgentCore 서비스 설정에서 Memory/Gateway/Identity 노드 생성
+
+        Args:
+            agentcore_config: AgentCore 서비스 설정
+            agent_nodes: 파싱된 Agent 노드 목록
+
+        Returns:
+            (service_nodes, service_edges) 튜플
+        """
+        nodes = []
+        edges = []
+
+        # 서비스 노드 위치: Agent 흐름 우측에 배치
+        # Agent 노드들의 최대 x 위치를 기준으로 오프셋
+        max_agent_x = max((n.get("position", {}).get("x", 0) for n in agent_nodes), default=0)
+        service_x = max_agent_x + 300  # Agent 영역 우측에 충분한 간격
+        service_y_start = 50
+        service_spacing = 180
+        current_y = service_y_start
+
+        # Agent ID 목록
+        agent_ids = [node["id"] for node in agent_nodes if node.get("type") == "agent"]
+
+        # Memory 노드 생성
+        if agentcore_config.get("memory", {}).get("enabled"):
+            memory_config = agentcore_config["memory"]
+            strategies = memory_config.get("strategies", [])
+
+            # Memory 타입 결정: 전략이 있으면 long-term
+            memory_type = "long-term" if strategies else "short-term"
+
+            memory_node = {
+                "id": "memory-1",
+                "type": "memory",
+                "position": {"x": service_x, "y": current_y},
+                "data": {
+                    "id": "memory-1",
+                    "name": "AgentCore Memory",
+                    "type": memory_type,
+                    "strategies": strategies,
+                    "namespaces": [],
+                }
+            }
+            nodes.append(memory_node)
+
+            # 모든 Agent → Memory 연결 (service 타입 edge)
+            for idx, agent_id in enumerate(agent_ids):
+                edges.append({
+                    "id": f"e-mem-{idx + 1}",
+                    "source": agent_id,
+                    "target": "memory-1",
+                    "label": "memory",
+                    "type": "service",
+                })
+
+            current_y += service_spacing
+
+        # Gateway 노드 생성
+        if agentcore_config.get("gateway", {}).get("enabled"):
+            gateway_config = agentcore_config["gateway"]
+            targets = gateway_config.get("targets", [])
+
+            # targets를 적절한 형식으로 변환
+            target_list = []
+            for target in targets:
+                if isinstance(target, str):
+                    target_list.append({
+                        "type": "mcp-server",
+                        "name": target,
+                        "config": {}
+                    })
+                elif isinstance(target, dict):
+                    target_list.append(target)
+
+            gateway_node = {
+                "id": "gateway-1",
+                "type": "gateway",
+                "position": {"x": service_x, "y": current_y},
+                "data": {
+                    "id": "gateway-1",
+                    "name": "AgentCore Gateway",
+                    "targets": target_list,
+                }
+            }
+            nodes.append(gateway_node)
+
+            # 모든 Agent → Gateway 연결
+            for idx, agent_id in enumerate(agent_ids):
+                edges.append({
+                    "id": f"e-gw-{idx + 1}",
+                    "source": agent_id,
+                    "target": "gateway-1",
+                    "label": "tools",
+                    "type": "service",
+                })
+
+            current_y += service_spacing
+
+        # Identity 노드 생성
+        if agentcore_config.get("identity", {}).get("enabled"):
+            identity_config = agentcore_config["identity"]
+            providers = identity_config.get("providers", [])
+
+            identity_node = {
+                "id": "identity-1",
+                "type": "identity",
+                "position": {"x": service_x, "y": current_y},
+                "data": {
+                    "id": "identity-1",
+                    "name": "AgentCore Identity",
+                    "authType": "oauth2-2lo",
+                    "provider": providers[0] if providers else "",
+                    "scopes": [],
+                }
+            }
+            nodes.append(identity_node)
+
+            # Identity는 Gateway에 연결 (OAuth로 API 인증)
+            if agentcore_config.get("gateway", {}).get("enabled"):
+                edges.append({
+                    "id": "e-id-gw",
+                    "source": "identity-1",
+                    "target": "gateway-1",
+                    "label": "auth",
+                    "type": "service",
+                })
+
+            current_y += service_spacing
+
+        return nodes, edges
+
     def _find_node_id(self, name: str, nodes: List[Dict[str, Any]]) -> Optional[str]:
         """노드 이름으로 ID 찾기"""
         name_lower = name.lower()
@@ -317,7 +462,7 @@ def parse_spec_to_canvas(spec_markdown: str, analysis: Dict[str, Any] = None) ->
 
 
 if __name__ == "__main__":
-    # 테스트용 샘플 명세서
+    # 테스트용 샘플 명세서 (AgentCore 포함)
     sample_spec = """
 # AI Agent Design Specification
 
@@ -335,7 +480,26 @@ if __name__ == "__main__":
 nodes = {"coordinator": Agent(...), "analyzer": Agent(...), "generator": Agent(...)}
 edges = [("coordinator", "analyzer"), ("coordinator", "generator")]
 ```
+
+## 3. Amazon Bedrock AgentCore
+
+| 서비스 | 사용 여부 | 용도 | 설정 |
+|--------|-----------|------|------|
+| **AgentCore Runtime** | ✅ | 전체 Multi-Agent 호스팅 | 3개 Agent를 1개 Runtime에서 호스팅 |
+| **AgentCore Memory** | ✅ | 대화 기록 및 사용자 선호 저장 | Long-term Memory (semantic, user-preference) |
+| **AgentCore Gateway** | ✅ | 외부 API 도구 연동 | Lambda/OpenAPI |
+| **AgentCore Identity** | ✅ | OAuth 인증 | Google OAuth |
+| **AgentCore Browser** | ❌ | - | - |
+| **AgentCore Code Interpreter** | ❌ | - | - |
     """
 
     result = parse_spec_to_canvas(sample_spec)
     print(json.dumps(result, indent=2, ensure_ascii=False))
+
+    # 노드 수 확인
+    agent_nodes = [n for n in result["nodes"] if n["type"] == "agent"]
+    service_nodes = [n for n in result["nodes"] if n["type"] in ("memory", "gateway", "identity")]
+    print(f"\n=== Summary ===")
+    print(f"Agent nodes: {len(agent_nodes)}")
+    print(f"Service nodes: {len(service_nodes)} (Memory, Gateway, Identity)")
+    print(f"Total edges: {len(result['edges'])}")

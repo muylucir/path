@@ -22,14 +22,397 @@ class CodeGenerator:
         self.agentcore_config = canvas_state.get("agentCoreConfig")
         self.metadata = canvas_state.get("metadata", {})
 
+        # Service nodes extraction
+        self.memory_nodes = [n for n in self.nodes if n.get("type") == "memory"]
+        self.gateway_nodes = [n for n in self.nodes if n.get("type") == "gateway"]
+        self.identity_nodes = [n for n in self.nodes if n.get("type") == "identity"]
+
+        # Build service connection map (agent_id -> service_ids)
+        self.agent_service_map = self._build_agent_service_map()
+
+    def _build_agent_service_map(self) -> Dict[str, List[str]]:
+        """Agent에서 Service로의 연결 맵 생성"""
+        service_map = {}
+        service_node_ids = set(
+            n["id"] for n in self.memory_nodes + self.gateway_nodes + self.identity_nodes
+        )
+
+        for edge in self.edges:
+            source = edge.get("source", "")
+            target = edge.get("target", "")
+            edge_type = edge.get("type", "")
+
+            # Service edge: Agent → Service 연결
+            if edge_type == "service" and target in service_node_ids:
+                if source not in service_map:
+                    service_map[source] = []
+                service_map[source].append(target)
+
+        return service_map
+
+    def _agent_uses_service(self, agent_id: str, service_type: str) -> bool:
+        """Agent가 특정 서비스 타입을 사용하는지 확인"""
+        service_ids = self.agent_service_map.get(agent_id, [])
+
+        if service_type == "memory":
+            return any(sid.startswith("memory-") for sid in service_ids)
+        elif service_type == "gateway":
+            return any(sid.startswith("gateway-") for sid in service_ids)
+        elif service_type == "identity":
+            return any(sid.startswith("identity-") for sid in service_ids)
+
+        return False
+
     def generate_all(self) -> Dict[str, str]:
         """모든 파일 생성"""
-        return {
+        files = {
             "agent.py": self.generate_agent_code(),
             "agentcore_config.py": self.generate_agentcore_config(),
             "requirements.txt": self.generate_requirements(),
             "README.md": self.generate_readme(),
         }
+
+        # Memory 서비스 파일 생성
+        if self.memory_nodes:
+            files["memory_service.py"] = self._generate_memory_service()
+
+        # Gateway 서비스 파일 생성
+        if self.gateway_nodes:
+            files["gateway_service.py"] = self._generate_gateway_service()
+
+        # Identity 서비스 파일 생성
+        if self.identity_nodes:
+            files["identity_service.py"] = self._generate_identity_service()
+
+        return files
+
+    def _generate_memory_service(self) -> str:
+        """Memory 서비스 클라이언트 코드 생성"""
+        if not self.memory_nodes:
+            return ""
+
+        memory_node = self.memory_nodes[0]
+        data = memory_node.get("data", {})
+        memory_type = data.get("type", "short-term")
+        strategies = data.get("strategies", [])
+        namespaces = data.get("namespaces", [])
+
+        code = f'''"""
+Memory Service - AgentCore Memory Integration
+Memory Type: {memory_type}
+Strategies: {", ".join(strategies) if strategies else "default"}
+"""
+
+from bedrock_agentcore.memory import MemoryClient
+from bedrock_agentcore.memory.integrations.strands.session_manager import AgentCoreMemorySessionManager
+from bedrock_agentcore.memory.config import AgentCoreMemoryConfig
+from typing import Optional
+
+
+class MemoryService:
+    """AgentCore Memory 서비스 래퍼"""
+
+    def __init__(self, region_name: str = "us-west-2"):
+        self.client = MemoryClient(region_name=region_name)
+        self.memory_type = "{memory_type}"
+        self.strategies = {strategies}
+        self.namespaces = {namespaces}
+
+    def create_session_manager(
+        self,
+        memory_id: str,
+        actor_id: str,
+        session_id: str,
+        namespace: Optional[str] = None
+    ) -> AgentCoreMemorySessionManager:
+        """
+        Strands Agent용 세션 매니저 생성
+
+        Args:
+            memory_id: AgentCore Memory ID
+            actor_id: 사용자 또는 액터 ID
+            session_id: 세션 ID
+            namespace: 선택적 네임스페이스
+
+        Returns:
+            AgentCoreMemorySessionManager 인스턴스
+        """
+        config = AgentCoreMemoryConfig(
+            memory_id=memory_id,
+            session_id=session_id,
+            actor_id=actor_id,
+            namespace=namespace or self.namespaces[0] if self.namespaces else None
+        )
+        return AgentCoreMemorySessionManager(agentcore_memory_config=config)
+
+    def store_fact(self, memory_id: str, actor_id: str, fact: str) -> dict:
+        """사실 정보 저장 (Long-term Memory)"""
+        return self.client.store_memory(
+            memory_id=memory_id,
+            actor_id=actor_id,
+            content=fact,
+            memory_type="fact"
+        )
+
+    def store_preference(self, memory_id: str, actor_id: str, preference: str) -> dict:
+        """사용자 선호도 저장"""
+        return self.client.store_memory(
+            memory_id=memory_id,
+            actor_id=actor_id,
+            content=preference,
+            memory_type="preference"
+        )
+
+    def retrieve(self, memory_id: str, actor_id: str, query: str, limit: int = 5) -> list:
+        """관련 메모리 검색"""
+        return self.client.retrieve_memory(
+            memory_id=memory_id,
+            actor_id=actor_id,
+            query=query,
+            limit=limit
+        )
+
+
+# Singleton instance
+memory_service = MemoryService()
+
+
+def get_memory_session_manager(memory_id: str, actor_id: str, session_id: str) -> AgentCoreMemorySessionManager:
+    """편의 함수: 세션 매니저 생성"""
+    return memory_service.create_session_manager(memory_id, actor_id, session_id)
+'''
+        return code
+
+    def _generate_gateway_service(self) -> str:
+        """Gateway 서비스 클라이언트 코드 생성"""
+        if not self.gateway_nodes:
+            return ""
+
+        gateway_node = self.gateway_nodes[0]
+        data = gateway_node.get("data", {})
+        targets = data.get("targets", [])
+
+        target_configs = []
+        for target in targets:
+            target_type = target.get("type", "mcp-server")
+            target_name = target.get("name", "unknown")
+            target_configs.append(f'    # - {target_name} ({target_type})')
+
+        code = f'''"""
+Gateway Service - AgentCore Gateway Integration
+
+Configured Targets:
+{chr(10).join(target_configs) if target_configs else "    # No targets configured"}
+"""
+
+from strands.tools.mcp.mcp_client import MCPClient
+from mcp import ClientSession
+from mcp.client.streamable_http import streamablehttp_client
+from typing import Optional, List
+import asyncio
+
+
+class GatewayService:
+    """AgentCore Gateway 서비스 래퍼"""
+
+    def __init__(self):
+        self.clients = {{}}
+        self.targets = {targets}
+
+    async def connect_mcp_server(
+        self,
+        gateway_url: str,
+        access_token: Optional[str] = None,
+        server_name: str = "default"
+    ) -> MCPClient:
+        """
+        MCP 서버에 연결
+
+        Args:
+            gateway_url: Gateway URL
+            access_token: 인증 토큰 (선택)
+            server_name: 서버 이름
+
+        Returns:
+            연결된 MCPClient
+        """
+        headers = {{"Authorization": f"Bearer {{access_token}}"}} if access_token else {{}}
+
+        client = MCPClient(
+            lambda: streamablehttp_client(gateway_url, headers=headers)
+        )
+        self.clients[server_name] = client
+        return client
+
+    def get_client(self, server_name: str = "default") -> Optional[MCPClient]:
+        """연결된 MCP 클라이언트 조회"""
+        return self.clients.get(server_name)
+
+    async def list_tools(self, server_name: str = "default") -> List[dict]:
+        """사용 가능한 도구 목록 조회"""
+        client = self.get_client(server_name)
+        if not client:
+            return []
+
+        async with client:
+            tools = await client.list_tools()
+            return [tool.model_dump() for tool in tools]
+
+    async def call_tool(
+        self,
+        tool_name: str,
+        arguments: dict,
+        server_name: str = "default"
+    ) -> dict:
+        """
+        도구 호출
+
+        Args:
+            tool_name: 도구 이름
+            arguments: 도구 인자
+            server_name: 서버 이름
+
+        Returns:
+            도구 실행 결과
+        """
+        client = self.get_client(server_name)
+        if not client:
+            raise ValueError(f"No client connected for server: {{server_name}}")
+
+        async with client:
+            result = await client.call_tool(tool_name, arguments)
+            return result
+
+
+# Singleton instance
+gateway_service = GatewayService()
+
+
+async def connect_gateway(gateway_url: str, access_token: str = None) -> MCPClient:
+    """편의 함수: Gateway 연결"""
+    return await gateway_service.connect_mcp_server(gateway_url, access_token)
+'''
+        return code
+
+    def _generate_identity_service(self) -> str:
+        """Identity 서비스 클라이언트 코드 생성"""
+        if not self.identity_nodes:
+            return ""
+
+        identity_node = self.identity_nodes[0]
+        data = identity_node.get("data", {})
+        auth_type = data.get("authType", "api-key")
+        provider = data.get("provider", "")
+        scopes = data.get("scopes", [])
+
+        code = f'''"""
+Identity Service - AgentCore Identity Integration
+
+Auth Type: {auth_type}
+Provider: {provider or "Not specified"}
+Scopes: {", ".join(scopes) if scopes else "None"}
+"""
+
+from bedrock_agentcore.identity import IdentityClient
+from typing import Optional, List
+import os
+
+
+class IdentityService:
+    """AgentCore Identity 서비스 래퍼"""
+
+    def __init__(self, region_name: str = "us-west-2"):
+        self.client = IdentityClient(region_name=region_name)
+        self.auth_type = "{auth_type}"
+        self.provider = "{provider}"
+        self.scopes = {scopes}
+
+    def get_oauth_token(
+        self,
+        connection_id: str,
+        actor_id: str,
+        scopes: Optional[List[str]] = None
+    ) -> dict:
+        """
+        OAuth 토큰 획득 (2LO - Two-legged OAuth)
+
+        Args:
+            connection_id: Identity Connection ID
+            actor_id: 액터 ID
+            scopes: 요청 스코프
+
+        Returns:
+            토큰 정보 dict
+        """
+        return self.client.get_token(
+            connection_id=connection_id,
+            actor_id=actor_id,
+            scopes=scopes or self.scopes
+        )
+
+    def get_user_token(
+        self,
+        connection_id: str,
+        actor_id: str,
+        authorization_code: str,
+        redirect_uri: str
+    ) -> dict:
+        """
+        OAuth 토큰 획득 (3LO - Three-legged OAuth)
+
+        Args:
+            connection_id: Identity Connection ID
+            actor_id: 액터 ID
+            authorization_code: 사용자 인증 코드
+            redirect_uri: 리다이렉트 URI
+
+        Returns:
+            토큰 정보 dict
+        """
+        return self.client.exchange_code(
+            connection_id=connection_id,
+            actor_id=actor_id,
+            code=authorization_code,
+            redirect_uri=redirect_uri
+        )
+
+    def get_authorization_url(
+        self,
+        connection_id: str,
+        redirect_uri: str,
+        scopes: Optional[List[str]] = None,
+        state: Optional[str] = None
+    ) -> str:
+        """
+        OAuth 인증 URL 생성 (3LO)
+
+        Args:
+            connection_id: Identity Connection ID
+            redirect_uri: 리다이렉트 URI
+            scopes: 요청 스코프
+            state: 상태 값
+
+        Returns:
+            인증 URL
+        """
+        return self.client.get_authorization_url(
+            connection_id=connection_id,
+            redirect_uri=redirect_uri,
+            scopes=scopes or self.scopes,
+            state=state
+        )
+
+
+# Singleton instance
+identity_service = IdentityService()
+
+
+def get_access_token(connection_id: str, actor_id: str) -> str:
+    """편의 함수: 액세스 토큰 획득"""
+    token_info = identity_service.get_oauth_token(connection_id, actor_id)
+    return token_info.get("access_token", "")
+'''
+        return code
 
     def generate_zip(self) -> bytes:
         """ZIP 파일로 생성"""
@@ -48,6 +431,11 @@ class CodeGenerator:
         agent_nodes = [n for n in self.nodes if n.get("type") == "agent"]
         router_nodes = [n for n in self.nodes if n.get("type") == "router"]
 
+        # Check which services are used
+        has_memory = len(self.memory_nodes) > 0
+        has_gateway = len(self.gateway_nodes) > 0
+        has_identity = len(self.identity_nodes) > 0
+
         # 헤더
         code = f'''"""
 Strands Agent SDK - Generated Code
@@ -55,12 +443,37 @@ Pattern: {self.metadata.get("pattern", "Graph Pattern")}
 Generated: {datetime.now().isoformat()}
 
 이 파일은 PATH Agent Designer에서 자동 생성되었습니다.
+
+AgentCore Services:
+- Memory: {"Enabled" if has_memory else "Disabled"}
+- Gateway: {"Enabled" if has_gateway else "Disabled"}
+- Identity: {"Enabled" if has_identity else "Disabled"}
 """
 
 from strands import Agent
 from strands.multiagent import GraphBuilder
 from strands.models import BedrockModel
-from typing import Dict, Any
+from typing import Dict, Any, Optional
+import os
+
+'''
+
+        # Service imports
+        if has_memory:
+            code += '''# Memory Service Integration
+from memory_service import memory_service, get_memory_session_manager
+
+'''
+
+        if has_gateway:
+            code += '''# Gateway Service Integration
+from gateway_service import gateway_service, connect_gateway
+
+'''
+
+        if has_identity:
+            code += '''# Identity Service Integration
+from identity_service import identity_service, get_access_token
 
 '''
 
@@ -85,8 +498,18 @@ def get_bedrock_model(model_type: str = "sonnet", max_tokens: int = 8192) -> Bed
         code += "# Agent Definitions\n"
         code += "# " + "=" * 50 + "\n\n"
 
+        # Environment variables for AgentCore configuration
+        if has_memory or has_gateway or has_identity:
+            code += '''# AgentCore Configuration (set via environment variables)
+MEMORY_ID = os.getenv("AGENTCORE_MEMORY_ID", "")
+GATEWAY_URL = os.getenv("AGENTCORE_GATEWAY_URL", "")
+IDENTITY_CONNECTION_ID = os.getenv("AGENTCORE_IDENTITY_CONNECTION_ID", "")
+
+'''
+
         for node in agent_nodes:
             data = node.get("data", {})
+            node_id = node.get("id", "")
             name = data.get("name", "Agent")
             var_name = self._to_snake_case(name)
             role = data.get("role", "")
@@ -95,10 +518,37 @@ def get_bedrock_model(model_type: str = "sonnet", max_tokens: int = 8192) -> Bed
             llm_type = "haiku" if "haiku" in llm_config.get("model", "").lower() else "sonnet"
             tools = data.get("tools", [])
 
+            # Check service connections for this agent
+            uses_memory = self._agent_uses_service(node_id, "memory")
+            uses_gateway = self._agent_uses_service(node_id, "gateway")
+
             code += f'''
 # {name}
 {var_name}_model = get_bedrock_model("{llm_type}")
+'''
 
+            # Add session manager factory if agent uses memory
+            if uses_memory:
+                code += f'''
+def create_{var_name}_with_session(actor_id: str, session_id: str) -> Agent:
+    """Memory가 연결된 {name} Agent 생성"""
+    session_manager = get_memory_session_manager(MEMORY_ID, actor_id, session_id)
+    return Agent(
+        model={var_name}_model,
+        system_prompt="""{system_prompt}""",
+        tools=[{", ".join(tools) if tools else ""}],
+        session_manager=session_manager
+    )
+
+# Default agent (without session - for backward compatibility)
+{var_name} = Agent(
+    model={var_name}_model,
+    system_prompt="""{system_prompt}""",
+    tools=[{", ".join(tools) if tools else ""}]
+)
+'''
+            else:
+                code += f'''
 {var_name} = Agent(
     model={var_name}_model,
     system_prompt="""{system_prompt}""",
@@ -139,8 +589,12 @@ builder = GraphBuilder()
             node_id = node.get("id", var_name)
             code += f'builder.add_node("{node_id}", {var_name})\n'
 
-        code += "\n# Add edges\n"
+        code += "\n# Add edges (workflow only, excluding service connections)\n"
         for edge in self.edges:
+            # Skip service edges - they represent Agent↔Service connections, not workflow
+            if edge.get("type") == "service":
+                continue
+
             source = edge.get("source", "")
             target = edge.get("target", "")
             label = edge.get("label", "")
@@ -356,13 +810,24 @@ pip install -r requirements.txt
 aws configure
 ```
 
-### 3. Run Locally
+### 3. Configure Environment Variables
+
+```bash
+# Create .env file
+cat > .env << EOF
+{f"AGENTCORE_MEMORY_ID=your-memory-id" if self.memory_nodes else "# No memory service configured"}
+{f"AGENTCORE_GATEWAY_URL=https://your-gateway-url" if self.gateway_nodes else "# No gateway service configured"}
+{f"AGENTCORE_IDENTITY_CONNECTION_ID=your-connection-id" if self.identity_nodes else "# No identity service configured"}
+EOF
+```
+
+### 4. Run Locally
 
 ```bash
 python agent.py
 ```
 
-### 4. Deploy to AgentCore
+### 5. Deploy to AgentCore
 
 ```bash
 pip install bedrock-agentcore-cli
@@ -374,6 +839,9 @@ agentcore deploy --name my-agent --entry agentcore_config.py
 - `agent.py` - Main agent code with Strands SDK
 - `agentcore_config.py` - AgentCore Runtime configuration
 - `requirements.txt` - Python dependencies
+{f"- `memory_service.py` - AgentCore Memory integration" if self.memory_nodes else ""}
+{f"- `gateway_service.py` - AgentCore Gateway integration" if self.gateway_nodes else ""}
+{f"- `identity_service.py` - AgentCore Identity integration" if self.identity_nodes else ""}
 
 ## Architecture
 
@@ -445,7 +913,7 @@ def generate_zip_from_canvas(canvas_state: Dict[str, Any]) -> bytes:
 
 
 if __name__ == "__main__":
-    # 테스트
+    # 테스트 (AgentCore 서비스 포함)
     sample_canvas = {
         "nodes": [
             {
@@ -474,13 +942,50 @@ if __name__ == "__main__":
                     "tools": ["data_query"],
                 },
             },
+            # AgentCore 서비스 노드들
+            {
+                "id": "memory-1",
+                "type": "memory",
+                "position": {"x": 400, "y": 80},
+                "data": {
+                    "id": "memory-1",
+                    "name": "Shared Memory",
+                    "type": "long-term",
+                    "strategies": ["semantic", "user-preference"],
+                    "namespaces": ["/facts/{actorId}", "/preferences/{actorId}"],
+                },
+            },
+            {
+                "id": "gateway-1",
+                "type": "gateway",
+                "position": {"x": 400, "y": 260},
+                "data": {
+                    "id": "gateway-1",
+                    "name": "Tool Gateway",
+                    "targets": [
+                        {"type": "lambda", "name": "data-query-lambda", "config": {}},
+                        {"type": "rest-api", "name": "external-api", "config": {}},
+                    ],
+                },
+            },
         ],
         "edges": [
+            # 워크플로우 edges
             {"id": "e1", "source": "agent-1", "target": "agent-2"},
+            # 서비스 edges (Agent → Service)
+            {"id": "e-mem-1", "source": "agent-1", "target": "memory-1", "label": "memory", "type": "service"},
+            {"id": "e-mem-2", "source": "agent-2", "target": "memory-1", "label": "memory", "type": "service"},
+            {"id": "e-gw-1", "source": "agent-2", "target": "gateway-1", "label": "tools", "type": "service"},
         ],
         "entryPoint": "agent-1",
+        "agentCoreConfig": {
+            "runtime": {"enabled": True, "timeout": 900, "concurrency": 1000},
+            "memory": {"enabled": True, "strategies": ["semantic", "user-preference"]},
+            "gateway": {"enabled": True, "targets": ["data-query-lambda", "external-api"]},
+            "identity": {"enabled": False, "providers": []},
+        },
         "metadata": {
-            "pattern": "Graph Pattern",
+            "pattern": "Graph Pattern with AgentCore",
             "version": "1.0.0",
         },
     }
@@ -490,4 +995,8 @@ if __name__ == "__main__":
         print(f"\n{'='*50}")
         print(f"File: {filename}")
         print("=" * 50)
-        print(content[:500] + "..." if len(content) > 500 else content)
+        print(content[:800] + "..." if len(content) > 800 else content)
+
+    print(f"\n\n=== Generated {len(files)} files ===")
+    for filename in files.keys():
+        print(f"  - {filename}")

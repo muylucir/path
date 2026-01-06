@@ -14,8 +14,15 @@ export const formSchema = z.object({
   dataSources: z.array(dataSourceSchema).min(1, "최소 1개 이상 데이터 소스를 추가해주세요"),
   errorTolerance: z.string().min(1, "오류 허용도를 선택해주세요"),
   additionalContext: z.string().optional(),
-  useAgentCore: z.boolean().default(true),
+  useAgentCore: z.boolean(),
   selectedIntegrations: z.array(z.string()).optional(),
+  integrationDetails: z.array(z.object({
+    id: z.string(),
+    type: z.string(),
+    name: z.string(),
+    description: z.string().optional(),
+    summary: z.string(),
+  })).optional(),
 });
 
 export type DataSource = z.infer<typeof dataSourceSchema>;
