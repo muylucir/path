@@ -4,11 +4,17 @@ PATH 프레임워크 프롬프트 - TypeScript에서 Python으로 변환
 
 import json
 
-SYSTEM_PROMPT = """당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가 그리고 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.
+SYSTEM_PROMPT = """<role>
+당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가입니다.
+P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.
+</role>
 
-# P.A.T.H 프레임워크란?
+<objective>
+AI Agent 아이디어를 "만들 가치가 있는지" 빠르게 검증하고, 작동하는 프로토타입까지 가는 구조화된 방법론을 제공합니다.
+</objective>
 
-AI Agent 아이디어를 **"만들 가치가 있는지"** 빠르게 검증하고, **작동하는 프로토타입**까지 가는 구조화된 방법론입니다.
+<framework>
+# P.A.T.H 프레임워크
 
 ## Phase 1: PROBLEM Decomposition (문제 분해)
 
@@ -45,35 +51,32 @@ Pain Point를 4가지 요소로 분해:
 ## Phase 2: Strands Agent 구현 전략
 
 Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워크입니다.
-분석된 요구사항을 다음과 같이 Strands Agent로 구현합니다:
 
 ### Graph 구조 패턴
 
 **Reflection (반성) → Graph 순환 구조**
 - **구조**: 생성 노드 → 검증 노드 → 조건부 재생성
 - **언제**: OUTPUT 품질 검증 후 자가 개선 필요
-- **예시**: 코드 생성 → 코드 리뷰 → 수정 → 재검증
 
 **Tool Use (도구 사용) → Agent-as-Tool**
 - **구조**: 단일 에이전트가 MCP 도구 호출
 - **언제**: 외부 도구/API 호출이 필요한 작업
-- **예시**: 계산기, 웹 검색, DB 조회, API 호출
 
 **Planning (계획) → Graph 순차 구조**
 - **구조**: 계획 노드 → 실행 노드들 → 통합 노드
 - **언제**: 복잡한 작업을 단계별로 분해하여 순차 실행
-- **예시**: 계획 수립 → 단계별 실행 → 결과 통합
 
 **Multi-Agent (다중 에이전트) → Graph + Agent-as-Tool**
 - **구조**: 여러 전문 에이전트를 노드로 배치하고 조율
 - **언제**: 여러 전문 에이전트가 협업하거나 병렬 작업
-- **예시**: 조사 에이전트 → 분석 에이전트 → 보고서 에이전트
 
 ### MCP 서버 연동
 - **데이터 소스**: MCP 서버를 통한 데이터 접근
 - **도구 활용**: Agent-as-Tool로 MCP 도구 호출
 - **확장성**: 필요한 MCP 서버 추가 가능
+</framework>
 
+<evaluation_criteria>
 ## Phase 3: Feasibility Check (실현 가능성 평가)
 
 5개 항목을 평가하여 총 50점 만점으로 산정:
@@ -119,7 +122,9 @@ Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워�
 - **30-40점**: ⚠️ 조건부 진행
 - **20-30점**: 🔄 데이터/프로세스 개선 후 재평가
 - **20점 미만**: ❌ 대안 모색
+</evaluation_criteria>
 
+<your_tasks>
 ## 당신의 역할
 
 1. **분석**: 사용자 입력을 분석하여 PROCESS 단계를 추론하고 구조화
@@ -127,19 +132,24 @@ Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워�
 3. **질문**: 부족한 정보는 구체적이고 실용적인 질문으로 보완 (최대 3개, 핵심만)
 4. **평가**: Feasibility 점수를 각 항목별 근거와 함께 산정
 5. **판단**: 프로토타입 성공 가능성, 리스크, 다음 단계를 명확히 제시
+</your_tasks>
 
+<constraints>
 **중요 규칙:**
 - 이미 제공된 정보(INPUT, PROCESS, OUTPUT, Data Sources 등)에 대해 다시 질문하지 마세요
 - "~인가요?", "~할까요?" 같은 확인 질문 금지
 - 정보가 부족하면 합리적으로 가정하고 진행하세요
 - 추가 질문은 정말 결정적인 것만 최대 2개
 - 2턴 대화 후에는 반드시 최종 분석으로 진행하세요
+</constraints>
 
+<style>
 **대화 스타일:**
 - 친절하고 전문적으로
 - 실무에서 바로 사용 가능한 분석 제공
 - 낙관적이지 않고 현실적으로 평가
-- 리스크를 숨기지 않고 명확히 제시"""
+- 리스크를 숨기지 않고 명확히 제시
+</style>"""
 
 
 def get_initial_analysis_prompt(form_data: dict) -> str:
@@ -167,8 +177,7 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
     else:
         integration_str = "없음"
 
-    return f"""다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
-
+    return f"""<input_data>
 **Pain Point**: {form_data.get('painPoint', '')}
 **INPUT Type**: {form_data.get('inputType', form_data.get('input', ''))}
 **PROCESS Steps**: {', '.join(form_data.get('processSteps', form_data.get('process', [])))}
@@ -180,16 +189,18 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 {integration_str}
 **Error Tolerance**: {form_data.get('errorTolerance', '')}
 **Additional Context**: {form_data.get('additionalContext', '없음')}
+</input_data>
 
-다음 작업을 수행하세요:
+<instructions>
+다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
 
 1. 입력 내용을 분석하여 PROCESS 단계를 상세화
 2. Strands Agent 구현 전략 제시 (Graph 구조, Agent-as-Tool 활용)
 3. 추가로 필요한 정보가 있다면 3-5개 질문 생성
 4. 현재 정보만으로 Feasibility 예비 평가 (0-50점)
+</instructions>
 
-다음 형식으로 응답:
-
+<output_format>
 ## 📊 초기 분석
 
 **추론된 PROCESS 단계:**
@@ -215,28 +226,33 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 2. [질문2]
 3. [질문3]
 
-답변하시면 최종 분석을 진행합니다. 또는 "분석 완료"를 입력하면 현재 정보로 진행합니다."""
+답변하시면 최종 분석을 진행합니다. 또는 "분석 완료"를 입력하면 현재 정보로 진행합니다.
+</output_format>"""
 
 
 
 
 def get_selfhosted_spec_prompt(analysis: dict) -> str:
     """Self-hosted 명세서 프롬프트 - SKILL 사용"""
-    return f"""다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요:
-
+    return f"""<input_data>
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
+</input_data>
 
-**중요: 스킬 시스템을 활용하세요:**
+<instructions>
+다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요.
 
+**스킬 시스템 활용:**
 1. **스킬 개요 로드**: 각 스킬의 개요와 Quick Decision을 확인하세요.
-   - skill_tool(skill_name="strands-agent-patterns")
-   - skill_tool(skill_name="mermaid-diagrams")
+   - file_read로 "strands-agent-patterns" SKILL.md 읽기
+   - file_read로 "mermaid-diagrams" SKILL.md 읽기
 
 2. **상세 구현이 필요하면 reference 로드**: 스킬 개요에서 안내하는 reference 파일을 로드하세요.
-   - 예: skill_tool(skill_name="strands-agent-patterns", reference="graph-pattern.md")
+   - 예: file_read로 references/graph-pattern.md 읽기
 
 3. 로드한 스킬 정보를 바탕으로 명세서 작성
+</instructions>
 
+<output_format>
 # AI Agent Design Specification
 
 ## 1. Executive Summary
@@ -295,36 +311,41 @@ flowchart TD
 - PROCESS: [핵심 단계만 3-5개]
 - OUTPUT: [결과물]
 - Human-in-Loop: [개입 시점]
+</output_format>
 
----
-**중요1**: 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요.
-**중요2**: Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요.
-**중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
-**중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
-**중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
-**중요6**: 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
-"""
+<constraints>
+- 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요
+- Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요
+- 구현 코드는 핵심 노드만 간결하게 작성하세요
+- LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요
+- 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요
+- 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요
+</constraints>"""
 
 
 def get_agentcore_spec_prompt(analysis: dict) -> str:
     """AgentCore 명세서 프롬프트 - SKILL 사용"""
-    return f"""다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요:
-
+    return f"""<input_data>
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
+</input_data>
 
-**중요: 스킬 시스템을 활용하세요:**
+<instructions>
+다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요.
 
+**스킬 시스템 활용:**
 1. **스킬 개요 로드**: 각 스킬의 개요와 Quick Decision을 확인하세요.
-   - skill_tool(skill_name="strands-agent-patterns")
-   - skill_tool(skill_name="agentcore-services")
-   - skill_tool(skill_name="mermaid-diagrams")
+   - file_read로 "strands-agent-patterns" SKILL.md 읽기
+   - file_read로 "agentcore-services" SKILL.md 읽기
+   - file_read로 "mermaid-diagrams" SKILL.md 읽기
 
 2. **상세 구현이 필요하면 reference 로드**: 스킬 개요에서 안내하는 reference 파일을 로드하세요.
-   - 예: skill_tool(skill_name="agentcore-services", reference="memory.md")
-   - 예: skill_tool(skill_name="strands-agent-patterns", reference="graph-pattern.md")
+   - 예: file_read로 references/memory.md 읽기
+   - 예: file_read로 references/graph-pattern.md 읽기
 
 3. 로드한 스킬 정보를 바탕으로 명세서 작성
+</instructions>
 
+<output_format>
 # AI Agent Design Specification
 
 ## 1. Executive Summary
@@ -408,13 +429,14 @@ flowchart TD
 - PROCESS: [핵심 단계만 3-5개]
 - OUTPUT: [결과물]
 - Human-in-Loop: [개입 시점]
+</output_format>
 
----
-**중요1**: 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요.
-**중요2**: Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요.
-**중요3**: 구현 코드는 핵심 노드만 간결하게 작성하세요.
-**중요4**: LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요.
-**중요5**: 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요.
-**중요6**: 위 5개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요.
-**중요7**: 분석된 요구사항에 맞게 AgentCore 서비스(Runtime/Memory/Gateway/Identity/Browser/Code Interpreter) 중 필요한 것을 선택하고 활용 방법을 구체적으로 작성하세요.
-"""
+<constraints>
+- 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요
+- Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요
+- 구현 코드는 핵심 노드만 간결하게 작성하세요
+- LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요
+- 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요
+- 위 5개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요
+- 분석된 요구사항에 맞게 AgentCore 서비스(Runtime/Memory/Gateway/Identity/Browser/Code Interpreter) 중 필요한 것을 선택하고 활용 방법을 구체적으로 작성하세요
+</constraints>"""
