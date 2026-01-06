@@ -5,6 +5,7 @@ import {
   GetCommand,
   ScanCommand,
   DeleteCommand,
+  UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { Session, SessionListItem } from "@/lib/types";
 
@@ -69,6 +70,24 @@ export async function deleteSession(sessionId: string): Promise<void> {
     new DeleteCommand({
       TableName: TABLE_NAME,
       Key: { session_id: sessionId },
+    })
+  );
+}
+
+export async function updateSessionSpecification(
+  sessionId: string,
+  specification: string
+): Promise<void> {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: TABLE_NAME,
+      Key: { session_id: sessionId },
+      UpdateExpression: "SET specification = :spec, #ts = :ts",
+      ExpressionAttributeNames: { "#ts": "timestamp" },
+      ExpressionAttributeValues: {
+        ":spec": specification,
+        ":ts": new Date().toISOString(),
+      },
     })
   );
 }

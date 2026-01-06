@@ -225,11 +225,11 @@ export function RAGIntegrationForm({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="us-east-1">US East (N. Virginia)</SelectItem>
-                <SelectItem value="us-west-2">US West (Oregon)</SelectItem>
-                <SelectItem value="eu-west-1">Europe (Ireland)</SelectItem>
-                <SelectItem value="ap-northeast-1">Asia Pacific (Tokyo)</SelectItem>
-                <SelectItem value="ap-southeast-1">Asia Pacific (Singapore)</SelectItem>
+                <SelectItem value="us-east-1">us-east-1 (N. Virginia)</SelectItem>
+                <SelectItem value="us-west-2">us-west-2 (Oregon)</SelectItem>
+                <SelectItem value="eu-west-1">eu-west-1 (Ireland)</SelectItem>
+                <SelectItem value="ap-northeast-1">ap-northeast-1 (Tokyo)</SelectItem>
+                <SelectItem value="ap-northeast-2">ap-northeast-2 (Seoul)</SelectItem>
               </SelectContent>
             </Select>
           </div>

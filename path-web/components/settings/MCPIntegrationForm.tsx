@@ -32,7 +32,7 @@ export function MCPIntegrationForm({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [serverUrl, setServerUrl] = useState("");
-  const [transport, setTransport] = useState<"stdio" | "sse" | "websocket">("stdio");
+  const [transport, setTransport] = useState<"stdio" | "sse" | "websocket" | "http">("stdio");
   const [command, setCommand] = useState("");
   const [args, setArgs] = useState<string[]>([]);
   const [newArg, setNewArg] = useState("");
@@ -202,12 +202,22 @@ export function MCPIntegrationForm({
 
       {/* Server URL */}
       <div className="space-y-2">
-        <Label htmlFor="serverUrl">서버 URL *</Label>
+        <Label htmlFor="serverUrl">
+          {transport === "stdio" ? "서버 명령어 *" : "서버 URL *"}
+        </Label>
         <Input
           id="serverUrl"
           value={serverUrl}
           onChange={(e) => setServerUrl(e.target.value)}
-          placeholder="npx -y @modelcontextprotocol/server-filesystem"
+          placeholder={
+            transport === "stdio"
+              ? "npx -y @modelcontextprotocol/server-filesystem"
+              : transport === "http"
+              ? "http://localhost:3001/mcp"
+              : transport === "sse"
+              ? "http://localhost:3001/sse"
+              : "ws://localhost:3001/ws"
+          }
           required
         />
       </div>
@@ -226,6 +236,7 @@ export function MCPIntegrationForm({
             <SelectItem value="stdio">STDIO</SelectItem>
             <SelectItem value="sse">SSE</SelectItem>
             <SelectItem value="websocket">WebSocket</SelectItem>
+            <SelectItem value="http">HTTP</SelectItem>
           </SelectContent>
         </Select>
       </div>

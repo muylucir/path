@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { loadSession, deleteSession } from "@/lib/aws/dynamodb";
+import { loadSession, deleteSession, updateSessionSpecification } from "@/lib/aws/dynamodb";
 
 export async function GET(
   req: NextRequest,
@@ -42,6 +42,40 @@ export async function DELETE(
     console.error("Error deleting session:", error);
     return new Response(
       JSON.stringify({ error: "세션 삭제 중 오류가 발생했습니다" }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
+  }
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const { specification } = body;
+
+    if (typeof specification !== "string") {
+      return new Response(
+        JSON.stringify({ error: "명세서가 필요합니다" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    await updateSessionSpecification(id, specification);
+
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error("Error updating session:", error);
+    return new Response(
+      JSON.stringify({ error: "세션 업데이트 중 오류가 발생했습니다" }),
       {
         status: 500,
         headers: { "Content-Type": "application/json" },

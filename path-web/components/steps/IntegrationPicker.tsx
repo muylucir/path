@@ -10,9 +10,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Globe, Server, Database, Settings2 } from "lucide-react";
+import { Loader2, Globe, Server, Database, HardDrive, Settings2 } from "lucide-react";
 import Link from "next/link";
 import type { IntegrationListItem } from "@/lib/types";
 
@@ -27,11 +26,13 @@ export function IntegrationPicker({
 }: IntegrationPickerProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"api" | "mcp" | "rag" | "s3">("api");
   const [integrations, setIntegrations] = useState<{
     api: IntegrationListItem[];
     mcp: IntegrationListItem[];
     rag: IntegrationListItem[];
-  }>({ api: [], mcp: [], rag: [] });
+    s3: IntegrationListItem[];
+  }>({ api: [], mcp: [], rag: [], s3: [] });
   const [localSelection, setLocalSelection] = useState<string[]>(selectedIds);
 
   useEffect(() => {
@@ -53,6 +54,7 @@ export function IntegrationPicker({
         api: items.filter((i: IntegrationListItem) => i.type === "api"),
         mcp: items.filter((i: IntegrationListItem) => i.type === "mcp"),
         rag: items.filter((i: IntegrationListItem) => i.type === "rag"),
+        s3: items.filter((i: IntegrationListItem) => i.type === "s3"),
       });
     } catch (err) {
       console.error("Failed to fetch integrations:", err);
@@ -72,21 +74,22 @@ export function IntegrationPicker({
     setOpen(false);
   };
 
-  const totalCount = integrations.api.length + integrations.mcp.length + integrations.rag.length;
+  const totalCount = integrations.api.length + integrations.mcp.length + integrations.rag.length + integrations.s3.length;
   const selectedCount = selectedIds.length;
 
   const typeConfig = {
     api: { icon: Globe, label: "API", color: "bg-blue-100 text-blue-700" },
     mcp: { icon: Server, label: "MCP", color: "bg-purple-100 text-purple-700" },
     rag: { icon: Database, label: "RAG", color: "bg-emerald-100 text-emerald-700" },
+    s3: { icon: HardDrive, label: "S3", color: "bg-orange-100 text-orange-700" },
   };
 
-  const renderIntegrationList = (items: IntegrationListItem[], type: "api" | "mcp" | "rag") => {
+  const renderIntegrationList = (items: IntegrationListItem[], type: "api" | "mcp" | "rag" | "s3") => {
     if (items.length === 0) {
       return (
-        <div className="text-center py-8 text-slate-500">
+        <div className="text-center py-12 text-slate-500">
           <p className="text-sm">등록된 {typeConfig[type].label} 통합이 없습니다</p>
-          <Link href="/settings" className="text-xs text-blue-500 hover:underline mt-1 inline-block">
+          <Link href="/settings" className="text-xs text-blue-500 hover:underline mt-2 inline-block">
             설정 페이지에서 등록하기
           </Link>
         </div>
@@ -94,30 +97,33 @@ export function IntegrationPicker({
     }
 
     return (
-      <div className="space-y-2">
+      <div className="space-y-3">
         {items.map((item) => (
           <div
             key={item.id}
-            className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+            className={`flex items-start gap-3 p-4 rounded-lg border cursor-pointer transition-colors ${
               localSelection.includes(item.id)
                 ? "border-primary bg-primary/5"
-                : "border-slate-200 hover:border-slate-300"
+                : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
             }`}
             onClick={() => toggleSelection(item.id)}
           >
             <Checkbox
               checked={localSelection.includes(item.id)}
               onCheckedChange={() => toggleSelection(item.id)}
+              className="mt-0.5"
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{item.name}</p>
+              <div className="flex items-center gap-2 mb-1">
+                <p className="text-sm font-medium">{item.name}</p>
+                <Badge variant="outline" className={`${typeConfig[type].color} text-xs`}>
+                  {typeConfig[type].label}
+                </Badge>
+              </div>
               {item.description && (
-                <p className="text-xs text-slate-500 truncate">{item.description}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">{item.description}</p>
               )}
             </div>
-            <Badge variant="outline" className={typeConfig[type].color}>
-              {typeConfig[type].label}
-            </Badge>
           </div>
         ))}
       </div>
@@ -137,7 +143,7 @@ export function IntegrationPicker({
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>통합 선택</DialogTitle>
         </DialogHeader>
@@ -157,33 +163,42 @@ export function IntegrationPicker({
           </div>
         ) : (
           <>
-            <Tabs defaultValue="api" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="api" className="gap-1">
-                  <Globe className="w-3 h-3" />
-                  API ({integrations.api.length})
-                </TabsTrigger>
-                <TabsTrigger value="mcp" className="gap-1">
-                  <Server className="w-3 h-3" />
-                  MCP ({integrations.mcp.length})
-                </TabsTrigger>
-                <TabsTrigger value="rag" className="gap-1">
-                  <Database className="w-3 h-3" />
-                  RAG ({integrations.rag.length})
-                </TabsTrigger>
-              </TabsList>
-              <div className="mt-4 max-h-[300px] overflow-y-auto">
-                <TabsContent value="api" className="mt-0">
-                  {renderIntegrationList(integrations.api, "api")}
-                </TabsContent>
-                <TabsContent value="mcp" className="mt-0">
-                  {renderIntegrationList(integrations.mcp, "mcp")}
-                </TabsContent>
-                <TabsContent value="rag" className="mt-0">
-                  {renderIntegrationList(integrations.rag, "rag")}
-                </TabsContent>
+            <div className="flex gap-4 min-h-[400px]">
+              {/* Sidebar */}
+              <div className="w-40 flex-shrink-0 border-r pr-4">
+                <nav className="space-y-1">
+                  {(["api", "mcp", "rag", "s3"] as const).map((type) => {
+                    const config = typeConfig[type];
+                    const Icon = config.icon;
+                    const count = integrations[type].length;
+                    const isActive = activeTab === type;
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setActiveTab(type)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors ${
+                          isActive
+                            ? "bg-primary/10 text-primary border-l-2 border-primary font-medium"
+                            : "text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800"
+                        }`}
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span className="flex-1 text-left">{config.label}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {count}
+                        </Badge>
+                      </button>
+                    );
+                  })}
+                </nav>
               </div>
-            </Tabs>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto">
+                {renderIntegrationList(integrations[activeTab], activeTab)}
+              </div>
+            </div>
 
             <div className="flex justify-between items-center pt-4 border-t">
               <span className="text-sm text-slate-500">

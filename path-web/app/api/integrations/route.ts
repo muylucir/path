@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Failed to create integration:", error);
     return NextResponse.json(
-      { error: "Failed to create integration" },
+      { error: "Failed to create integration", details: String(error) },
       { status: 500 }
     );
   }

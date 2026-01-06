@@ -145,7 +145,7 @@ Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워�
 def get_initial_analysis_prompt(form_data: dict) -> str:
     """초기 분석 프롬프트 생성 - PATH 웹앱과 동일"""
     data_sources = form_data.get('dataSources', [])
-    
+
     # dataSources가 리스트인 경우
     if isinstance(data_sources, list):
         data_source_str = "\n".join([
@@ -156,7 +156,17 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
     else:
         # 문자열인 경우 (하위 호환성)
         data_source_str = data_sources or "미지정"
-    
+
+    # 등록된 통합 정보 (사용 가능한 도구/데이터)
+    integration_details = form_data.get('integrationDetails', [])
+    if integration_details:
+        integration_str = "\n".join([
+            f"- {detail.get('summary', detail.get('name', ''))}"
+            for detail in integration_details
+        ])
+    else:
+        integration_str = "없음"
+
     return f"""다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
 
 **Pain Point**: {form_data.get('painPoint', '')}
@@ -166,6 +176,8 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 **HUMAN-IN-LOOP**: {form_data.get('humanLoop', form_data.get('humanInLoop', ''))}
 **Data Sources**:
 {data_source_str}
+**등록된 통합 (사용 가능한 도구/데이터)**:
+{integration_str}
 **Error Tolerance**: {form_data.get('errorTolerance', '')}
 **Additional Context**: {form_data.get('additionalContext', '없음')}
 
@@ -187,6 +199,7 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 - Graph 구조: [Reflection/Tool Use/Planning/Multi-Agent 중 선택하고 조합 가능]
 - 노드 구성: [각 노드의 역할]
 - Agent-as-Tool: [활용할 도구/MCP 서버]
+- 등록된 통합 활용: [위에서 제공된 통합을 어떻게 활용할지 구체적으로]
 
 **예비 Feasibility:** [점수]/50
 - 데이터 접근성: [점수]/10
@@ -213,10 +226,16 @@ def get_selfhosted_spec_prompt(analysis: dict) -> str:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
 
-**중요: 반드시 다음 순서로 SKILL을 사용하세요:**
-1. skill_tool을 사용하여 "strands-agent-patterns" SKILL 로드
-2. skill_tool을 사용하여 "mermaid-diagrams" SKILL 로드
-3. 로드한 SKILL의 정보를 바탕으로 명세서 작성
+**중요: 스킬 시스템을 활용하세요:**
+
+1. **스킬 개요 로드**: 각 스킬의 개요와 Quick Decision을 확인하세요.
+   - skill_tool(skill_name="strands-agent-patterns")
+   - skill_tool(skill_name="mermaid-diagrams")
+
+2. **상세 구현이 필요하면 reference 로드**: 스킬 개요에서 안내하는 reference 파일을 로드하세요.
+   - 예: skill_tool(skill_name="strands-agent-patterns", reference="graph-pattern.md")
+
+3. 로드한 스킬 정보를 바탕으로 명세서 작성
 
 # AI Agent Design Specification
 
@@ -293,11 +312,18 @@ def get_agentcore_spec_prompt(analysis: dict) -> str:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
 
-**중요: 반드시 다음 순서로 SKILL을 사용하세요:**
-1. skill_tool을 사용하여 "strands-agent-patterns" SKILL 로드
-2. skill_tool을 사용하여 "agentcore-services" SKILL 로드
-3. skill_tool을 사용하여 "mermaid-diagrams" SKILL 로드
-4. 로드한 SKILL의 정보를 바탕으로 명세서 작성 (특히 AgentCore Memory LTM은 TTL 없음)
+**중요: 스킬 시스템을 활용하세요:**
+
+1. **스킬 개요 로드**: 각 스킬의 개요와 Quick Decision을 확인하세요.
+   - skill_tool(skill_name="strands-agent-patterns")
+   - skill_tool(skill_name="agentcore-services")
+   - skill_tool(skill_name="mermaid-diagrams")
+
+2. **상세 구현이 필요하면 reference 로드**: 스킬 개요에서 안내하는 reference 파일을 로드하세요.
+   - 예: skill_tool(skill_name="agentcore-services", reference="memory.md")
+   - 예: skill_tool(skill_name="strands-agent-patterns", reference="graph-pattern.md")
+
+3. 로드한 스킬 정보를 바탕으로 명세서 작성
 
 # AI Agent Design Specification
 
@@ -351,6 +377,14 @@ edges = [("node1", "node2")]
 | **AgentCore Identity** | ✅/❌ | OAuth 연동 및 API 키 관리 | Provider: GitHub/Google |
 | **AgentCore Browser** | ✅/❌ | 웹 자동화 | Headless Chrome |
 | **AgentCore Code Interpreter** | ✅/❌ | 코드 실행 | Python/Node.js |
+
+### AWS 서비스 통합 결정 (agentcore-services SKILL 참고)
+
+Agent에서 사용하는 각 AWS 서비스의 통합 방식 (직접 호출 또는 Lambda+Gateway 중 선택):
+| AWS 서비스 | 통합 방식 | 이유 |
+|-----------|----------|------|
+| (예: S3 읽기) | 직접 호출 (boto3) | 동기, 단순 |
+| (예: Transcribe) | Lambda + Gateway | 비동기, 복잡 |
 
 ## 4. Architecture
 
