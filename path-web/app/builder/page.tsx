@@ -194,6 +194,7 @@ export default function BuilderPage() {
 function getSampleCanvasState(): AgentCanvasState {
   return {
     nodes: [
+      // Agent 워크플로우 노드
       {
         id: "agent-1",
         type: "agent",
@@ -253,15 +254,53 @@ function getSampleCanvasState(): AgentCanvasState {
           tools: ["text_generate"],
         },
       },
+      // AgentCore 서비스 노드 (우측 영역)
+      {
+        id: "memory-1",
+        type: "memory",
+        position: { x: 650, y: 80 },
+        data: {
+          id: "memory-1",
+          name: "Shared Memory",
+          type: "long-term",
+          strategies: ["semantic", "user-preference"],
+          namespaces: ["/facts/{actorId}", "/preferences/{actorId}"],
+        },
+      },
+      {
+        id: "gateway-1",
+        type: "gateway",
+        position: { x: 650, y: 260 },
+        data: {
+          id: "gateway-1",
+          name: "Tool Gateway",
+          targets: [
+            { type: "lambda", name: "data-query-lambda", config: {} },
+            { type: "rest-api", name: "external-api", config: {} },
+          ],
+        },
+      },
     ],
     edges: [
+      // 워크플로우 edges (실선)
       { id: "e1", source: "agent-1", target: "router-1" },
       { id: "e2", source: "router-1", target: "agent-2", label: "분석" },
       { id: "e3", source: "router-1", target: "agent-3", label: "생성" },
+      // 서비스 edges (점선)
+      { id: "e-mem-1", source: "agent-1", target: "memory-1", label: "memory", type: "service" },
+      { id: "e-mem-2", source: "agent-2", target: "memory-1", label: "memory", type: "service" },
+      { id: "e-mem-3", source: "agent-3", target: "memory-1", label: "memory", type: "service" },
+      { id: "e-gw-1", source: "agent-2", target: "gateway-1", label: "tools", type: "service" },
     ],
     entryPoint: "agent-1",
+    agentCoreConfig: {
+      runtime: { enabled: true, timeout: 900, concurrency: 1000 },
+      memory: { enabled: true, strategies: ["semantic", "user-preference"] },
+      gateway: { enabled: true, targets: ["data-query-lambda", "external-api"] },
+      identity: { enabled: false, providers: [] },
+    },
     metadata: {
-      pattern: "Graph Pattern",
+      pattern: "Graph Pattern with AgentCore",
       version: "1.0.0",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

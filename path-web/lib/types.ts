@@ -148,6 +148,7 @@ export interface CanvasEdge {
   target: string;
   label?: string;
   condition?: string;
+  type?: 'flow' | 'service';  // flow: Agent간 데이터 흐름, service: Agent→AgentCore 서비스 연결
 }
 
 export interface AgentCoreConfig {

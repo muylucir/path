@@ -57,14 +57,20 @@ export function AgentCanvas({
 
   const initialEdges: Edge[] = useMemo(() => {
     if (!initialState?.edges) return [];
-    return initialState.edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: edge.label,
-      animated: true,
-      style: { strokeWidth: 2, stroke: "#6366f1" },
-    }));
+    return initialState.edges.map((edge) => {
+      const isServiceEdge = edge.type === "service";
+      return {
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.label,
+        animated: !isServiceEdge,  // 서비스 edge는 애니메이션 없음
+        style: isServiceEdge
+          ? { strokeWidth: 2, stroke: "#9ca3af", strokeDasharray: "5 5" }  // 점선, 회색
+          : { strokeWidth: 2, stroke: "#6366f1" },  // 실선, 보라색
+        type: isServiceEdge ? "smoothstep" : "default",
+      };
+    });
   }, [initialState?.edges]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
