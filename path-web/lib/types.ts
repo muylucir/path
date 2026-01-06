@@ -246,7 +246,7 @@ export interface MCPIntegration {
   description?: string;
   config: {
     serverUrl: string;
-    transport: 'stdio' | 'sse' | 'websocket';
+    transport: 'stdio' | 'sse' | 'websocket' | 'http';
     command?: string;
     args?: string[];
     env?: Record<string, string>;

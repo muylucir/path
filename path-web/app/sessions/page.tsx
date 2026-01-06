@@ -110,6 +110,9 @@ export default function SessionsPage() {
         next_steps: session.next_steps,
       }));
 
+      // Store session ID for update capability
+      sessionStorage.setItem("currentSessionId", sessionId);
+
       // Navigate to results page
       router.push("/results");
     } catch (error) {

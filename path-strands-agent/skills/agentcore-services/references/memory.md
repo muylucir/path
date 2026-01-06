@@ -7,7 +7,6 @@ LLM의 본질적 한계인 Statelessness를 해결하는 완전 관리형 메모
 **핵심 가치:**
 - **Context Rot 방지**: 무작정 긴 Context Window 대신 선별적 기억으로 모델 성능 유지
 - **자동 추출**: 방대한 대화에서 핵심 정보만 의미론적으로 추출
-- **Namespace 기반 격리**: 계층적 구조로 멀티 테넌트 환경 지원
 - **비용 효율**: 구조화된 메모리로 비용 90% 절감 (vs. 전체 대화 주입)
 
 ## 데이터 구조
@@ -31,7 +30,21 @@ memory_id (AWS 리소스 수준)
 - **암호화**: 모든 데이터 Encryption at Rest
 - **자동 생명주기**: `event_expiry_days`로 GDPR 준수
 
-## Namespace - 계층적 메모리 구조
+**중요**: STM은 커스텀 Namespace를 지원하지 않습니다. `memory_id/actor_id/session_id` 3계층 구조만 사용합니다.
+
+## STM vs LTM 데이터 격리
+
+| 구분 | 격리 방식 | 커스텀 Namespace |
+|------|----------|-----------------|
+| **STM** | memory_id/actor_id/session_id 3계층 | ❌ 불가 |
+| **LTM** | Namespace 기반 계층 구조 | ✅ 가능 |
+
+**STM 격리 특징**:
+- 각 대화 세션(session_id)별로 이벤트 저장
+- actor_id 간 논리적 격리
+- 커스텀 경로 지정 불가 (예: `/transcript_analysis` 사용 불가)
+
+## Namespace (LTM 전용) - 계층적 메모리 구조
 
 Namespace는 Long-Term Memory 내에서 **파일 시스템처럼 계층적으로 메모리를 구조화**하는 핵심 개념입니다.
 
@@ -250,20 +263,38 @@ from bedrock_agentcore.memory import MemoryClient
 
 client = MemoryClient(region_name='us-west-2')
 
-# STM 생성 (strategies 빈 배열)
-stm = client.create_memory_and_wait(
-    name="MyAgent_STM",
-    strategies=[],  # 빈 배열 = STM만 활성화
-    event_expiry_days=7  # 7일 후 자동 삭제
+## Memory 생성 방식
+
+AgentCore Memory는 생성 시 **메모리 전략 설정 여부**에 따라 동작이 달라집니다:
+
+| 설정 | 생성되는 메모리 | 동작 |
+|------|----------------|------|
+| `strategies=[]` (빈 배열) | STM만 | 이벤트 저장/조회만 |
+| `strategies=[...]` (전략 설정) | STM + LTM | STM에 이벤트 기록 → 추출 → 메모리 전략에 따라 LTM에 저장 |
+
+---
+
+### STM만 사용 (메모리 전략 없음)
+
+```python
+# STM만 생성 - 이벤트 저장/조회 용도
+memory = client.create_memory_and_wait(
+    name="MyAgent_STM_Only",
+    strategies=[],  # 빈 배열 = STM만 생성
+    event_expiry_days=7  # 7일 후 이벤트 자동 삭제
 )
 ```
 
-### Long-Term Memory (LTM) - 자동 정보 추출
+**용도**: 대화 기록만 저장하고 조회할 때 (정보 추출 불필요)
+
+---
+
+### STM + LTM 사용 (메모리 전략 설정)
 
 ```python
-# LTM 생성 (4가지 전략 조합)
-ltm = client.create_memory_and_wait(
-    name="MyAgent_LTM",
+# STM + LTM 생성 - 이벤트 저장 후 자동 추출하여 LTM에 저장
+memory = client.create_memory_and_wait(
+    name="MyAgent_STM_LTM",
     strategies=[
         # 1. Semantic Memory - 사실 정보 추출
         {
@@ -298,9 +329,46 @@ ltm = client.create_memory_and_wait(
 )
 ```
 
-**중요** : LTM은 단독으로 사용 불가능. STM에 저장되면 메모리 전략에 따라 정보가 추출되어 LTM에 저장되는 방식. 따라서 LTM만 단독으로 사용하는 방식은 잘못된것.
+**동작 흐름**: STM에 이벤트 기록 → 메모리 전략에 따라 정보 추출 → LTM에 저장
 
-## 4가지 메모리 전략 상세
+**중요**: LTM은 단독으로 생성/사용 불가능. 반드시 STM을 통해 이벤트가 기록되어야 메모리 전략이 동작합니다.
+
+## 장기 기억 생성 프로세스
+
+### Consolidation Process (기억 통합)
+
+추출된 정보는 무조건 저장되는 것이 아니라 기존 기억과 대조됩니다:
+
+| 결정 | 설명 | 예시 |
+|------|------|------|
+| **Skip** | 기존 기억과 중복 | "치킨 좋아함" 이미 있으면 건너뜀 |
+| **Add** | 완전히 새로운 정보 | "서울에서 일함" 새로 추가 |
+| **Update** | 기존 기억 수정 | "치킨 좋아함" → "피자 좋아함"으로 변경 |
+
+이를 통해 에이전트는 **모순 없는 일관된 기억**을 유지합니다.
+
+### LTM 생성 타이밍
+
+| 단계 | 처리 |
+|------|------|
+| 1. 요청 접수 | `create_event()` API 호출 |
+| 2. 검증 | actor_id, session_id 유효성, 메시지 형식, 권한 확인 |
+| 3. 이벤트 생성 | 고유 eventId 발급, 타임스탬프 기록 |
+| 4. 저장소 기록 | 암호화 저장, 인덱스 업데이트 |
+| 5. 완료 및 반환 | eventId 반환 (동기 처리 완료) |
+| 6. 비동기 추출 | **5-10초 후** 메모리 전략에 따라 LTM 생성 |
+
+**주의**: STM은 즉시 활용 가능하지만, LTM은 비동기 추출이 완료된 후에 사용 가능합니다.
+
+```python
+# 이벤트 저장 직후 - STM만 사용 가능
+client.create_event(memory_id=..., messages=...)
+
+# LTM은 비동기 추출 완료 후 사용 가능 (5-10초 소요)
+memories = client.retrieve_memories(memory_id=..., namespace="/facts/{actorId}", query="...")
+```
+
+## 4가지 메모리 전략 상세 (LTM 전용)
 
 ### 1. User Preference Memory Strategy
 
@@ -509,6 +577,20 @@ strategies=[
 ]
 ```
 
+### 자동화 기능
+
+`AgentCoreMemorySessionManager`가 자동으로 처리하는 작업:
+
+| 기능 | 설명 |
+|------|------|
+| **자동 저장/로드** | `create_event()`, `get_last_k_turns()` 자동 호출 |
+| **자동 검색 (RAG)** | `retrieve_memories()`로 장기 기억 자동 주입 |
+| **생명주기 관리** | 세션 시작/종료 및 리소스 정리 |
+
+**중요**: 장기 기억은 대화 중 활용되지만, 주입된 컨텍스트는 STM에 저장되지 않습니다.
+
+### create_strands_agent() 패턴
+
 ```python
 from bedrock_agentcore.memory.integrations.strands.config import (
     AgentCoreMemoryConfig,
@@ -519,33 +601,176 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
 )
 from strands import Agent
 
-# 1. 메모리 설정
-config = AgentCoreMemoryConfig(
-    memory_id="my-memory-id",
-    session_id="session-1",
-    actor_id="chanhosoh",
-    retrieval_config={
-        "/preferences/{actorId}": RetrievalConfig(top_k=5, relevance_score=0.6),
-        "/facts/{actorId}": RetrievalConfig(top_k=10, relevance_score=0.3)
-    }
+def create_strands_agent(memory_id, actor_id, session_id):
+    """재사용 가능한 Memory 연동 Agent 생성 함수"""
+    config = AgentCoreMemoryConfig(
+        memory_id=memory_id,
+        session_id=session_id,
+        actor_id=actor_id,
+        retrieval_config={
+            "/preferences/{actorId}": RetrievalConfig(top_k=5, relevance_score=0.6),
+            "/facts/{actorId}": RetrievalConfig(top_k=10, relevance_score=0.3)
+        }
+    )
+
+    session_manager = AgentCoreMemorySessionManager(
+        agentcore_memory_config=config,
+        region_name="us-west-2"
+    )
+
+    return Agent(session_manager=session_manager)
+```
+
+### 세션 간 기억 유지
+
+```python
+memory_id = "test-long-term-memory-..."
+actor_id = "chanhosoh"
+
+# 첫 번째 세션 - 사용자 정보 수집
+agent = create_strands_agent(memory_id, actor_id, "session-1")
+agent("안녕 내 이름은 찬호야")
+agent("나는 서울에서 일하는 개발자야")
+agent("나는 Python이랑 Rust를 좋아해")
+
+# 동일 세션 내 질문: 단기 기억(STM)으로 즉시 응답
+agent("내 직업이 뭐라고 그랬지?")  # → "서울에서 일하는 개발자라고 하셨어요"
+
+# 두 번째 세션 - 새 세션이지만 장기 기억으로 사용자 인식 (LTM 비동기 추출 5-10초 후)
+agent = create_strands_agent(memory_id, actor_id, "session-2")
+agent("내 이름이 뭐야?")  # → "찬호님이에요!"
+agent("나는 무슨 프로그래밍 언어를 좋아해?")  # → "Python과 Rust를 좋아하신다고 하셨어요"
+```
+
+**로그 예시:**
+```
+INFO: bedrock_agentcore.memory.client: Created event: 0000001764903427355#5d6b9f20
+INFO: bedrock_agentcore.memory.client: Retrieved memories from namespace: /preferences
+INFO: bedrock_agentcore.memory.client: Retrieved memories from namespace: /facts/chanhosoh
+```
+
+## Memory Forking (대화 분기)
+
+Memory Forking은 대화의 특정 시점에서 '가지치기(Branching)'를 할 수 있게 해주는 기능입니다.
+Git Branch 개념을 대화형 AI에 적용한 것입니다.
+
+### 핵심 API
+
+#### fork_conversation()
+
+분기점(root_event_id)에서 새로운 대화 브랜치를 생성합니다:
+
+```python
+# 1. 초기 대화 진행
+event1 = memory_client.create_event(
+    memory_id=memory['id'],
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[
+        ("오늘 날씨가 어때?", "USER"),
+        ("오늘은 맑고 화창합니다.", "ASSISTANT")
+    ]
+)
+root_event_id = event1.get('eventId')  # 분기점이 될 이벤트 ID
+
+# 2. 메인 대화 계속 진행
+memory_client.create_event(
+    memory_id=memory['id'],
+    actor_id=actor_id,
+    session_id=session_id,
+    messages=[("내일은?", "USER"), ("내일은 비가 옵니다.", "ASSISTANT")]
 )
 
-# 2. 세션 매니저 생성
-session_manager = AgentCoreMemorySessionManager(
-    agentcore_memory_config=config,
-    region_name="us-west-2"
-)
-
-# 3. Agent에 주입
-agent = Agent(
-    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-    session_manager=session_manager
+# 3. Memory Forking: 다른 가능성 탐색
+forked_event = memory_client.fork_conversation(
+    memory_id=memory['id'],
+    actor_id=actor_id,
+    session_id=session_id,
+    root_event_id=root_event_id,       # 1번 이벤트 시점으로 돌아가서
+    branch_name="weather-alternative", # 새로운 브랜치 이름 지정
+    new_messages=[                     # 새로운 대화 흐름 주입
+        ("다음 주는 어떨까?", "USER"),
+        ("다음 주는 대체로 흐릴 것으로 예상됩니다.", "ASSISTANT")
+    ]
 )
 ```
 
+#### get_conversation_tree()
+
+전체 대화 트리 구조를 조회합니다:
+
+```python
+conversation_tree = memory_client.get_conversation_tree(
+    memory_id=memory['id'],
+    actor_id=actor_id,
+    session_id=session_id
+)
+# 결과: main 브랜치와 weather-alternative 브랜치가 트리 구조로 표시
+```
+
+#### list_branches()
+
+생성된 브랜치 목록을 조회합니다:
+
+```python
+branches = memory_client.list_branches(
+    memory_id=memory['id'],
+    actor_id=actor_id,
+    session_id=session_id
+)
+```
+
+### Use Cases
+
+| Use Case | 설명 | 이점 |
+|----------|------|------|
+| **Undo/Redo** | 잘못된 시점으로 롤백 | 컨텍스트 오염(Context Pollution) 방지 |
+| **A/B Testing** | 동일 시점에서 다른 프롬프트 테스트 | Shadow Testing으로 리스크 없이 실험 |
+| **Time Travel Debugging** | 오류 발생 시점으로 이동하여 재시도 | What-If 분석 가능 |
+
+### Context Pollution (컨텍스트 오염) 방지
+
+**일반 Undo vs Memory Forking:**
+
+| 방식 | 동작 | 결과 |
+|------|------|------|
+| 일반 Undo | "이거 취소해줘" → 코드 삭제 | 흔적 남음 (취소 요청/삭제 기록) |
+| Memory Forking | 분기점으로 롤백 → 새 브랜치 | 깨끗한 상태에서 재시작 |
+
+**왜 중요한가:**
+- 잔여 컨텍스트(Residual Context)는 모델이 이전 실패를 참고하여 비슷한 버그를 반복하게 만들 수 있습니다
+- Claude Code 같은 AI 코딩 도구의 "특정 시점으로 롤백" 기능이 핵심인 이유
+
+### Shadow Testing 패턴
+
+```python
+# 메인 브랜치: 기존 프롬프트로 사용자에게 응답
+# 실험 브랜치: 새 프롬프트로 백그라운드에서 테스트
+
+forked_event = memory_client.fork_conversation(
+    memory_id=memory['id'],
+    actor_id=actor_id,
+    session_id=session_id,
+    root_event_id=user_question_event_id,
+    branch_name="V2_친근한_말투",
+    new_messages=[
+        (user_question, "USER"),
+        (v2_prompt_response, "ASSISTANT")  # 새 프롬프트 테스트
+    ]
+)
+# 사용자는 변화를 느끼지 못하지만, 개발자는 두 응답 품질 비교 가능
+```
+
 ## 제약사항
-- **STM**: TTL 필수 (1-365일), 동기 처리
-- **LTM**: 추출 5-10초 소요 (비동기), 추출된 정보는 영구 저장
-- 메모리 크기: 세션당 최대 100MB
-- 추출 전략: 최대 5개
-- Namespace 깊이: 최대 10단계
+
+| 구분 | 설명 |
+|------|------|
+| **STM** | TTL 필수 (1-365일), 동기 처리, 이벤트 저장/조회 |
+| **LTM** | STM 이벤트에서 추출 (5-10초 소요, 비동기), 메모리 전략에 따라 추출된 정보 영구 저장 |
+| **메모리 전략** | LTM 전용, 최대 5개 조합 가능 |
+| 메모리 크기 | 세션당 최대 100MB |
+| Namespace 깊이 | 최대 10단계 |
+
+**생성 옵션:**
+- `strategies=[]` → STM만 생성
+- `strategies=[...]` → STM + LTM 생성 (메모리 전략 적용)

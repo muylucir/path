@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Globe, Server, Database, HardDrive, Plus } from "lucide-react";
@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"api" | "mcp" | "rag" | "s3">("api");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,23 +70,27 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
+        {/* 돌아가기 버튼 */}
+        <div className="mb-4">
+          <Button
+            variant="outline"
+            onClick={() => router.push("/")}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            돌아가기
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Link href="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                돌아가기
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                통합 설정
-              </h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                API, MCP, RAG, S3 통합을 등록하여 PATH 분석에 활용하세요
-              </p>
-            </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
+              통합 설정
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              API, MCP, RAG, S3 통합을 등록하여 PATH 분석에 활용하세요
+            </p>
           </div>
           <Button onClick={handleAdd}>
             <Plus className="w-4 h-4 mr-2" />

@@ -645,6 +645,41 @@ print(direct_result)
    → Gateway → Client
 ```
 
+## MCP Inspector로 Gateway 테스트
+
+MCP Inspector는 MCP 서버를 테스트하고 디버깅하기 위한 개발자 도구입니다.
+AgentCore Gateway도 MCP 서버로 동작하므로 Inspector로 테스트할 수 있습니다.
+
+### 실행 방법
+
+```bash
+# 설치 없이 npx로 직접 실행
+npx @modelcontextprotocol/inspector node build/index.js
+```
+
+**기본 포트:**
+- 클라이언트 UI: http://localhost:6274
+- 프록시 서버: http://localhost:6277
+
+### 사용 방법
+
+1. 브라우저에서 http://localhost:6274 접속
+2. Gateway 엔드포인트 URL 입력
+3. Authentication 정보 (Bearer Token) 입력
+4. Connect 클릭
+
+**제공 기능:**
+- 서버 연결 상태 확인
+- 도구/리소스 목록 시각화
+- 실시간 도구 호출 테스트
+- 응답 결과 확인
+
+**활용 사례:**
+- Gateway 연결 디버깅
+- 도구 스키마 확인
+- 도구 호출 테스트
+- 응답 형식 검증
+
 ## 도구 호출 예시
 
 ### Curl

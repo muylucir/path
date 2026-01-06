@@ -17,7 +17,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -38,10 +37,12 @@ import {
   Users,
   AlertCircle,
   FileText,
-  Cloud,
   MessageCircleQuestion,
   Sliders,
   X,
+  Globe,
+  Server,
+  HardDrive,
 } from "lucide-react";
 import type { DataSource } from "@/lib/types";
 import { IntegrationPicker } from "./IntegrationPicker";
@@ -56,7 +57,53 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
     { type: "", description: "" },
   ]);
   const [selectedIntegrations, setSelectedIntegrations] = useState<string[]>([]);
-  const [integrationNames, setIntegrationNames] = useState<Record<string, string>>({});
+  const [integrationData, setIntegrationData] = useState<Record<string, {
+    name: string;
+    type: string;
+    description?: string;
+    config?: Record<string, unknown>;
+  }>>({});
+
+  const typeIcons: Record<string, typeof Globe> = {
+    api: Globe,
+    mcp: Server,
+    rag: Database,
+    s3: HardDrive,
+  };
+
+  // 통합 타입별 요약 생성
+  const getIntegrationSummary = (type: string, name: string, config?: Record<string, unknown>): string => {
+    if (!config) return `[${type.toUpperCase()}] ${name}`;
+
+    switch (type) {
+      case 'api': {
+        const baseUrl = config.baseUrl as string || '';
+        const endpoints = (config.endpoints as unknown[]) || [];
+        return `[API] ${name}: ${baseUrl} - ${endpoints.length}개 엔드포인트`;
+      }
+      case 'mcp': {
+        const tools = (config.tools as { name: string }[]) || [];
+        const toolNames = tools.slice(0, 3).map(t => t.name).join(', ');
+        const suffix = tools.length > 3 ? ` 외 ${tools.length - 3}개` : '';
+        return `[MCP] ${name}: ${tools.length}개 도구 (${toolNames}${suffix})`;
+      }
+      case 'rag': {
+        const provider = config.provider as string || '';
+        const bedrockKb = config.bedrockKb as { knowledgeBaseId?: string } | undefined;
+        const pinecone = config.pinecone as { indexName?: string } | undefined;
+        const opensearch = config.opensearch as { indexName?: string } | undefined;
+        const indexId = bedrockKb?.knowledgeBaseId || pinecone?.indexName || opensearch?.indexName || '';
+        return `[RAG] ${name}: ${provider} - ${indexId}`;
+      }
+      case 's3': {
+        const bucketName = config.bucketName as string || '';
+        const accessType = config.accessType as string || '';
+        return `[S3] ${name}: s3://${bucketName} (${accessType})`;
+      }
+      default:
+        return `[${type.toUpperCase()}] ${name}`;
+    }
+  };
 
   const {
     register,
@@ -75,36 +122,43 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       dataSources: [{ type: "", description: "" }],
       errorTolerance: "",
       additionalContext: "",
-      useAgentCore: false,
+      useAgentCore: true,  // AgentCore 고정
       selectedIntegrations: [],
     },
   });
 
-  // Fetch integration names when selection changes
-  const fetchIntegrationNames = async (ids: string[]) => {
-    const names: Record<string, string> = {};
+  // Fetch integration data when selection changes (full data for Claude analysis)
+  const fetchIntegrationData = async (ids: string[]) => {
+    const data: Record<string, { name: string; type: string; description?: string; config?: Record<string, unknown> }> = {};
     for (const id of ids) {
-      if (!integrationNames[id]) {
+      if (!integrationData[id]) {
         try {
-          const response = await fetch(`/api/integrations/${id}`);
+          // full=true로 config 포함된 전체 데이터 가져오기
+          const response = await fetch(`/api/integrations/${id}?full=true`);
           if (response.ok) {
-            const data = await response.json();
-            names[id] = data.integration?.name || id;
+            const result = await response.json();
+            const integration = result.integration;
+            data[id] = {
+              name: integration?.name || id,
+              type: integration?.type || "api",
+              description: integration?.description,
+              config: integration?.config,
+            };
           }
         } catch {
-          names[id] = id;
+          data[id] = { name: id, type: "api" };
         }
       } else {
-        names[id] = integrationNames[id];
+        data[id] = integrationData[id];
       }
     }
-    setIntegrationNames((prev) => ({ ...prev, ...names }));
+    setIntegrationData((prev) => ({ ...prev, ...data }));
   };
 
   const handleIntegrationChange = (ids: string[]) => {
     setSelectedIntegrations(ids);
     setValue("selectedIntegrations", ids);
-    fetchIntegrationNames(ids);
+    fetchIntegrationData(ids);
   };
 
   const removeIntegration = (id: string) => {
@@ -115,7 +169,6 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
 
   const processSteps = watch("processSteps");
   const outputTypes = watch("outputTypes");
-  const useAgentCore = watch("useAgentCore");
 
   const toggleProcessStep = (step: string) => {
     const current = processSteps || [];
@@ -154,7 +207,19 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
   };
 
   const handleFormSubmit = (data: FormValues) => {
-    onSubmit({ ...data, dataSources, selectedIntegrations });
+    // 통합 상세 정보 생성 (Claude 분석에 사용)
+    const integrationDetails = selectedIntegrations.map((id) => {
+      const info = integrationData[id];
+      return {
+        id,
+        type: info?.type || 'api',
+        name: info?.name || id,
+        description: info?.description,
+        summary: getIntegrationSummary(info?.type || 'api', info?.name || id, info?.config),
+      };
+    });
+
+    onSubmit({ ...data, dataSources, selectedIntegrations, integrationDetails });
   };
 
   return (
@@ -189,31 +254,10 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
             <Settings className="h-5 w-5 text-primary" />
             핵심 설정
           </CardTitle>
-          <CardDescription>호스팅 환경과 INPUT, PROCESS, OUTPUT을 선택하세요</CardDescription>
+          <CardDescription>INPUT, PROCESS, OUTPUT을 선택하세요</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Hosting Environment */}
-            <div className="space-y-2">
-              <Label className="text-base font-semibold flex items-center gap-2">
-                <Cloud className="h-5 w-5" />
-                호스팅 환경
-              </Label>
-              <div className="flex items-center justify-center gap-3 p-4 border rounded-lg">
-                <span className={`text-sm font-medium ${!useAgentCore ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  EC2 / ECS / EKS
-                </span>
-                <Switch
-                  id="agentcore-toggle"
-                  checked={useAgentCore}
-                  onCheckedChange={(checked) => setValue("useAgentCore", checked)}
-                />
-                <span className={`text-sm font-medium ${useAgentCore ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  Amazon Bedrock AgentCore
-                </span>
-              </div>
-            </div>
-
+          <div>
             {/* INPUT */}
             <div className="space-y-2">
               <Label className="text-base font-semibold flex items-center gap-2">
@@ -335,18 +379,23 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">선택된 통합:</p>
                 <div className="flex flex-wrap gap-2">
-                  {selectedIntegrations.map((id) => (
-                    <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                      {integrationNames[id] || id.slice(0, 8)}
-                      <button
-                        type="button"
-                        onClick={() => removeIntegration(id)}
-                        className="ml-1 hover:text-red-500"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
+                  {selectedIntegrations.map((id) => {
+                    const info = integrationData[id];
+                    const Icon = info?.type ? typeIcons[info.type] : Globe;
+                    return (
+                      <Badge key={id} variant="secondary" className="flex items-center gap-1.5">
+                        {Icon && <Icon className="w-3 h-3" />}
+                        {info?.name || id.slice(0, 8)}
+                        <button
+                          type="button"
+                          onClick={() => removeIntegration(id)}
+                          className="ml-1 hover:text-red-500"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
                 </div>
               </div>
             )}

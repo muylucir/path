@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Check, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, Check, AlertCircle, Plus, Trash2, ChevronDown, ChevronUp, FileJson, PenLine } from "lucide-react";
 import type { APIIntegration, APIEndpoint } from "@/lib/types";
 
 interface APIIntegrationFormProps {
@@ -31,7 +31,7 @@ export function APIIntegrationForm({
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [parseSuccess, setParseSuccess] = useState(false);
-  const [showOpenApiUpload, setShowOpenApiUpload] = useState(false);
+  const [showOpenApiUpload, setShowOpenApiUpload] = useState(true);
   const [showEndpointForm, setShowEndpointForm] = useState(false);
 
   const [name, setName] = useState("");
@@ -155,7 +155,7 @@ export function APIIntegrationForm({
               ? { apiKeyHeader, apiKeyValue }
               : undefined,
           endpoints,
-          openApiSpec,
+          // Don't store full OpenAPI spec to avoid DynamoDB item size limit (400KB)
         },
       };
 
@@ -266,21 +266,22 @@ export function APIIntegrationForm({
           <p className="text-xs text-slate-500">선택사항</p>
         </div>
 
-        {/* OpenAPI Upload (Optional) */}
-        <div>
+        {/* OpenAPI Upload - Primary option */}
+        <div className="border-2 border-dashed border-blue-200 dark:border-blue-800 rounded-lg p-4 bg-blue-50/50 dark:bg-blue-950/20">
           <button
             type="button"
-            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+            className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-400 w-full"
             onClick={() => setShowOpenApiUpload(!showOpenApiUpload)}
           >
+            <FileJson className="w-5 h-5" />
+            <span className="flex-1 text-left">OpenAPI 스펙으로 가져오기</span>
             {showOpenApiUpload ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            OpenAPI 스펙으로 가져오기
           </button>
 
           {showOpenApiUpload && (
-            <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg">
-              <p className="text-xs text-slate-500 mb-2">
-                OpenAPI/Swagger JSON 파일을 업로드하면 엔드포인트가 자동으로 추가됩니다
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                OpenAPI/Swagger JSON 파일을 업로드하면 이름, 설명, Base URL, 엔드포인트가 자동으로 채워집니다
               </p>
               <div className="flex items-center gap-2">
                 <Input
@@ -288,13 +289,13 @@ export function APIIntegrationForm({
                   accept=".json"
                   onChange={handleFileUpload}
                   disabled={parsing}
-                  className="flex-1"
+                  className="flex-1 bg-white dark:bg-slate-900"
                 />
-                {parsing && <Loader2 className="w-4 h-4 animate-spin" />}
+                {parsing && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
                 {parseSuccess && <Check className="w-4 h-4 text-green-500" />}
               </div>
               {parseError && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+                <p className="text-xs text-red-500 flex items-center gap-1">
                   <AlertCircle className="w-3 h-3" />
                   {parseError}
                 </p>
@@ -307,11 +308,12 @@ export function APIIntegrationForm({
         <div>
           <button
             type="button"
-            className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700"
+            className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
             onClick={() => setShowEndpointForm(!showEndpointForm)}
           >
-            {showEndpointForm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <PenLine className="w-4 h-4" />
             직접 엔드포인트 추가
+            {showEndpointForm ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
           {showEndpointForm && (

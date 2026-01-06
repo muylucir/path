@@ -39,37 +39,58 @@ export default function ResultsPage() {
     if (!analysis || !formData) return;
 
     try {
-      const sessionData = {
-        pain_point: analysis.pain_point,
-        input_type: analysis.input_type,
-        process_steps: analysis.process_steps,
-        output_type: analysis.output_types[0] || "",
-        human_loop: analysis.human_loop,
-        data_source: formData.dataSources?.map((ds: any) => `${ds.type}: ${ds.description}`).join(", ") || "",
-        error_tolerance: formData.errorTolerance || "",
-        additional_context: formData.additionalContext || "",
-        use_agentcore: formData.useAgentCore || false,
-        pattern: analysis.pattern,
-        pattern_reason: analysis.pattern_reason,
-        feasibility_breakdown: analysis.feasibility_breakdown,
-        feasibility_score: analysis.feasibility_score,
-        recommendation: analysis.recommendation,
-        risks: analysis.risks,
-        next_steps: analysis.next_steps,
-        chat_history: chatHistory,
-        specification: spec,
-      };
+      const existingSessionId = sessionStorage.getItem("currentSessionId");
 
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(sessionData),
-      });
-
-      if (response.ok) {
-        toast.success("저장 완료", {
-          description: "분석 결과가 저장되었습니다.",
+      if (existingSessionId) {
+        // Update existing session's specification only
+        const response = await fetch(`/api/sessions/${existingSessionId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ specification: spec }),
         });
+
+        if (response.ok) {
+          toast.success("업데이트 완료", {
+            description: "명세서가 업데이트되었습니다.",
+          });
+        }
+      } else {
+        // Create new session
+        const sessionData = {
+          pain_point: analysis.pain_point,
+          input_type: analysis.input_type,
+          process_steps: analysis.process_steps,
+          output_type: analysis.output_types[0] || "",
+          human_loop: analysis.human_loop,
+          data_source: formData.dataSources?.map((ds: any) => `${ds.type}: ${ds.description}`).join(", ") || "",
+          error_tolerance: formData.errorTolerance || "",
+          additional_context: formData.additionalContext || "",
+          use_agentcore: formData.useAgentCore || false,
+          pattern: analysis.pattern,
+          pattern_reason: analysis.pattern_reason,
+          feasibility_breakdown: analysis.feasibility_breakdown,
+          feasibility_score: analysis.feasibility_score,
+          recommendation: analysis.recommendation,
+          risks: analysis.risks,
+          next_steps: analysis.next_steps,
+          chat_history: chatHistory,
+          specification: spec,
+        };
+
+        const response = await fetch("/api/sessions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(sessionData),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Store the new session ID for future updates
+          sessionStorage.setItem("currentSessionId", data.session_id);
+          toast.success("저장 완료", {
+            description: "분석 결과가 저장되었습니다.",
+          });
+        }
       }
     } catch (error) {
       console.error("Error saving:", error);
