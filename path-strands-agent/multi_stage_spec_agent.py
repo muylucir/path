@@ -8,8 +8,8 @@ from strands import Agent
 from strands.models import BedrockModel
 from typing import Dict, Any, Optional, AsyncIterator
 import json
-from skill_tool import skill_tool
-from skills.skill_utils import initialize_skills
+from strands_tools import file_read
+from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
 
 # 공통 모델 설정
@@ -24,23 +24,21 @@ def get_bedrock_model(max_tokens: int = 8192) -> BedrockModel:
 
 class PatternAgent:
     """1단계: 패턴 분석 Agent"""
-    
+
     def __init__(self):
-        available_skills, skill_prompt = initialize_skills(
-            skill_dirs=["./skills"],
-            verbose=False
-        )
-        
+        skills = discover_skills("./skills")
+        skill_prompt = generate_skills_prompt(skills)
+
         system_prompt = """당신은 Strands Agent 패턴 전문가입니다."""
-        enhanced_prompt = system_prompt + skill_prompt
-        
+        enhanced_prompt = system_prompt + "\n" + skill_prompt
+
         # strands_utils 사용하여 Agent 생성 (tool 호환성 보장)
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
             max_tokens=16000,
             temperature=0.3,
-            tools=[skill_tool]
+            tools=[file_read]
         )
     
     def analyze(self, analysis: Dict[str, Any]) -> str:
@@ -49,7 +47,7 @@ class PatternAgent:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
 
-**필수 1단계**: skill_tool을 호출하여 "strands-agent-patterns" 스킬을 로드하세요.
+**필수 1단계**: file_read로 "strands-agent-patterns" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
 **필수 2단계**: 로드된 SKILL 내용만을 사용하여 분석하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
 
 분석 형식:
@@ -89,23 +87,21 @@ edges = [("node1", "node2")]
 
 class AgentCoreAgent:
     """3단계: AgentCore 서비스 구성"""
-    
+
     def __init__(self):
-        available_skills, skill_prompt = initialize_skills(
-            skill_dirs=["./skills"],
-            verbose=False
-        )
-        
+        skills = discover_skills("./skills")
+        skill_prompt = generate_skills_prompt(skills)
+
         system_prompt = """당신은 Amazon Bedrock AgentCore 전문가입니다."""
-        enhanced_prompt = system_prompt + skill_prompt
-        
+        enhanced_prompt = system_prompt + "\n" + skill_prompt
+
         # strands_utils 사용하여 Agent 생성
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
             max_tokens=16000,
             temperature=0.3,
-            tools=[skill_tool]
+            tools=[file_read]
         )
     
     def configure(self, analysis: Dict[str, Any], pattern_result: str) -> str:
@@ -114,7 +110,7 @@ class AgentCoreAgent:
 
 {pattern_result}
 
-**필수 1단계**: skill_tool을 호출하여 "agentcore-services" 스킬을 로드하세요.
+**필수 1단계**: file_read로 "agentcore-services" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
 **필수 2단계**: 로드된 SKILL 내용만을 사용하여 구성하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
 
 **핵심 원칙** (SKILL 참조):
@@ -157,23 +153,21 @@ class AgentCoreAgent:
 
 class ArchitectureAgent:
     """2단계: 아키텍처 다이어그램"""
-    
+
     def __init__(self):
-        available_skills, skill_prompt = initialize_skills(
-            skill_dirs=["./skills"],
-            verbose=False
-        )
-        
+        skills = discover_skills("./skills")
+        skill_prompt = generate_skills_prompt(skills)
+
         system_prompt = """당신은 아키텍처 시각화 전문가입니다."""
-        enhanced_prompt = system_prompt + skill_prompt
-        
+        enhanced_prompt = system_prompt + "\n" + skill_prompt
+
         # strands_utils 사용하여 Agent 생성
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
             max_tokens=16000,
             temperature=0.3,
-            tools=[skill_tool]
+            tools=[file_read]
         )
     
     def generate_diagrams(self, pattern_result: str, agentcore_result: Optional[str] = None, use_agentcore: bool = False) -> str:
@@ -199,7 +193,7 @@ class ArchitectureAgent:
 
 **호스팅 환경**: {"Amazon Bedrock AgentCore" if use_agentcore else "EC2/ECS/EKS (AgentCore 미사용)"}
 
-**필수 1단계**: skill_tool을 호출하여 "mermaid-diagrams" 스킬을 로드하세요.
+**필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
 **필수 2단계**: 로드된 SKILL의 템플릿과 베스트 프랙티스만을 사용하세요.
 **필수 3단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요 (SKILL의 핵심 규칙).
 
