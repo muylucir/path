@@ -19,6 +19,7 @@ import asyncio
 
 from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent
 from multi_stage_spec_agent import MultiStageSpecAgent
+from sdd_multi_stage_agent import sdd_multi_stage_agent
 from spec_parser import parse_spec_to_canvas
 from code_generator import generate_code_from_canvas, generate_zip_from_canvas
 
@@ -64,6 +65,15 @@ class ParseSpecRequest(BaseModel):
 
 class GenerateCodeRequest(BaseModel):
     canvasState: Dict[str, Any]
+
+
+class SDDRequest(BaseModel):
+    spec: str  # PATH 명세서 Markdown
+
+
+class SDDDownloadRequest(BaseModel):
+    spec: Optional[str] = None  # PATH 명세서 Markdown (session_id 없을 때 필요)
+    session_id: Optional[str] = None  # 세션 ID (있으면 /tmp에서 ZIP 생성)
 
 
 # Global agents (재사용)
@@ -198,6 +208,115 @@ async def download_code(request: GenerateCodeRequest):
                 "Content-Disposition": "attachment; filename=agent-code.zip"
             }
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/sdd")
+async def generate_sdd(request: SDDRequest):
+    """SDD 문서 생성 - 6단계 파이프라인 스트리밍"""
+    try:
+        return StreamingResponse(
+            sdd_multi_stage_agent.generate_sdd_stream(request.spec),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/sdd/files/{session_id}")
+async def get_sdd_files(session_id: str):
+    """session_id로 /tmp에서 생성된 SDD 파일 내용 읽기"""
+    temp_dir = f"/tmp/sdd-{session_id}/.kiro"
+
+    if not os.path.exists(temp_dir):
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    def read_file(subdir: str, filename: str) -> str:
+        filepath = f"{temp_dir}/{subdir}/{filename}"
+        if os.path.exists(filepath):
+            with open(filepath, "r", encoding="utf-8") as f:
+                return f.read()
+        return ""
+
+    result = {
+        "specs": {
+            "requirements.md": read_file("specs", "requirements.md"),
+            "design.md": read_file("specs", "design.md"),
+            "tasks.md": read_file("specs", "tasks.md"),
+        },
+        "steering": {
+            "structure.md": read_file("steering", "structure.md"),
+            "tech.md": read_file("steering", "tech.md"),
+            "product.md": read_file("steering", "product.md"),
+        }
+    }
+
+    return result
+
+
+@app.post("/sdd/download")
+async def download_sdd(request: SDDDownloadRequest):
+    """SDD 문서를 ZIP 파일로 다운로드 - session_id로 /tmp에서 읽기"""
+    from fastapi.responses import Response
+    import zipfile
+    import io
+
+    try:
+        zip_buffer = io.BytesIO()
+
+        # session_id가 있으면 /tmp에서 파일 읽기
+        if request.session_id:
+            temp_dir = f"/tmp/sdd-{request.session_id}/.kiro"
+            print(f"[SDD Download] Using session_id: {request.session_id}")
+
+            if not os.path.exists(temp_dir):
+                raise HTTPException(status_code=404, detail=f"Session not found: {request.session_id}")
+
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                # 디렉토리 구조대로 파일 추가
+                for root, dirs, files in os.walk(temp_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        # .kiro 기준 상대 경로
+                        arcname = os.path.relpath(file_path, os.path.dirname(temp_dir))
+                        zipf.write(file_path, arcname)
+
+            print(f"[SDD Download] ZIP created from /tmp/sdd-{request.session_id}")
+
+        # session_id가 없으면 새로 생성 (fallback)
+        elif request.spec:
+            print("[SDD Download] No session_id - generating new documents")
+            result = sdd_multi_stage_agent.generate_sdd_sync(request.spec)
+
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                zipf.writestr(".kiro/path-spec/spec.md", request.spec)
+                specs = result.get("specs", {})
+                zipf.writestr(".kiro/specs/requirements.md", specs.get("requirements.md", ""))
+                zipf.writestr(".kiro/specs/design.md", specs.get("design.md", ""))
+                zipf.writestr(".kiro/specs/tasks.md", specs.get("tasks.md", ""))
+                steering = result.get("steering", {})
+                zipf.writestr(".kiro/steering/structure.md", steering.get("structure.md", ""))
+                zipf.writestr(".kiro/steering/tech.md", steering.get("tech.md", ""))
+                zipf.writestr(".kiro/steering/product.md", steering.get("product.md", ""))
+        else:
+            raise HTTPException(status_code=400, detail="session_id or spec is required")
+
+        zip_buffer.seek(0)
+        return Response(
+            content=zip_buffer.getvalue(),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=sdd-documents.zip"
+            }
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
