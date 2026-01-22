@@ -31,7 +31,6 @@ export function Step3Results({
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -126,40 +125,9 @@ export function Step3Results({
     URL.revokeObjectURL(url);
   };
 
-  const generateAndDownloadCode = async () => {
-    setIsGeneratingCode(true);
-    try {
-      const integrationDetails = formData?.integrationDetails || [];
-
-      const response = await fetch("/api/bedrock/code-download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          pathSpec: specification,
-          integrationDetails
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("코드 생성 실패");
-      }
-
-      // ZIP 파일 다운로드
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `strands-agent-code-${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Error generating code:", error);
-      alert("코드 생성 중 오류가 발생했습니다.");
-    } finally {
-      setIsGeneratingCode(false);
-    }
+  const navigateToCodeGenerator = () => {
+    // 코드 생성 페이지로 이동
+    window.location.href = "/code-generator";
   };
 
   return (
@@ -520,21 +488,11 @@ export function Step3Results({
                             명세서 다운로드
                           </Button>
                           <Button
-                            onClick={generateAndDownloadCode}
-                            disabled={isGeneratingCode}
+                            onClick={navigateToCodeGenerator}
                             className="flex-1 gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
                           >
-                            {isGeneratingCode ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                코드 생성 중...
-                              </>
-                            ) : (
-                              <>
-                                <Code2 className="h-4 w-4" />
-                                Strands 코드 생성
-                              </>
-                            )}
+                            <Code2 className="h-4 w-4" />
+                            Strands 코드 생성
                           </Button>
                         </>
                       )}
