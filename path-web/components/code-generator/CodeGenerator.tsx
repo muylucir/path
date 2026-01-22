@@ -97,12 +97,10 @@ export function CodeGenerator({ pathSpec, integrationDetails }: CodeGeneratorPro
 
               if (parsed.status === "progress") {
                 setCurrentMessage(parsed.message);
-                // 진행률 추정 (메시지 기반)
-                if (parsed.message.includes("준비")) setProgress(10);
-                else if (parsed.message.includes("통합 정보")) setProgress(20);
-                else if (parsed.message.includes("프롬프트")) setProgress(30);
-                else if (parsed.message.includes("Claude")) setProgress(40);
-                else if (parsed.message.includes("파싱")) setProgress(80);
+                // 백엔드에서 전송한 정확한 진행률 사용
+                if (parsed.progress !== undefined) {
+                  setProgress(parsed.progress);
+                }
               } else if (parsed.status === "complete") {
                 setGeneratedFiles(parsed.files as GeneratedFiles);
                 setIsComplete(true);
