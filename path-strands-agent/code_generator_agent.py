@@ -346,8 +346,10 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
 
             yield json.dumps({"status": "progress", "progress": 30, "message": "Claude Opus 4.5로 코드 생성 중... (2-3분 소요)"}) + "\n"
 
-            # LLM 호출 (동기)
-            result = await asyncio.to_thread(self.agent, prompt)
+            # LLM 호출 (동기 - Strands Agent는 동기 API만 제공)
+            # run_in_executor로 블로킹 방지
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(None, self.agent, prompt)
 
             yield json.dumps({"status": "progress", "progress": 75, "message": "LLM 응답 완료, 파일 파싱 중..."}) + "\n"
 
