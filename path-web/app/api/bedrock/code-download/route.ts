@@ -9,6 +9,10 @@ export async function POST(req: NextRequest) {
     const { pathSpec, integrationDetails } = await req.json();
 
     // Strands Agent API 호출 (코드 다운로드)
+    // 타임아웃: 5분 (코드 생성은 2-3분 소요)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 300000); // 5분
+
     const response = await fetch(`${STRANDS_API_URL}/code/download`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -16,7 +20,10 @@ export async function POST(req: NextRequest) {
         path_spec: pathSpec,
         integration_details: integrationDetails
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       throw new Error(`Strands API error: ${response.statusText}`);
