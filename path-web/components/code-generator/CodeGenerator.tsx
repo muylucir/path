@@ -77,10 +77,15 @@ export function CodeGenerator({ pathSpec, integrationDetails }: CodeGeneratorPro
       } else {
         throw new Error("코드 생성 응답 오류");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating code:", error);
+      const errorMessage = error.name === 'AbortError'
+        ? "요청 시간이 초과되었습니다. 명세서가 너무 복잡하거나 서버 응답이 느립니다."
+        : error.message || "알 수 없는 오류가 발생했습니다.";
+
       toast.error("코드 생성 실패", {
-        description: "다시 시도해주세요."
+        description: errorMessage,
+        duration: 5000,
       });
     } finally {
       setIsGenerating(false);

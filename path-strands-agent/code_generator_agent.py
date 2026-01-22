@@ -194,11 +194,20 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
 - 1개 Runtime으로 전체 Multi-Agent Graph 호스팅 (Agent별 Runtime 분리 금지)
 """
 
+        print(f"[CodeGeneratorAgent] 코드 생성 시작...")
+        print(f"[CodeGeneratorAgent] PATH 명세서 길이: {len(path_spec)} chars")
+        if integration_details:
+            print(f"[CodeGeneratorAgent] 통합 정보: {len(integration_details)}개")
+
         result = self.agent(prompt)
+        print(f"[CodeGeneratorAgent] LLM 응답 완료")
+
         text = result.message['content'][0]['text']
+        print(f"[CodeGeneratorAgent] 응답 길이: {len(text)} chars")
 
         # 파일 분리
         files = self._parse_files(text)
+        print(f"[CodeGeneratorAgent] 파일 파싱 완료: {len(files)}개 파일")
 
         # 필수 파일 검증
         required_files = ['agent.py', 'tools.py', 'agentcore_config.py',
