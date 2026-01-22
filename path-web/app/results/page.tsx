@@ -65,7 +65,7 @@ export default function ResultsPage() {
           data_source: formData.dataSources?.map((ds: any) => `${ds.type}: ${ds.description}`).join(", ") || "",
           error_tolerance: formData.errorTolerance || "",
           additional_context: formData.additionalContext || "",
-          use_agentcore: formData.useAgentCore || false,
+          use_agentcore: formData.useAgentCore ?? true,  // AgentCore 항상 사용
           pattern: analysis.pattern,
           pattern_reason: analysis.pattern_reason,
           feasibility_breakdown: analysis.feasibility_breakdown,
@@ -75,6 +75,12 @@ export default function ResultsPage() {
           next_steps: analysis.next_steps,
           chat_history: chatHistory,
           specification: spec,
+          // 사용자 원본 입력 (Step 1에서 선택한 값)
+          user_input_type: formData.inputType || "",
+          user_process_steps: formData.processSteps || [],
+          user_output_types: formData.outputTypes || [],
+          // 선택한 통합 정보
+          integration_details: formData.integrationDetails || [],
         };
 
         const response = await fetch("/api/sessions", {
