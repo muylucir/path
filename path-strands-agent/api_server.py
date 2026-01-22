@@ -20,6 +20,7 @@ import asyncio
 from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent
 from multi_stage_spec_agent import MultiStageSpecAgent
 from sdd_multi_stage_agent import sdd_multi_stage_agent
+from code_generator_agent import code_generator_agent
 
 app = FastAPI(title="PATH Strands Agent API")
 
@@ -66,6 +67,16 @@ class SDDRequest(BaseModel):
 class SDDDownloadRequest(BaseModel):
     spec: Optional[str] = None  # PATH 명세서 Markdown (session_id 없을 때 필요)
     session_id: Optional[str] = None  # 세션 ID (있으면 /tmp에서 ZIP 생성)
+
+
+class CodeGenerateRequest(BaseModel):
+    path_spec: str  # PATH 명세서 Markdown
+    integration_details: Optional[List[Dict[str, Any]]] = None
+
+
+class CodeDownloadRequest(BaseModel):
+    path_spec: str  # PATH 명세서 Markdown
+    integration_details: Optional[List[Dict[str, Any]]] = None
 
 
 # Global agents (재사용)
@@ -273,6 +284,56 @@ async def download_sdd(request: SDDDownloadRequest):
         )
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/code/generate")
+async def generate_code(request: CodeGenerateRequest):
+    """PATH 명세서 → Strands Agent SDK 코드 생성"""
+    try:
+        files = code_generator_agent.generate(
+            path_spec=request.path_spec,
+            integration_details=request.integration_details
+        )
+
+        return {
+            "success": True,
+            "files": files,
+            "file_count": len(files)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/code/download")
+async def download_code(request: CodeDownloadRequest):
+    """생성된 코드를 ZIP 파일로 다운로드"""
+    from fastapi.responses import Response
+    import zipfile
+    import io
+
+    try:
+        # 코드 생성
+        files = code_generator_agent.generate(
+            path_spec=request.path_spec,
+            integration_details=request.integration_details
+        )
+
+        # ZIP 생성
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for filename, content in files.items():
+                zipf.writestr(filename, content)
+
+        zip_buffer.seek(0)
+        return Response(
+            content=zip_buffer.getvalue(),
+            media_type="application/zip",
+            headers={
+                "Content-Disposition": "attachment; filename=strands-agent-code.zip"
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
