@@ -8,9 +8,10 @@ PATH 명세서 → Strands Agent 코드 (2-3분)
 
 from strands import Agent
 from strands.models import BedrockModel
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, AsyncIterator
 import json
 import re
+import asyncio
 from strands_tools import file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
@@ -221,6 +222,163 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
                 files[missing] = self._get_default_template(missing)
 
         return files
+
+    async def generate_stream(self, path_spec: str, integration_details: Optional[List[Dict[str, Any]]] = None) -> AsyncIterator[str]:
+        """
+        PATH 명세서로부터 Strands Agent SDK 코드 생성 (스트리밍)
+
+        진행 상황을 SSE로 전송하여 연결 유지
+
+        Yields:
+            JSON 문자열: {"status": "progress|complete|error", "message": "...", "files": {...}}
+        """
+        try:
+            yield json.dumps({"status": "progress", "message": "코드 생성 준비 중..."}) + "\n"
+
+            # Integration 정보 처리
+            integration_context = ""
+            if integration_details:
+                yield json.dumps({"status": "progress", "message": f"{len(integration_details)}개 통합 정보 처리 중..."}) + "\n"
+                integration_context = "\n\n<registered_integrations>\n"
+                integration_context += "사용자가 등록한 통합 정보 (tools.py 생성 시 반영):\n\n"
+
+                for detail in integration_details:
+                    int_type = detail.get('type', 'api')
+                    name = detail.get('name', '')
+                    config = detail.get('config', {})
+
+                    integration_context += f"### [{int_type.upper()}] {name}\n"
+
+                    if int_type == 'api':
+                        base_url = config.get('baseUrl', '')
+                        auth_type = config.get('authType', 'none')
+                        endpoints = config.get('endpoints', [])
+                        integration_context += f"- Base URL: {base_url}\n"
+                        integration_context += f"- Auth: {auth_type}\n"
+                        integration_context += f"- Endpoints: {len(endpoints)}개\n"
+                        for ep in endpoints[:3]:
+                            integration_context += f"  - {ep.get('method', 'GET')} {ep.get('path', '')}\n"
+                        integration_context += "- **tools.py**: requests 또는 boto3 사용\n\n"
+                    elif int_type == 'mcp':
+                        server_url = config.get('serverUrl', '')
+                        tools = config.get('tools', [])
+                        integration_context += f"- Server URL: {server_url}\n"
+                        integration_context += f"- Tools: {len(tools)}개\n"
+                        for tool in tools[:3]:
+                            integration_context += f"  - {tool.get('name', '')}\n"
+                        integration_context += "- **tools.py**: strands_tools.mcp_server 사용\n\n"
+                    elif int_type == 'rag':
+                        provider = config.get('provider', '')
+                        integration_context += f"- Provider: {provider}\n"
+                        if provider == 'bedrock-kb':
+                            kb_config = config.get('bedrockKb', {})
+                            integration_context += f"- Knowledge Base ID: {kb_config.get('knowledgeBaseId', '')}\n"
+                        integration_context += "- **tools.py**: boto3 Bedrock KB 직접 호출\n\n"
+                    elif int_type == 's3':
+                        bucket = config.get('bucketName', '')
+                        integration_context += f"- Bucket: s3://{bucket}\n"
+                        integration_context += "- **tools.py**: boto3 S3 직접 호출\n\n"
+
+                integration_context += "</registered_integrations>\n"
+
+            # 프롬프트 구성
+            yield json.dumps({"status": "progress", "message": "프롬프트 구성 중..."}) + "\n"
+
+            prompt = f"""다음 PATH 명세서를 기반으로 Strands Agent SDK 코드를 생성하세요:
+
+<path_spec>
+{path_spec}
+</path_spec>
+{integration_context}
+
+**필수 1단계**: file_read로 "strands-agent-patterns" 스킬의 SKILL.md를 읽으세요.
+**필수 2단계**: file_read로 "agentcore-services" 스킬의 SKILL.md를 읽으세요.
+**필수 3단계**: file_read로 "aws-mcp-servers" 스킬의 SKILL.md를 읽으세요.
+**필수 4단계**: 3개 스킬을 종합하여 코드를 생성하세요.
+
+**생성할 파일**:
+
+### agent.py
+- Agent Components 테이블의 각 Agent를 Agent() 객체로 정의
+- GraphBuilder()로 Graph 구조 구현
+- 진입점 설정 (set_entry_point)
+- Reflection 패턴 시 조건부 엣지 추가
+- FastAPI 엔드포인트 (/invocations, /ping) 포함
+
+### tools.py
+- MCP 서버 연결 (strands_tools.mcp_server)
+- AWS 서비스 직접 호출 (boto3)
+- 등록된 Integration 정보 활용 (위 registered_integrations 참조)
+- API 클라이언트 (필요 시 requests 사용)
+
+### agentcore_config.py
+- AgentCore 구성 테이블 기반 설정
+- Runtime: 1개 (전체 Graph 호스팅) - 중요!
+- Memory: Namespace 전략
+- Gateway: Target 목록 (Lambda, OpenAPI, MCP)
+- Identity: OAuth2 자격 증명 (필요 시)
+
+### requirements.txt
+- strands-agents
+- strands-agents-tools
+- boto3
+- fastapi
+- uvicorn
+- 기타 필요 라이브러리 (requests 등)
+
+### Dockerfile
+- FROM python:3.11
+- AgentCore Runtime용 (포트 8080)
+- /invocations, /ping 엔드포인트 지원
+
+### deploy_guide.md
+- ECR 푸시 명령어
+- AgentCore Runtime 생성
+- Gateway/Memory/Identity 설정
+- 테스트 호출 예시
+
+**중요 참고사항**:
+- Agent Components 테이블의 Tools 컬럼 확인 (boto3 vs Lambda MCP)
+- Graph 구조의 Python 코드 블록 활용
+- AgentCore 구성 테이블의 설정 정확히 반영
+- 1개 Runtime으로 전체 Multi-Agent Graph 호스팅 (Agent별 Runtime 분리 금지)
+"""
+
+            yield json.dumps({"status": "progress", "message": "Claude Opus 4.5로 코드 생성 중... (2-3분 소요)"}) + "\n"
+
+            # LLM 호출 (동기)
+            result = await asyncio.to_thread(self.agent, prompt)
+
+            yield json.dumps({"status": "progress", "message": "LLM 응답 완료, 파일 파싱 중..."}) + "\n"
+
+            text = result.message['content'][0]['text']
+            files = self._parse_files(text)
+
+            yield json.dumps({"status": "progress", "message": f"{len(files)}개 파일 파싱 완료"}) + "\n"
+
+            # 필수 파일 검증
+            required_files = ['agent.py', 'tools.py', 'agentcore_config.py',
+                            'requirements.txt', 'Dockerfile', 'deploy_guide.md']
+            missing_files = [f for f in required_files if f not in files]
+
+            if missing_files:
+                yield json.dumps({"status": "progress", "message": f"누락된 파일 {len(missing_files)}개를 기본 템플릿으로 채우는 중..."}) + "\n"
+                for missing in missing_files:
+                    files[missing] = self._get_default_template(missing)
+
+            # 완료
+            yield json.dumps({
+                "status": "complete",
+                "message": "코드 생성 완료!",
+                "files": files,
+                "file_count": len(files)
+            }) + "\n"
+
+        except Exception as e:
+            yield json.dumps({
+                "status": "error",
+                "message": f"코드 생성 실패: {str(e)}"
+            }) + "\n"
 
     def _parse_files(self, text: str) -> Dict[str, str]:
         """
