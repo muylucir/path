@@ -42,6 +42,8 @@ export function CodeGenerator({ pathSpec, integrationDetails }: CodeGeneratorPro
   const [isComplete, setIsComplete] = useState(false);
   const [generatedFiles, setGeneratedFiles] = useState<GeneratedFiles | null>(null);
   const [copiedFile, setCopiedFile] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [currentMessage, setCurrentMessage] = useState("");
 
   // 자동 코드 생성 시작
   useEffect(() => {
@@ -51,6 +53,8 @@ export function CodeGenerator({ pathSpec, integrationDetails }: CodeGeneratorPro
   const generateCode = async () => {
     setIsGenerating(true);
     setIsComplete(false);
+    setProgress(0);
+    setCurrentMessage("코드 생성 시작...");
 
     try {
       const response = await fetch("/api/bedrock/code-generate", {
@@ -66,16 +70,55 @@ export function CodeGenerator({ pathSpec, integrationDetails }: CodeGeneratorPro
         throw new Error("코드 생성 실패");
       }
 
-      const data = await response.json();
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
 
-      if (data.success && data.files) {
-        setGeneratedFiles(data.files as GeneratedFiles);
-        setIsComplete(true);
-        toast.success("코드 생성 완료", {
-          description: `${data.file_count}개 파일이 생성되었습니다.`
-        });
-      } else {
-        throw new Error("코드 생성 응답 오류");
+      if (!reader) {
+        throw new Error("스트림 읽기 실패");
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            if (data === "[DONE]") {
+              setIsGenerating(false);
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+
+              if (parsed.status === "progress") {
+                setCurrentMessage(parsed.message);
+                // 진행률 추정 (메시지 기반)
+                if (parsed.message.includes("준비")) setProgress(10);
+                else if (parsed.message.includes("통합 정보")) setProgress(20);
+                else if (parsed.message.includes("프롬프트")) setProgress(30);
+                else if (parsed.message.includes("Claude")) setProgress(40);
+                else if (parsed.message.includes("파싱")) setProgress(80);
+              } else if (parsed.status === "complete") {
+                setGeneratedFiles(parsed.files as GeneratedFiles);
+                setIsComplete(true);
+                setProgress(100);
+                setCurrentMessage(parsed.message);
+                toast.success("코드 생성 완료", {
+                  description: `${parsed.file_count}개 파일이 생성되었습니다.`
+                });
+              } else if (parsed.status === "error") {
+                throw new Error(parsed.message);
+              }
+            } catch (e) {
+              // JSON 파싱 실패 무시
+            }
+          }
+        }
       }
     } catch (error: any) {
       console.error("Error generating code:", error);
@@ -176,10 +219,11 @@ export function CodeGenerator({ pathSpec, integrationDetails }: CodeGeneratorPro
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 <span className="font-medium">코드 생성 중...</span>
               </div>
-              <Progress value={50} className="h-2" />
-              <p className="text-sm text-muted-foreground">
-                Claude Opus 4.5가 명세서를 분석하고 코드를 생성하고 있습니다. 약 2-3분 소요됩니다.
-              </p>
+              <Progress value={progress} className="h-2" />
+              <div className="flex justify-between items-center text-sm">
+                <p className="text-muted-foreground">{currentMessage}</p>
+                <span className="font-medium">{progress}%</span>
+              </div>
             </div>
           )}
 

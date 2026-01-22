@@ -290,18 +290,25 @@ async def download_sdd(request: SDDDownloadRequest):
 
 @app.post("/code/generate")
 async def generate_code(request: CodeGenerateRequest):
-    """PATH 명세서 → Strands Agent SDK 코드 생성"""
+    """PATH 명세서 → Strands Agent SDK 코드 생성 (SSE 스트리밍)"""
     try:
-        files = code_generator_agent.generate(
-            path_spec=request.path_spec,
-            integration_details=request.integration_details
-        )
+        async def generate():
+            async for chunk in code_generator_agent.generate_stream(
+                path_spec=request.path_spec,
+                integration_details=request.integration_details
+            ):
+                yield f"data: {chunk}\n"
+            yield "data: [DONE]\n\n"
 
-        return {
-            "success": True,
-            "files": files,
-            "file_count": len(files)
-        }
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
