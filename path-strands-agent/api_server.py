@@ -19,10 +19,20 @@ import asyncio
 
 from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent
 from multi_stage_spec_agent import MultiStageSpecAgent
-from sdd_multi_stage_agent import sdd_multi_stage_agent
 from code_generator_agent import code_generator_agent
+from job_manager import job_manager, JobStatus
+from background_worker import background_worker
 
 app = FastAPI(title="PATH Strands Agent API")
+
+# 백그라운드 워커 시작
+@app.on_event("startup")
+async def startup_event():
+    background_worker.start()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    background_worker.stop()
 
 # CORS 설정 (Next.js 웹앱과 통신)
 app.add_middleware(
@@ -60,18 +70,13 @@ class SpecRequest(BaseModel):
     integrationDetails: Optional[List[Dict[str, Any]]] = None
 
 
-class SDDRequest(BaseModel):
-    spec: str  # PATH 명세서 Markdown
-
-
-class SDDDownloadRequest(BaseModel):
-    spec: Optional[str] = None  # PATH 명세서 Markdown (session_id 없을 때 필요)
-    session_id: Optional[str] = None  # 세션 ID (있으면 /tmp에서 ZIP 생성)
-
-
 class CodeGenerateRequest(BaseModel):
     path_spec: str  # PATH 명세서 Markdown
     integration_details: Optional[List[Dict[str, Any]]] = None
+    # 메타데이터 (UI 표시용)
+    pain_point: Optional[str] = None
+    pattern: Optional[str] = None
+    feasibility_score: Optional[int] = None
 
 
 class CodeDownloadRequest(BaseModel):
@@ -179,115 +184,6 @@ async def spec(request: SpecRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/sdd")
-async def generate_sdd(request: SDDRequest):
-    """SDD 문서 생성 - 6단계 파이프라인 스트리밍"""
-    try:
-        return StreamingResponse(
-            sdd_multi_stage_agent.generate_sdd_stream(request.spec),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
-            }
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/sdd/files/{session_id}")
-async def get_sdd_files(session_id: str):
-    """session_id로 /tmp에서 생성된 SDD 파일 내용 읽기"""
-    temp_dir = f"/tmp/sdd-{session_id}/.kiro"
-
-    if not os.path.exists(temp_dir):
-        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
-
-    def read_file(subdir: str, filename: str) -> str:
-        filepath = f"{temp_dir}/{subdir}/{filename}"
-        if os.path.exists(filepath):
-            with open(filepath, "r", encoding="utf-8") as f:
-                return f.read()
-        return ""
-
-    result = {
-        "specs": {
-            "requirements.md": read_file("specs", "requirements.md"),
-            "design.md": read_file("specs", "design.md"),
-            "tasks.md": read_file("specs", "tasks.md"),
-        },
-        "steering": {
-            "structure.md": read_file("steering", "structure.md"),
-            "tech.md": read_file("steering", "tech.md"),
-            "product.md": read_file("steering", "product.md"),
-        }
-    }
-
-    return result
-
-
-@app.post("/sdd/download")
-async def download_sdd(request: SDDDownloadRequest):
-    """SDD 문서를 ZIP 파일로 다운로드 - session_id로 /tmp에서 읽기"""
-    from fastapi.responses import Response
-    import zipfile
-    import io
-
-    try:
-        zip_buffer = io.BytesIO()
-
-        # session_id가 있으면 /tmp에서 파일 읽기
-        if request.session_id:
-            temp_dir = f"/tmp/sdd-{request.session_id}/.kiro"
-            print(f"[SDD Download] Using session_id: {request.session_id}")
-
-            if not os.path.exists(temp_dir):
-                raise HTTPException(status_code=404, detail=f"Session not found: {request.session_id}")
-
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                # 디렉토리 구조대로 파일 추가
-                for root, dirs, files in os.walk(temp_dir):
-                    for file in files:
-                        file_path = os.path.join(root, file)
-                        # .kiro 기준 상대 경로
-                        arcname = os.path.relpath(file_path, os.path.dirname(temp_dir))
-                        zipf.write(file_path, arcname)
-
-            print(f"[SDD Download] ZIP created from /tmp/sdd-{request.session_id}")
-
-        # session_id가 없으면 새로 생성 (fallback)
-        elif request.spec:
-            print("[SDD Download] No session_id - generating new documents")
-            result = sdd_multi_stage_agent.generate_sdd_sync(request.spec)
-
-            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                zipf.writestr(".kiro/path-spec/spec.md", request.spec)
-                specs = result.get("specs", {})
-                zipf.writestr(".kiro/specs/requirements.md", specs.get("requirements.md", ""))
-                zipf.writestr(".kiro/specs/design.md", specs.get("design.md", ""))
-                zipf.writestr(".kiro/specs/tasks.md", specs.get("tasks.md", ""))
-                steering = result.get("steering", {})
-                zipf.writestr(".kiro/steering/structure.md", steering.get("structure.md", ""))
-                zipf.writestr(".kiro/steering/tech.md", steering.get("tech.md", ""))
-                zipf.writestr(".kiro/steering/product.md", steering.get("product.md", ""))
-        else:
-            raise HTTPException(status_code=400, detail="session_id or spec is required")
-
-        zip_buffer.seek(0)
-        return Response(
-            content=zip_buffer.getvalue(),
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": "attachment; filename=sdd-documents.zip"
-            }
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.post("/code/generate")
 async def generate_code(request: CodeGenerateRequest):
     """PATH 명세서 → Strands Agent SDK 코드 생성 (SSE 스트리밍)"""
@@ -343,6 +239,129 @@ async def download_code(request: CodeDownloadRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/code/jobs")
+async def create_code_generation_job(request: CodeGenerateRequest):
+    """코드 생성 작업 생성 (비동기)"""
+    try:
+        # 디버깅: 받은 메타데이터 로깅
+        print(f"📝 Creating job with metadata:")
+        print(f"   - pain_point: {request.pain_point}")
+        print(f"   - pattern: {request.pattern}")
+        print(f"   - feasibility_score: {request.feasibility_score}")
+
+        # 작업 생성
+        job_id = job_manager.create_job(
+            path_spec=request.path_spec,
+            integration_details=request.integration_details,
+            pain_point=request.pain_point,
+            pattern=request.pattern,
+            feasibility_score=request.feasibility_score
+        )
+
+        # 백그라운드 워커에 제출
+        background_worker.submit_job(job_id)
+
+        return {
+            "job_id": job_id,
+            "status": "pending",
+            "message": "작업이 시작되었습니다. 상태를 확인하세요."
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/code/jobs/{job_id}")
+async def get_job_status(job_id: str):
+    """작업 상태 조회"""
+    job = job_manager.get_job(job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
+
+    return {
+        "job_id": job.job_id,
+        "status": job.status.value,
+        "progress": job.progress,
+        "message": job.message,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+        "file_count": len(job.result) if job.result else 0,
+        "error": job.error
+    }
+
+
+@app.get("/code/jobs/{job_id}/download")
+async def download_job_result(job_id: str):
+    """완료된 작업의 코드 다운로드"""
+    from fastapi.responses import Response
+    import zipfile
+    import io
+
+    job = job_manager.get_job(job_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
+
+    if job.status != JobStatus.COMPLETED:
+        raise HTTPException(status_code=400, detail=f"작업이 아직 완료되지 않았습니다 (상태: {job.status.value})")
+
+    if not job.result:
+        raise HTTPException(status_code=500, detail="생성된 파일이 없습니다")
+
+    # ZIP 생성
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for filename, content in job.result.items():
+            zipf.writestr(filename, content)
+
+    zip_buffer.seek(0)
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f"attachment; filename=strands-agent-code-{job_id[:8]}.zip"
+        }
+    )
+
+
+@app.get("/code/jobs")
+async def list_recent_jobs(limit: int = 10):
+    """최근 작업 목록"""
+    jobs = job_manager.list_recent_jobs(limit=limit)
+
+    return {
+        "jobs": [
+            {
+                "job_id": job.job_id,
+                "status": job.status.value,
+                "progress": job.progress,
+                "message": job.message,
+                "created_at": job.created_at,
+                "updated_at": job.updated_at,
+                "completed_at": job.updated_at if job.status.value == "completed" else None,
+                "error": job.error,
+                "file_count": len(job.result) if job.result else None,
+                # 메타데이터
+                "pain_point": job.pain_point,
+                "pattern": job.pattern,
+                "feasibility_score": job.feasibility_score,
+            }
+            for job in jobs
+        ]
+    }
+
+
+@app.delete("/code/jobs/{job_id}")
+async def delete_code_generation_job(job_id: str):
+    """코드 생성 작업 삭제"""
+    success = job_manager.delete_job(job_id)
+
+    if not success:
+        raise HTTPException(status_code=404, detail="작업을 찾을 수 없습니다")
+
+    return {"message": "작업이 삭제되었습니다", "job_id": job_id}
 
 
 @app.get("/health")
