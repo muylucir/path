@@ -40,7 +40,7 @@ PATH Agent Specification을 분석하여 EARS 표기법의 Requirements Document
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=32000,
             temperature=0.0,
             tools=[file_read]
@@ -85,7 +85,7 @@ PATH 명세서와 Requirements를 기반으로 상세한 Design Document를 생�
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=32000,
             temperature=0.0,
             tools=[file_read]
@@ -133,7 +133,7 @@ Design Document를 구체적인 Implementation Tasks로 분해합니다.
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=32000,
             temperature=0.0,
             tools=[file_read]
@@ -186,7 +186,7 @@ AI Agent 프로젝트의 디렉토리 구조와 파일 조직을 설계합니다
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=32000,
             temperature=0.0,
             tools=[file_read]
@@ -239,7 +239,7 @@ AI Agent 프로젝트의 기술 스택과 개발 환경을 문서화합니다.
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=32000,
             temperature=0.0,
             tools=[file_read]
@@ -293,7 +293,7 @@ AI Agent 제품의 목적, 기능, 비즈니스 규칙을 문서화합니다.
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=32000,
             temperature=0.0,
             tools=[file_read]

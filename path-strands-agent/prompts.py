@@ -167,13 +167,35 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
         # 문자열인 경우 (하위 호환성)
         data_source_str = data_sources or "미지정"
 
-    # 등록된 통합 정보 (사용 가능한 도구/데이터)
+    # 등록된 통합 정보 (사용 가능한 도구/데이터) - 상세 포함
     integration_details = form_data.get('integrationDetails', [])
     if integration_details:
-        integration_str = "\n".join([
-            f"- {detail.get('summary', detail.get('name', ''))}"
-            for detail in integration_details
-        ])
+        integration_parts = []
+        for detail in integration_details:
+            int_type = detail.get('type', 'api').upper()
+            name = detail.get('name', '')
+            summary = detail.get('summary', '')
+            config = detail.get('config', {})
+
+            part = f"- **[{int_type}] {name}**: {summary}"
+
+            # API: 주요 엔드포인트 표시
+            if detail.get('type') == 'api' and config:
+                endpoints = config.get('endpoints', [])[:3]
+                if endpoints:
+                    ep_lines = [f"    - {e.get('method', 'GET')} {e.get('path', '')}: {e.get('summary', '')}" for e in endpoints]
+                    part += "\n  주요 엔드포인트:\n" + "\n".join(ep_lines)
+
+            # MCP: 도구 목록 표시
+            elif detail.get('type') == 'mcp' and config:
+                tools = config.get('tools', [])[:5]
+                if tools:
+                    tool_lines = [f"    - {t.get('name', '')}: {(t.get('description', '') or '')[:60]}" for t in tools]
+                    part += "\n  주요 도구:\n" + "\n".join(tool_lines)
+
+            integration_parts.append(part)
+
+        integration_str = "\n".join(integration_parts)
     else:
         integration_str = "없음"
 

@@ -59,11 +59,34 @@ export function MDXRenderer({ content }: MDXRendererProps) {
           .replace(/<use_skill>[\s\S]*?<\/use_skill>/g, '')
           .replace(/<skill name='.*?'>[\s\S]*?<\/skill>/g, '');
         
-        // 코드 블록 내 중괄호 이스케이프 (MDX가 JSX로 해석하지 않도록)
-        // 단, mermaid 코드 블록은 제외 (Mermaid가 직접 파싱해야 함)
+        // 중괄호 이스케이프 (MDX가 JSX로 해석하지 않도록)
+        // 1. 먼저 mermaid 블록과 코드 블록을 보존
+        const codeBlocks: string[] = [];
         cleanedContent = cleanedContent.replace(
-          /(```(?!mermaid)[\s\S]*?```)/g,
-          (match) => match.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;')
+          /(```[\s\S]*?```)/g,
+          (match) => {
+            codeBlocks.push(match);
+            return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+          }
+        );
+
+        // 2. 남은 텍스트에서 중괄호 이스케이프 (변수 템플릿 등)
+        cleanedContent = cleanedContent
+          .replace(/\{/g, '&#123;')
+          .replace(/\}/g, '&#125;');
+
+        // 3. 코드 블록 복원 (mermaid는 그대로, 나머지는 이스케이프)
+        cleanedContent = cleanedContent.replace(
+          /__CODE_BLOCK_(\d+)__/g,
+          (_, idx) => {
+            const block = codeBlocks[parseInt(idx)];
+            // mermaid 블록은 그대로 유지
+            if (block.startsWith('```mermaid')) {
+              return block;
+            }
+            // 나머지 코드 블록은 중괄호 이스케이프
+            return block.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;');
+          }
         );
         
         const mdx = await serialize(cleanedContent, {

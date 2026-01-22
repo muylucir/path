@@ -6,13 +6,13 @@ export const maxDuration = 600; // 10분 타임아웃
 
 export async function POST(req: NextRequest) {
   try {
-    const { analysis, useAgentCore } = await req.json();
+    const { analysis, useAgentCore, integrationDetails } = await req.json();
 
     // Strands Agent API 호출 (스트리밍)
     const response = await fetch(`${STRANDS_API_URL}/spec`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis, useAgentCore }),
+      body: JSON.stringify({ analysis, useAgentCore, integrationDetails }),
     });
 
     if (!response.ok) {

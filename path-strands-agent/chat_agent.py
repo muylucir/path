@@ -14,7 +14,7 @@ from prompts import SYSTEM_PROMPT, get_initial_analysis_prompt
 class AnalyzerAgent:
     """사용자 입력(pain point, input, process, output 등)을 분석하는 Agent"""
     
-    def __init__(self, model_id: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"):
+    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
             system_prompt=SYSTEM_PROMPT
@@ -38,7 +38,7 @@ class AnalyzerAgent:
 class ChatAgent:
     """대화형 분석 Agent - 채팅 지원"""
     
-    def __init__(self, model_id: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"):
+    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
             system_prompt=SYSTEM_PROMPT
@@ -118,7 +118,7 @@ class ChatAgent:
 class EvaluatorAgent:
     """답변 수집 후 Feasibility 점수를 계산하는 Agent"""
     
-    def __init__(self, model_id: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"):
+    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
             system_prompt=SYSTEM_PROMPT

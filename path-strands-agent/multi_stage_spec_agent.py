@@ -16,7 +16,7 @@ from strands_utils import strands_utils
 def get_bedrock_model(max_tokens: int = 8192) -> BedrockModel:
     """공통 Bedrock 모델 설정"""
     return BedrockModel(
-        model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
         max_tokens=max_tokens,
         temperature=0.3
     )
@@ -35,7 +35,7 @@ class PatternAgent:
         # strands_utils 사용하여 Agent 생성 (tool 호환성 보장)
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=16000,
             temperature=0.3,
             tools=[file_read]
@@ -47,16 +47,24 @@ class PatternAgent:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
 
-**필수 1단계**: file_read로 "strands-agent-patterns" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
-**필수 2단계**: 로드된 SKILL 내용만을 사용하여 분석하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
+**필수 1단계**: file_read로 "strands-agent-patterns" 스킬의 SKILL.md를 읽으세요.
+**필수 2단계**: file_read로 "aws-mcp-servers" 스킬의 SKILL.md를 읽으세요. (Tools 결정에 필수!)
+**필수 3단계**: 두 스킬을 종합하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
+
+**중요 - 출력 규칙**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽었으므로", "분석을 진행하겠습니다" 같은 문구 금지
+- 바로 분석 결과만 출력하세요
 
 분석 형식:
 
 ### Agent Components
 | Agent Name | Role | Input | Output | LLM | Tools |
 |------------|------|-------|--------|-----|-------|
+
+**[중요] Tools 컬럼은 aws-mcp-servers 스킬의 Quick Decision 테이블과 작성 규칙을 반드시 따르세요.**
 **중요: 테이블에 HTML 태그 금지.**
-**중요 : LLM은 Claude Sonnet/Haiku 4.5만 사용**
+**중요: LLM은 Claude Sonnet/Haiku 4.5만 사용**
 
 ### 패턴 분석
 선택된 패턴과 Strands Agent 구현 방법:
@@ -64,9 +72,8 @@ class PatternAgent:
 
 ### Graph 구조
 ```python
-# strands-agent-patterns 스킬의 코드 템플릿을 참조하여 작성
-nodes = {{"node1": Agent(role="...", goal="...")}}
-edges = [("node1", "node2")]
+# aws-mcp-servers 스킬의 규칙에 따라 tools 파라미터 작성
+# boto3 직접 호출 서비스는 tools=[]
 ```
 
 ### Agent-as-Tool
@@ -98,20 +105,90 @@ class AgentCoreAgent:
         # strands_utils 사용하여 Agent 생성
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=16000,
             temperature=0.3,
             tools=[file_read]
         )
     
-    def configure(self, analysis: Dict[str, Any], pattern_result: str) -> str:
+    def configure(self, analysis: Dict[str, Any], pattern_result: str, integration_details: list = None) -> str:
         """AgentCore 구성 - PatternAgent 결과 기반"""
+
+        # 등록된 통합 정보를 Gateway 매핑 가이드로 변환
+        integration_context = ""
+        if integration_details:
+            integration_context = """
+<registered_integrations>
+아래는 사용자가 등록한 통합입니다. AgentCore Gateway 구성 시 이를 자동 반영하세요:
+
+"""
+            for detail in integration_details:
+                int_type = detail.get('type', 'api')
+                name = detail.get('name', '')
+                config = detail.get('config', {})
+
+                integration_context += f"### [{int_type.upper()}] {name}\n"
+
+                if int_type == 'api':
+                    base_url = config.get('baseUrl', '')
+                    auth_type = config.get('authType', 'none')
+                    endpoints = config.get('endpoints', [])
+
+                    integration_context += f"- Base URL: {base_url}\n"
+                    integration_context += f"- Auth: {auth_type}\n"
+                    integration_context += f"- Endpoints ({len(endpoints)}개):\n"
+                    for ep in endpoints[:5]:
+                        integration_context += f"  - {ep.get('method', 'GET')} {ep.get('path', '')}: {ep.get('summary', '')}\n"
+                    integration_context += f"- **Gateway 매핑**: OpenAPI Target으로 등록 (S3에 OpenAPI 스키마 업로드 후 연결)\n\n"
+
+                elif int_type == 'mcp':
+                    server_url = config.get('serverUrl', '')
+                    transport = config.get('transport', 'stdio')
+                    tools = config.get('tools', [])
+
+                    integration_context += f"- Server URL: {server_url}\n"
+                    integration_context += f"- Transport: {transport}\n"
+                    integration_context += f"- Tools ({len(tools)}개):\n"
+                    for tool in tools[:5]:
+                        integration_context += f"  - {tool.get('name', '')}: {(tool.get('description', '') or '')[:60]}\n"
+                    integration_context += f"- **Gateway 매핑**: MCP Server Target으로 등록\n\n"
+
+                elif int_type == 'rag':
+                    provider = config.get('provider', '')
+                    integration_context += f"- Provider: {provider}\n"
+                    if provider == 'bedrock-kb':
+                        kb_config = config.get('bedrockKb', {})
+                        integration_context += f"- Knowledge Base ID: {kb_config.get('knowledgeBaseId', '')}\n"
+                    integration_context += f"- **Gateway 매핑**: 직접 호출 (boto3) - Gateway 불필요\n\n"
+
+                elif int_type == 's3':
+                    bucket = config.get('bucketName', '')
+                    access_type = config.get('accessType', 'read')
+                    integration_context += f"- Bucket: s3://{bucket}\n"
+                    integration_context += f"- Access: {access_type}\n"
+                    integration_context += f"- **Gateway 매핑**: 직접 호출 (boto3) - Gateway 불필요\n\n"
+
+            integration_context += """</registered_integrations>
+
+**중요 - 등록된 통합 자동 반영**:
+- API 통합 → OpenAPI Target으로 Gateway에 등록
+- MCP 통합 → MCP Server Target으로 Gateway에 등록
+- RAG/S3 → 직접 호출 (Gateway 불필요)
+- 인증이 필요한 API/MCP는 Identity에 해당 인증 정보 등록
+
+"""
+
         prompt = f"""다음 Strands Agent 패턴 분석 결과를 기반으로 AgentCore 서비스를 구성하세요:
 
 {pattern_result}
-
+{integration_context}
 **필수 1단계**: file_read로 "agentcore-services" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
 **필수 2단계**: 로드된 SKILL 내용만을 사용하여 구성하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
+
+**중요 - 출력 규칙**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽었으므로", "구성을 진행하겠습니다" 같은 문구 금지
+- 바로 AgentCore 서비스 구성 결과만 출력하세요
 
 **핵심 원칙** (SKILL 참조):
 - **1개의 AgentCore Runtime**으로 전체 Multi-Agent Graph를 호스팅 (Agent별 Runtime 분리 금지 - 비용 N배, 레이턴시 증가)
@@ -164,7 +241,7 @@ class ArchitectureAgent:
         # strands_utils 사용하여 Agent 생성
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=16000,
             temperature=0.3,
             tools=[file_read]
@@ -196,6 +273,11 @@ class ArchitectureAgent:
 **필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
 **필수 2단계**: 로드된 SKILL의 템플릿과 베스트 프랙티스만을 사용하세요.
 **필수 3단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요 (SKILL의 핵심 규칙).
+
+**중요 - 출력 규칙**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽었으므로", "다이어그램을 생성하겠습니다" 같은 문구 금지
+- 바로 다이어그램만 출력하세요
 
 다음 3가지 다이어그램을 생성:
 
@@ -237,6 +319,46 @@ class AssemblerAgent:
         # LLM 불필요 - 단순 템플릿 조합만 수행
         pass
 
+    def _clean_internal_comments(self, text: str) -> str:
+        """내부 코멘트 제거 (Claude의 메타 발언)"""
+        import re
+
+        # 제거할 패턴 목록 (줄 단위)
+        line_patterns = [
+            # 스킬 로드 관련
+            r'^네,?\s*(이미|먼저)?\s*스킬을?\s*(읽었으므로|로드했으므로).*$',
+            r'^이미\s+SKILL\.?md를?\s*(로드|읽).*$',
+            r'^(먼저|우선)?\s*스킬을?\s*(로드|읽).*$',
+            # 작업 시작 선언
+            r'^(바로|이제)?\s*(분석|다이어그램|명세서).*?(진행|생성|작성)하겠습니다.*$',
+            r'^(바로|이제)?\s*\d+가지\s*다이어그램을?\s*생성하겠습니다.*$',
+            # 일반적인 메타 코멘트
+            r'^(알겠습니다|네,?\s*알겠습니다).*$',
+            r'^(그럼|그러면)\s*(바로|이제)?.*?(시작|진행).*$',
+        ]
+
+        # 줄 단위로 처리
+        lines = text.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            should_remove = False
+            for pattern in line_patterns:
+                if re.match(pattern, line.strip(), flags=re.IGNORECASE):
+                    should_remove = True
+                    break
+            if not should_remove:
+                cleaned_lines.append(line)
+
+        cleaned = '\n'.join(cleaned_lines)
+
+        # 문서 시작 부분의 불필요한 구분선 제거
+        cleaned = re.sub(r'^---\s*\n+', '', cleaned)
+
+        # 연속 빈 줄 정리 (3개 이상 → 2개)
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+
+        return cleaned.strip()
+
     async def assemble_stream(
         self,
         analysis: Dict[str, Any],
@@ -247,6 +369,12 @@ class AssemblerAgent:
         """최종 조합 - LLM 없이 단순 문자열 조합 후 스트리밍"""
 
         import asyncio
+
+        # 내부 코멘트 제거
+        pattern_result = self._clean_internal_comments(pattern_result)
+        architecture_result = self._clean_internal_comments(architecture_result)
+        if agentcore_result:
+            agentcore_result = self._clean_internal_comments(agentcore_result)
 
         # 데이터 추출
         pain_point = analysis.get('pain_point', analysis.get('painPoint', 'N/A'))
@@ -353,7 +481,8 @@ class MultiStageSpecAgent:
     async def generate_spec_stream(
         self,
         analysis: Dict[str, Any],
-        use_agentcore: bool = False
+        use_agentcore: bool = False,
+        integration_details: list = None
     ) -> AsyncIterator[str]:
         """명세서 생성 - keep-alive 포함"""
 
@@ -377,7 +506,7 @@ class MultiStageSpecAgent:
             if use_agentcore:
                 yield f"data: {json.dumps({'progress': 25, 'stage': 'AgentCore 구성 시작'}, ensure_ascii=False)}\n\n"
                 task = asyncio.create_task(asyncio.to_thread(
-                    self.agentcore_agent.configure, analysis, pattern_result
+                    self.agentcore_agent.configure, analysis, pattern_result, integration_details
                 ))
                 progress = 30
                 while not task.done():
