@@ -233,12 +233,12 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
             JSON 문자열: {"status": "progress|complete|error", "message": "...", "files": {...}}
         """
         try:
-            yield json.dumps({"status": "progress", "message": "코드 생성 준비 중..."}) + "\n"
+            yield json.dumps({"status": "progress", "progress": 5, "message": "코드 생성 준비 중..."}) + "\n"
 
             # Integration 정보 처리
             integration_context = ""
             if integration_details:
-                yield json.dumps({"status": "progress", "message": f"{len(integration_details)}개 통합 정보 처리 중..."}) + "\n"
+                yield json.dumps({"status": "progress", "progress": 15, "message": f"{len(integration_details)}개 통합 정보 처리 중..."}) + "\n"
                 integration_context = "\n\n<registered_integrations>\n"
                 integration_context += "사용자가 등록한 통합 정보 (tools.py 생성 시 반영):\n\n"
 
@@ -282,7 +282,7 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
                 integration_context += "</registered_integrations>\n"
 
             # 프롬프트 구성
-            yield json.dumps({"status": "progress", "message": "프롬프트 구성 중..."}) + "\n"
+            yield json.dumps({"status": "progress", "progress": 25, "message": "프롬프트 구성 중..."}) + "\n"
 
             prompt = f"""다음 PATH 명세서를 기반으로 Strands Agent SDK 코드를 생성하세요:
 
@@ -344,17 +344,17 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
 - 1개 Runtime으로 전체 Multi-Agent Graph 호스팅 (Agent별 Runtime 분리 금지)
 """
 
-            yield json.dumps({"status": "progress", "message": "Claude Opus 4.5로 코드 생성 중... (2-3분 소요)"}) + "\n"
+            yield json.dumps({"status": "progress", "progress": 30, "message": "Claude Opus 4.5로 코드 생성 중... (2-3분 소요)"}) + "\n"
 
             # LLM 호출 (동기)
             result = await asyncio.to_thread(self.agent, prompt)
 
-            yield json.dumps({"status": "progress", "message": "LLM 응답 완료, 파일 파싱 중..."}) + "\n"
+            yield json.dumps({"status": "progress", "progress": 75, "message": "LLM 응답 완료, 파일 파싱 중..."}) + "\n"
 
             text = result.message['content'][0]['text']
             files = self._parse_files(text)
 
-            yield json.dumps({"status": "progress", "message": f"{len(files)}개 파일 파싱 완료"}) + "\n"
+            yield json.dumps({"status": "progress", "progress": 85, "message": f"{len(files)}개 파일 파싱 완료"}) + "\n"
 
             # 필수 파일 검증
             required_files = ['agent.py', 'tools.py', 'agentcore_config.py',
@@ -362,7 +362,7 @@ PATH 명세서를 분석하여 실행 가능한 Python 코드를 생성합니다
             missing_files = [f for f in required_files if f not in files]
 
             if missing_files:
-                yield json.dumps({"status": "progress", "message": f"누락된 파일 {len(missing_files)}개를 기본 템플릿으로 채우는 중..."}) + "\n"
+                yield json.dumps({"status": "progress", "progress": 90, "message": f"누락된 파일 {len(missing_files)}개를 기본 템플릿으로 채우는 중..."}) + "\n"
                 for missing in missing_files:
                     files[missing] = self._get_default_template(missing)
 
