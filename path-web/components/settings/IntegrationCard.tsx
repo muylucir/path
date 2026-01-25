@@ -3,8 +3,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Globe, Server, Database, HardDrive, Pencil, Trash2 } from "lucide-react";
-import type { IntegrationListItem } from "@/lib/types";
+import { Network, Key, Database, HardDrive, Pencil, Trash2, Server } from "lucide-react";
+import type { IntegrationListItem, IntegrationType } from "@/lib/types";
 
 interface IntegrationCardProps {
   integration: IntegrationListItem;
@@ -12,16 +12,16 @@ interface IntegrationCardProps {
   onDelete: () => void;
 }
 
-const typeConfig = {
-  api: {
-    icon: Globe,
+const typeConfig: Record<IntegrationType, { icon: typeof Network; color: string; label: string }> = {
+  gateway: {
+    icon: Network,
     color: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-    label: "API",
+    label: "Gateway",
   },
-  mcp: {
-    icon: Server,
+  identity: {
+    icon: Key,
     color: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-    label: "MCP",
+    label: "Identity",
   },
   rag: {
     icon: Database,
@@ -32,6 +32,11 @@ const typeConfig = {
     icon: HardDrive,
     color: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
     label: "S3",
+  },
+  "mcp-server": {
+    icon: Server,
+    color: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-300",
+    label: "MCP Server",
   },
 };
 
@@ -51,6 +56,82 @@ export function IntegrationCard({
     });
   };
 
+  const getStatusBadge = () => {
+    if (integration.type === "gateway" && integration.gatewayStatus) {
+      const statusColors = {
+        creating: "bg-yellow-100 text-yellow-700",
+        ready: "bg-green-100 text-green-700",
+        failed: "bg-red-100 text-red-700",
+      };
+      return (
+        <Badge variant="outline" className={statusColors[integration.gatewayStatus]}>
+          {integration.gatewayStatus === "ready" ? "Ready" :
+           integration.gatewayStatus === "creating" ? "생성 중" : "실패"}
+        </Badge>
+      );
+    }
+    if (integration.type === "identity" && integration.providerStatus) {
+      const statusColors = {
+        creating: "bg-yellow-100 text-yellow-700",
+        active: "bg-green-100 text-green-700",
+        failed: "bg-red-100 text-red-700",
+      };
+      return (
+        <Badge variant="outline" className={statusColors[integration.providerStatus]}>
+          {integration.providerStatus === "active" ? "Active" :
+           integration.providerStatus === "creating" ? "생성 중" : "실패"}
+        </Badge>
+      );
+    }
+    if (integration.type === "mcp-server" && integration.mcpDeploymentStatus) {
+      const statusColors: Record<string, string> = {
+        pending: "bg-slate-100 text-slate-700",
+        deploying: "bg-yellow-100 text-yellow-700",
+        ready: "bg-green-100 text-green-700",
+        failed: "bg-red-100 text-red-700",
+      };
+      const statusLabels: Record<string, string> = {
+        pending: "대기 중",
+        deploying: "배포 중",
+        ready: "Ready",
+        failed: "실패",
+      };
+      return (
+        <Badge variant="outline" className={statusColors[integration.mcpDeploymentStatus]}>
+          {statusLabels[integration.mcpDeploymentStatus]}
+        </Badge>
+      );
+    }
+    return null;
+  };
+
+  const getSubtitle = () => {
+    if (integration.type === "gateway" && integration.targetCount !== undefined) {
+      return `${integration.targetCount}개 Target`;
+    }
+    if (integration.type === "identity" && integration.providerType) {
+      return integration.providerType === "api-key" ? "API Key" : "OAuth 2.0";
+    }
+    if (integration.type === "mcp-server") {
+      const sourceLabels: Record<string, string> = {
+        "self-hosted": "Self-hosted",
+        "template": "Template",
+        "external": "External",
+        "aws": "AWS MCP",
+        "team": "Team Shared",
+      };
+      const parts: string[] = [];
+      if (integration.mcpSourceType) {
+        parts.push(sourceLabels[integration.mcpSourceType] || integration.mcpSourceType);
+      }
+      if (integration.mcpToolCount !== undefined) {
+        parts.push(`${integration.mcpToolCount}개 도구`);
+      }
+      return parts.length > 0 ? parts.join(" · ") : null;
+    }
+    return null;
+  };
+
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-2">
@@ -59,11 +140,19 @@ export function IntegrationCard({
             <div className={`p-2 rounded-md ${config.color}`}>
               <Icon className="w-4 h-4" />
             </div>
-            <CardTitle className="text-base">{integration.name}</CardTitle>
+            <div>
+              <CardTitle className="text-base">{integration.name}</CardTitle>
+              {getSubtitle() && (
+                <p className="text-xs text-slate-500">{getSubtitle()}</p>
+              )}
+            </div>
           </div>
-          <Badge variant="outline" className={config.color}>
-            {config.label}
-          </Badge>
+          <div className="flex flex-col items-end gap-1">
+            <Badge variant="outline" className={config.color}>
+              {config.label}
+            </Badge>
+            {getStatusBadge()}
+          </div>
         </div>
       </CardHeader>
       <CardContent>

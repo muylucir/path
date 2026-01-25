@@ -21,8 +21,19 @@ PATH 명세서의 "Agent Components" 테이블을 Agent 객체로 변환합니�
 |-----------|---------------|----------|
 | Agent Name | name | 그대로 사용 |
 | Role | system_prompt | Role을 상세한 system_prompt로 확장 |
-| LLM | model | Claude Sonnet 4.5 or Haiku 4.5 |
+| LLM | model | 아래 허용된 모델만 사용 |
 | Tools | tools | boto3 직접 호출 or MCP 연결 |
+
+**⚠️ 허용된 LLM 모델 ID (필수!)**:
+| 명세서 LLM 값 | model_id | 용도 |
+|--------------|----------|------|
+| Claude Sonnet 4.5 | `global.anthropic.claude-sonnet-4-5-20250929-v1:0` | 주요 에이전트 (권장) |
+| Claude Haiku 4.5 | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | 빠른 응답, 간단한 작업 |
+
+**❌ 사용 금지 모델 ID**:
+- `us.anthropic.*` - 지역 제한 모델
+- `anthropic.claude-3-*` - 구버전 모델
+- `claude-sonnet-4-20250514` 등 다른 버전
 
 **예시**:
 ```
@@ -71,19 +82,20 @@ graph = builder.build()
 
 Agent Components 테이블의 "Tools" 컬럼에 따라 도구 구현 방식 결정:
 
-| Tools 값 | 구현 방법 | 파일 위치 |
-|---------|----------|----------|
-| **boto3 S3** | boto3 직접 호출 | tools.py |
-| **boto3 Bedrock KB** | boto3 직접 호출 | tools.py |
-| **Lambda MCP (xxx)** | strands_tools.mcp_server | tools.py |
-| **Self-hosted MCP (xxx)** | strands_tools.mcp_server | tools.py |
-| **없음** | tools=[] | agent.py |
+| Tools 값 | 구현 방법 | AgentCore 지원 |
+|---------|----------|--------------|
+| **boto3 S3** | boto3 직접 호출 | ✅ |
+| **boto3 Bedrock KB** | boto3 직접 호출 | ✅ |
+| **Gateway Target** | streamablehttp_client | ✅ |
+| **Standalone MCP (배포됨)** | streamablehttp_client | ✅ |
+| **stdio MCP (npx/uvx)** | ⚠️ AgentCore 미지원 | ❌ |
+| **없음** | tools=[] | ✅ |
 
-**규칙** (aws-mcp-servers 스킬 참조):
-- S3 읽기/쓰기 → boto3 직접 호출 (Lambda MCP 금지)
-- Bedrock KB → boto3 직접 호출 (Gateway 불필요)
-- Transcribe, 복잡한 AI/ML → Lambda + MCP
-- 외부 API (Slack, Gmail) → MCP Server
+**규칙** (agentcore-services 스킬 참조):
+- S3, DynamoDB, Bedrock KB → boto3 직접 호출
+- Transcribe, 복잡한 AI/ML → Gateway Target (Lambda)
+- 외부 API (Slack, Gmail) → Gateway Target (API) 또는 Standalone MCP
+- stdio MCP (uvx, npx 기반) → AgentCore Runtime에서 실행 불가
 
 상세: `tools-template-example.md`
 
@@ -116,7 +128,7 @@ PATH 명세서의 "Amazon Bedrock AgentCore" 섹션의 테이블을 Python dict�
 | Integration 타입 | tools.py 구현 |
 |-----------------|--------------|
 | **API** | requests 라이브러리 사용 |
-| **MCP** | strands_tools.mcp_server(url=...) |
+| **MCP** | strands.tools.mcp.MCPClient |
 | **RAG** | boto3 Bedrock KB 직접 호출 |
 | **S3** | boto3 S3 직접 호출 |
 
@@ -129,9 +141,17 @@ def send_gmail(to, subject, body):
     url = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send"
     # ...
 
-# [MCP] Slack MCP Server
-from strands_tools import mcp_server
-slack_mcp = mcp_server(url="http://localhost:3000/mcp/slack")
+# [MCP] Slack MCP Server (stdio transport)
+from strands.tools.mcp import MCPClient
+from mcp import stdio_client, StdioServerParameters
+
+slack_mcp_client = MCPClient(lambda: stdio_client(
+    StdioServerParameters(
+        command="npx",
+        args=["-y", "@anthropic/slack-mcp-server"]
+    )
+))
+# main.py에서 with slack_mcp_client: 컨텍스트 내에서 사용
 
 # [RAG] Bedrock Knowledge Base
 import boto3
@@ -149,28 +169,56 @@ def search_kb(query):
 
 ---
 
-### 6. FastAPI 엔드포인트 (/invocations, /ping)
+### 6. BedrockAgentCoreApp + Lazy Initialization (필수!)
 
-AgentCore Runtime은 HTTP 프로토콜로 `/invocations`, `/ping` 엔드포인트가 필요합니다.
+**중요**: AgentCore Runtime은 30초 내에 초기화를 완료해야 합니다.
+Agent, Model, Graph 생성은 시간이 오래 걸리므로 모듈 레벨에서 하면 타임아웃됩니다.
+반드시 **Lazy Initialization 패턴**을 사용하세요!
 
-**agent.py에 포함**:
+**main.py 패턴**:
 ```python
-from fastapi import FastAPI
+import os
+os.environ["BYPASS_TOOL_CONSENT"] = "true"
 
-app = FastAPI()
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
-@app.post("/invocations")
-async def invoke(request: dict):
-    """Agent 호출 엔드포인트"""
-    message = request.get("message", "")
+# 전역 변수 선언만 (초기화 X)
+_graph = None
+_initialized = False
+
+def _initialize():
+    """첫 호출 시에만 실행 - 30초 타임아웃 우회"""
+    global _graph, _initialized
+    if _initialized:
+        return _graph
+
+    # 무거운 import와 초기화는 여기서
+    from strands import Agent
+    from strands.models.bedrock import BedrockModel
+    from strands.multiagent import GraphBuilder
+
+    model = BedrockModel(...)
+    agent1 = Agent(...)
+    builder = GraphBuilder()
+    ...
+    _graph = builder.build()
+    _initialized = True
+    return _graph
+
+app = BedrockAgentCoreApp()
+
+@app.entrypoint
+def invoke(payload, context):
+    graph = _initialize()  # 첫 호출 시에만 초기화
+    message = payload.get("prompt", "")
     result = graph(message)
     return {"result": str(result)}
 
-@app.get("/ping")
-async def ping():
-    """헬스체크"""
-    return {"status": "healthy"}
+if __name__ == "__main__":
+    app.run()
 ```
+
+**주의**: FastAPI 사용 금지! BedrockAgentCoreApp만 사용하세요.
 
 ---
 
@@ -180,11 +228,11 @@ async def ping():
 
 ```
 agent-code/
-├── agent.py              # Agent 정의 + GraphBuilder + FastAPI
+├── main.py               # BedrockAgentCoreApp + Lazy Initialization
 ├── tools.py              # MCP/boto3 도구 구현
 ├── agentcore_config.py   # Runtime/Gateway/Memory 설정
-├── requirements.txt      # 의존성
-├── Dockerfile            # AgentCore Runtime용
+├── requirements.txt      # 의존성 (bedrock-agentcore 포함!)
+├── agentcore.yaml        # AgentCore CLI 배포 설정
 └── deploy_guide.md       # 배포 가이드
 ```
 

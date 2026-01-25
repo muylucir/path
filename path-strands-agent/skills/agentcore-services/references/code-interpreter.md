@@ -49,9 +49,11 @@ AgentCore Code Interpreter는 AI 에이전트가 코드를 실행하여 데이�
 - CloudTrail 이벤트로 모든 실행 로깅
 - 추가 추론 수행 또는 시각화 가능
 
-## 로우 레벨 사용법
+## 사용 패턴
 
-Code Interpreter 클라이언트를 직접 호출하는 기본 형태:
+### 패턴 1: SDK Client 사용 (권장)
+
+AgentCore SDK를 사용하여 Code Interpreter를 호출합니다.
 
 ```python
 from bedrock_agentcore.tools.code_interpreter_client import CodeInterpreter
@@ -74,12 +76,87 @@ response = client.invoke(
 )
 
 print(json.dumps(response, indent=2))
+
+# 4. 세션 종료
+client.stop()
 ```
 
 **사용 사례:**
 - 데이터 분석 자동화 스크립트
 - 서버리스 기반 데이터 품질 검증
 - 파일 조작 및 EDA
+
+### 패턴 2: boto3 직접 사용
+
+boto3를 사용하여 Code Interpreter API를 직접 호출할 수 있습니다.
+
+```python
+import boto3
+import json
+
+# 클라이언트 생성
+client = boto3.client('bedrock-agentcore', region_name='us-west-2')
+
+# 1. 세션 생성
+session_response = client.create_code_interpreter_session()
+session_id = session_response['sessionId']
+
+# 2. 코드 실행
+execute_response = client.execute_code(
+    sessionId=session_id,
+    code='''
+import pandas as pd
+import numpy as np
+
+# 샘플 데이터 생성
+data = {'name': ['Alice', 'Bob', 'Charlie'], 'age': [25, 30, 35]}
+df = pd.DataFrame(data)
+print(df.describe())
+''',
+    language='python'
+)
+
+# 3. 결과 확인
+for event in execute_response['stream']:
+    if 'result' in event:
+        print(event['result'])
+
+# 4. 세션 종료
+client.delete_code_interpreter_session(sessionId=session_id)
+```
+
+### 패턴 3: Context Manager 사용
+
+`code_session` context manager로 세션 수명주기를 자동 관리합니다.
+
+```python
+from bedrock_agentcore.tools.code_interpreter_client import code_session
+
+with code_session("us-west-2") as client:
+    # 파일 업로드
+    client.upload_file("data.csv", csv_content)
+
+    # 데이터 분석 코드 실행
+    response = client.invoke(
+        "executeCode",
+        {
+            "language": "python",
+            "code": '''
+import pandas as pd
+df = pd.read_csv("data.csv")
+print(df.head())
+print(df.describe())
+''',
+            "clearContext": False,
+        },
+    )
+
+    # 결과 확인
+    for event in response["stream"]:
+        if "result" in event:
+            print(event["result"])
+
+# 세션 자동 종료
 
 ## Strands Agent 통합
 

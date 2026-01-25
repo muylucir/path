@@ -153,20 +153,7 @@ Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워�
 
 
 def get_initial_analysis_prompt(form_data: dict) -> str:
-    """초기 분석 프롬프트 생성 - PATH 웹앱과 동일"""
-    data_sources = form_data.get('dataSources', [])
-
-    # dataSources가 리스트인 경우
-    if isinstance(data_sources, list):
-        data_source_str = "\n".join([
-            f"- {ds.get('type', '')}: {ds.get('description', '')}"
-            for ds in data_sources
-            if ds.get('type') and ds.get('description')
-        ]) or "미지정"
-    else:
-        # 문자열인 경우 (하위 호환성)
-        data_source_str = data_sources or "미지정"
-
+    """초기 분석 프롬프트 생성 - 통합 중심 구조"""
     # 등록된 통합 정보 (사용 가능한 도구/데이터) - 상세 포함
     integration_details = form_data.get('integrationDetails', [])
     if integration_details:
@@ -199,16 +186,18 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
     else:
         integration_str = "없음"
 
+    # 추가 데이터소스 (자유 텍스트)
+    additional_sources = form_data.get('additionalSources', '').strip()
+    additional_str = f"\n**추가 데이터소스**: {additional_sources}" if additional_sources else ""
+
     return f"""<input_data>
 **Pain Point**: {form_data.get('painPoint', '')}
 **INPUT Type**: {form_data.get('inputType', form_data.get('input', ''))}
 **PROCESS Steps**: {', '.join(form_data.get('processSteps', form_data.get('process', [])))}
 **OUTPUT Types**: {', '.join(form_data.get('outputTypes', form_data.get('output', [])))}
 **HUMAN-IN-LOOP**: {form_data.get('humanLoop', form_data.get('humanInLoop', ''))}
-**Data Sources**:
-{data_source_str}
-**등록된 통합 (사용 가능한 도구/데이터)**:
-{integration_str}
+**데이터소스 및 통합 (사용 가능한 도구/데이터)**:
+{integration_str}{additional_str}
 **Error Tolerance**: {form_data.get('errorTolerance', '')}
 **Additional Context**: {form_data.get('additionalContext', '없음')}
 </input_data>
@@ -232,7 +221,7 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 - Graph 구조: [Reflection/Tool Use/Planning/Multi-Agent 중 선택하고 조합 가능]
 - 노드 구성: [각 노드의 역할]
 - Agent-as-Tool: [활용할 도구/MCP 서버]
-- 등록된 통합 활용: [위에서 제공된 통합을 어떻게 활용할지 구체적으로]
+- 통합 활용: [Gateway/RAG/S3 등 제공된 통합을 어떻게 활용할지 구체적으로]
 
 **예비 Feasibility:** [점수]/50
 - 데이터 접근성: [점수]/10

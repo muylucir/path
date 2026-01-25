@@ -337,7 +337,7 @@ async def invoke(payload, context):
         gateway_tools = mcp_client.list_tools_sync()
         
         agent = Agent(
-            model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+            model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
             tools=gateway_tools
         )
         
@@ -487,7 +487,7 @@ async def agent_entrypoint(payload, context):
     tool_list = gateway_tools + [search_confluence_page]
     
     agent = Agent(
-        model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+        model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         tools=tool_list
     )
     
@@ -590,7 +590,7 @@ client.update_workload_identity(
 
 ### @requires_access_token
 
-OAuth Access Token 자동 획득
+OAuth Access Token 자동 획득을 위한 데코레이터입니다. Token Vault에서 토큰을 조회하고, 없으면 OAuth 흐름을 시작합니다.
 
 **파라미터:**
 
@@ -603,6 +603,29 @@ OAuth Access Token 자동 획득
 | `into` | 토큰 주입 파라미터명 | `"access_token"` (기본값) |
 | `callback_url` | 인증 완료 후 리다이렉트 URL | `"https://myapp.com/callback"` |
 | `force_authentication` | 재인증 강제 (1회성 사용) | `False` (기본값) |
+
+**인증 플로우 타입:**
+
+| 타입 | 설명 | 사용 사례 |
+|------|------|----------|
+| `USER_FEDERATION` (3LO) | 사용자 대신 권한 행사 | 사용자의 Google Calendar, Confluence, Slack 접근 |
+| `M2M` (2LO) | 서비스 계정으로 동작 | 시스템 간 통합, 배치 처리 |
+
+**동작 흐름:**
+
+```
+@requires_access_token 호출
+    ↓
+Token Vault에서 토큰 조회
+    ↓
+[토큰 있음] → 토큰 주입 → 함수 실행
+    ↓
+[토큰 없음] → on_auth_url 콜백 → 사용자 인증
+    ↓
+CompleteResourceTokenAuth → Token Vault 저장
+    ↓
+토큰 주입 → 함수 실행
+```
 
 **사용 예시:**
 ```python
@@ -622,6 +645,87 @@ async def call_google_api(google_token: str):
         headers={"Authorization": f"Bearer {google_token}"}
     )
     return response.json()
+```
+
+### USER_FEDERATION (3LO) 상세
+
+USER_FEDERATION은 **Three-Legged OAuth (3LO)** 흐름으로, 사용자가 직접 인증하고 권한을 부여합니다.
+
+**전체 흐름:**
+
+```
+1. Agent가 외부 API 호출 필요
+   → @requires_access_token 실행
+
+2. Token Vault 확인
+   → 사용자의 토큰이 없음
+
+3. Authorization URL 생성
+   → on_auth_url 콜백으로 URL 전달
+   → 사용자에게 인증 URL 안내
+
+4. 사용자 인증
+   → 사용자가 URL 클릭
+   → IdP 로그인 페이지로 리다이렉트
+   → 권한 동의
+
+5. Callback 처리
+   → IdP가 Callback URL 호출
+   → Authorization Code 전달
+
+6. Token 교환 및 저장
+   → CompleteResourceTokenAuth API 호출
+   → Access Token + Refresh Token 획득
+   → Token Vault에 저장 (Agent+User 조합으로 격리)
+
+7. 이후 호출
+   → Token Vault에서 토큰 조회
+   → 만료 시 자동 Refresh
+```
+
+**Cognito 통합 예시:**
+
+```python
+from bedrock_agentcore.services.identity import IdentityClient
+
+client = IdentityClient(region="us-west-2")
+
+# 1. Cognito Credential Provider 생성
+cognito_provider = client.create_oauth2_credential_provider(
+    name='cognito-cred-provider',
+    credentialProviderVendor='CognitoOauth2',
+    oauth2ProviderConfigInput={
+        "includedOauth2ProviderConfig": {
+            "clientId": "your-cognito-client-id",
+            "clientSecret": "your-cognito-client-secret",
+            "issuer": f"https://cognito-idp.us-west-2.amazonaws.com/{user_pool_id}",
+            "authorizationEndpoint": f"https://{domain}.auth.us-west-2.amazoncognito.com/oauth2/authorize",
+            "tokenEndpoint": f"https://{domain}.auth.us-west-2.amazoncognito.com/oauth2/token",
+            "scopes": ["openid", "profile", "email"]
+        }
+    }
+)
+
+# 2. Agent 도구에서 사용
+@tool
+async def get_user_profile(user_id: str) -> dict:
+    """사용자 프로필 조회"""
+
+    @requires_access_token(
+        provider_name="cognito-cred-provider",
+        scopes=["openid", "profile"],
+        auth_flow='USER_FEDERATION',
+        on_auth_url=on_auth_callback,
+        callback_url="https://myapp.com/oauth/callback"
+    )
+    async def fetch_profile(access_token: str):
+        response = requests.get(
+            f"https://{domain}.auth.us-west-2.amazoncognito.com/oauth2/userInfo",
+            headers={"Authorization": f"Bearer {access_token}"}
+        )
+        return response.json()
+
+    return await fetch_profile(access_token='')
 ```
 
 ### @requires_api_key
@@ -722,6 +826,73 @@ def handle_callback(request):
 # - GetResourceOauth2Token
 # - CompleteResourceTokenAuth
 ```
+
+## Security Best Practices
+
+### 1. OWASP Agentic Security 대응
+
+AI Agent 환경에서 발생할 수 있는 보안 위협에 대한 대응 방안:
+
+| 위협 | 대응 방안 |
+|------|----------|
+| **권한 침해** | 최소 권한 원칙, 스코프 제한 |
+| **신원 위장** | Session Binding, JWT 검증 |
+| **토큰 탈취** | KMS 암호화, 단기 토큰 |
+| **멀티 Agent 공격** | Workload Identity 격리 |
+
+### 2. Token 보안
+
+```python
+# ❌ 위험: 토큰을 로그에 출력
+logger.info(f"Token: {access_token}")
+
+# ✅ 안전: 토큰 마스킹
+logger.info(f"Token: {access_token[:10]}...{access_token[-4:]}")
+
+# ❌ 위험: 토큰을 응답에 포함
+return {"token": access_token, "data": result}
+
+# ✅ 안전: 토큰을 응답에서 제외
+return {"data": result}
+```
+
+### 3. Callback URL 검증
+
+```python
+# Allowed Return URLs 화이트리스트 설정
+client.update_workload_identity(
+    name="MyAgent",
+    allowed_oauth2_return_urls=[
+        "https://myapp.com/oauth/callback",
+        "https://staging.myapp.com/oauth/callback"
+    ]
+    # ❌ 와일드카드 사용 금지: "https://*.myapp.com/*"
+)
+```
+
+### 4. 민감한 작업 재인증
+
+```python
+# 금융 거래, 데이터 삭제 등 민감한 작업
+@requires_access_token(
+    provider_name="banking-api",
+    force_authentication=True,  # 매번 재인증
+    scopes=["transfer:write"]   # 최소 권한
+)
+async def transfer_money(amount: float, access_token: str):
+    if amount > 10000:
+        # 고액 거래는 추가 확인
+        raise ValueError("고액 거래는 관리자 승인이 필요합니다")
+    ...
+```
+
+### 5. 토큰 수명 관리
+
+| 토큰 타입 | 권장 수명 | 용도 |
+|----------|----------|------|
+| Access Token | 1시간 이하 | 일반 API 호출 |
+| Refresh Token | 7일 이하 | 토큰 갱신 |
+| Workload Access Token | 1시간 (고정) | Token Vault 접근 |
 
 ## 제약사항
 

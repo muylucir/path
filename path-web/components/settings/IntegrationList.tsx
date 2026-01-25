@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { IntegrationCard } from "./IntegrationCard";
-import type { IntegrationListItem } from "@/lib/types";
+import type { IntegrationListItem, IntegrationType } from "@/lib/types";
 import { Loader2 } from "lucide-react";
 
 interface IntegrationListProps {
-  type: "api" | "mcp" | "rag" | "s3";
+  type: IntegrationType;
   onEdit: (id: string) => void;
   onRefresh: () => void;
 }
