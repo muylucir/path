@@ -101,6 +101,115 @@ export interface SessionListItem {
   feasibility_score: number;
 }
 
+// Agent Builder Canvas Types
+
+export interface LLMConfig {
+  model: 'claude-sonnet-4.5' | 'claude-haiku-4.5';
+  maxTokens?: number;
+  temperature?: number;
+}
+
+export interface AgentNodeData {
+  id: string;
+  name: string;
+  role: string;
+  systemPrompt: string;
+  input: string;
+  output: string;
+  llm: LLMConfig;
+  tools: string[];
+}
+
+export interface RouterNodeData {
+  id: string;
+  name: string;
+  condition: string;
+  branches: { label: string; targetNodeId: string }[];
+}
+
+export interface MemoryNodeData {
+  id: string;
+  name: string;
+  type: 'short-term' | 'long-term';
+  strategies: ('semantic' | 'user-preference' | 'summary' | 'episodic')[];
+  namespaces: string[];
+}
+
+export interface GatewayNodeData {
+  id: string;
+  name: string;
+  targets: {
+    type: 'lambda' | 'rest-api' | 'mcp-server' | 'integration-template';
+    name: string;
+    config: Record<string, unknown>;
+  }[];
+}
+
+export interface IdentityNodeData {
+  id: string;
+  name: string;
+  authType: 'oauth2-2lo' | 'oauth2-3lo' | 'api-key';
+  provider: string;
+  scopes?: string[];
+}
+
+export type CanvasNodeData =
+  | { type: 'agent'; data: AgentNodeData }
+  | { type: 'router'; data: RouterNodeData }
+  | { type: 'memory'; data: MemoryNodeData }
+  | { type: 'gateway'; data: GatewayNodeData }
+  | { type: 'identity'; data: IdentityNodeData };
+
+export interface CanvasNode {
+  id: string;
+  type: 'agent' | 'router' | 'memory' | 'gateway' | 'identity';
+  data: AgentNodeData | RouterNodeData | MemoryNodeData | GatewayNodeData | IdentityNodeData;
+  position: { x: number; y: number };
+}
+
+export interface CanvasEdge {
+  id: string;
+  source: string;
+  target: string;
+  label?: string;
+  condition?: string;
+  type?: 'flow' | 'service';  // flow: Agent간 데이터 흐름, service: Agent→AgentCore 서비스 연결
+}
+
+export interface AgentCoreConfig {
+  runtime: {
+    enabled: boolean;
+    timeout: number;
+    concurrency: number;
+  };
+  memory?: {
+    enabled: boolean;
+    strategies: string[];
+  };
+  gateway?: {
+    enabled: boolean;
+    targets: string[];
+  };
+  identity?: {
+    enabled: boolean;
+    providers: string[];
+  };
+  browser?: { enabled: boolean };
+  codeInterpreter?: { enabled: boolean };
+}
+
+export interface AgentCanvasState {
+  nodes: CanvasNode[];
+  edges: CanvasEdge[];
+  entryPoint: string;
+  agentCoreConfig?: AgentCoreConfig;
+  metadata: {
+    pattern: string;
+    version: string;
+    createdAt: string;
+    updatedAt: string;
+  };
+}
 // Integration Types for Settings Page
 
 export interface APIEndpoint {
