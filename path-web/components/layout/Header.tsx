@@ -51,12 +51,12 @@ export function Header() {
                 프레임워크
               </Link>
               <Link
-                href="/sdd"
+                href="/code-jobs"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === "/sdd" ? "text-primary" : "text-muted-foreground"
+                  pathname === "/code-jobs" ? "text-primary" : "text-muted-foreground"
                 }`}
               >
-                SDD 생성
+                코드 생성 작업
               </Link>
             </nav>
           </div>

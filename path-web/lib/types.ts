@@ -78,6 +78,7 @@ export interface Session {
     name: string;
     description?: string;
     summary?: string;
+    config?: Record<string, any>;  // API/MCP/RAG/S3 설정 (AgentCore Gateway 매핑 시 사용)
   }>;
 }
 
