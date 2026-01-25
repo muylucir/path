@@ -404,15 +404,42 @@ auth_config = {
 
 ### 2. Gateway 생성
 
-**CLI:**
+**CLI 명령어:**
+
 ```bash
-agentcore create_mcp_gateway \
-  --region us-west-2 \
+# MCP Gateway 생성
+agentcore gateway create-mcp-gateway \
   --name my-gateway \
   --role-arn arn:aws:iam::123456789012:role/gateway-role \
-  --authorizer-config '{"customJWTAuthorizer": {...}}' \
-  --enable_semantic_search
+  --region us-west-2
+
+# JWT 인증 설정
+agentcore gateway create-mcp-gateway \
+  --name my-gateway \
+  --role-arn arn:aws:iam::123456789012:role/gateway-role \
+  --authorizer-type CUSTOM_JWT \
+  --authorizer-config '{"customJWTAuthorizer": {"discoveryUrl": "...", "allowedClients": ["client-id"]}}' \
+  --region us-west-2
+
+# Semantic Search 활성화
+agentcore gateway create-mcp-gateway \
+  --name my-gateway \
+  --role-arn arn:aws:iam::123456789012:role/gateway-role \
+  --search-type SEMANTIC \
+  --region us-west-2
 ```
+
+**CLI 명령어 전체 목록:**
+
+| 명령어 | 설명 |
+|--------|------|
+| `agentcore gateway create-mcp-gateway` | MCP Gateway 생성 |
+| `agentcore gateway list-gateways` | Gateway 목록 조회 |
+| `agentcore gateway get-gateway` | Gateway 상세 조회 |
+| `agentcore gateway delete-gateway` | Gateway 삭제 |
+| `agentcore gateway create-target` | Target 생성 |
+| `agentcore gateway list-targets` | Target 목록 조회 |
+| `agentcore gateway delete-target` | Target 삭제 |
 
 **Boto3:**
 ```python
@@ -438,27 +465,115 @@ gateway_id = response["gatewayId"]
 gateway_url = response["gatewayUrl"]  # https://{gateway-id}.gateway.bedrock-agentcore.{region}.amazonaws.com/mcp
 ```
 
-### 3. Outbound Auth 구성
+### 3. Outbound Auth 구성 (Credential Provider)
 
-**API Key:**
+Target 리소스 접근을 위한 인증 정보를 설정합니다.
+
+**Credential Provider 타입:**
+
+| 타입 | 용도 | Target |
+|------|------|--------|
+| `GATEWAY_IAM_ROLE` | AWS 서비스 접근 | Lambda, Smithy |
+| `API_KEY` | API Key 인증 | REST API |
+| `OAUTH2` | OAuth 2.0 인증 | REST API |
+
+**CLI로 Credential Provider 생성:**
+
+```bash
+# API Key Provider 생성
+agentcore gateway create-api-key-provider \
+  --name weather-api-key \
+  --api-key "your-api-key-here" \
+  --region us-west-2
+
+# OAuth2 Provider 생성
+agentcore gateway create-oauth2-provider \
+  --name custom-oauth \
+  --vendor CustomOauth2 \
+  --client-id "client-id" \
+  --client-secret "client-secret" \
+  --token-endpoint "https://oauth.example.com/token" \
+  --scopes "read,write" \
+  --region us-west-2
+```
+
+**API Key Provider (Python):**
 ```python
-client.create_api_key_credential_provider(
+# API Key Provider 생성
+api_key_provider = client.create_api_key_credential_provider(
     name="CustomAPIKey",
     apiKey="your-api-key"
 )
+
+# Target에 적용
+client.create_gateway_target(
+    gatewayIdentifier=gateway_id,
+    name="WeatherAPI",
+    targetConfiguration={...},
+    credentialProviderConfigurations=[
+        {
+            "credentialProviderType": "API_KEY",
+            "credentialProvider": {
+                "apiKeyCredentialProvider": {
+                    "providerArn": api_key_provider["providerArn"],
+                    "credentialLocation": "HEADER",  # HEADER 또는 QUERY
+                    "credentialParameterName": "X-API-Key"
+                }
+            }
+        }
+    ]
+)
 ```
 
-**OAuth 2LO:**
+**OAuth 2.0 Provider (Python):**
 ```python
-client.create_oauth2_credential_provider(
+# OAuth2 Provider 생성 (2LO - Machine-to-Machine)
+oauth2_provider = client.create_oauth2_credential_provider(
     name="CustomOAuthTokenCfg",
     credentialProviderVendor="CustomOauth2",
     oauth2ProviderConfigInput={
-        "clientId": "...",
-        "clientSecret": "...",
+        "clientId": "your-client-id",
+        "clientSecret": "your-client-secret",
         "tokenEndpoint": "https://oauth.example.com/token",
         "scopes": ["read", "write"]
     }
+)
+
+# Target에 적용
+client.create_gateway_target(
+    gatewayIdentifier=gateway_id,
+    name="ProtectedAPI",
+    targetConfiguration={...},
+    credentialProviderConfigurations=[
+        {
+            "credentialProviderType": "OAUTH2",
+            "credentialProvider": {
+                "oauth2CredentialProvider": {
+                    "providerArn": oauth2_provider["providerArn"]
+                }
+            }
+        }
+    ]
+)
+```
+
+**IAM Role (Lambda/Smithy용):**
+```python
+# Lambda Target - IAM Role 사용
+client.create_gateway_target(
+    gatewayIdentifier=gateway_id,
+    name="BookingLambda",
+    targetConfiguration={
+        "mcp": {
+            "lambda": {
+                "lambdaArn": "arn:aws:lambda:...:function:booking",
+                "toolSchema": {"inlinePayload": [...]}
+            }
+        }
+    },
+    credentialProviderConfigurations=[
+        {"credentialProviderType": "GATEWAY_IAM_ROLE"}
+    ]
 )
 ```
 
@@ -550,7 +665,7 @@ with mcp_client:
     all_tools = get_all_tools(mcp_client)
     
     agent = Agent(
-        model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+        model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         tools=all_tools
     )
     
@@ -590,7 +705,7 @@ with mcp_client:
     
     # 상위 5개 도구만 Agent에 추가
     agent = Agent(
-        model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+        model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
         tools=tools_to_strands_tools(tools_found[:5], mcp_client)
     )
     
@@ -602,7 +717,7 @@ with mcp_client:
 ```python
 # Agent 생성
 agent = Agent(
-    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
     tools=all_tools
 )
 

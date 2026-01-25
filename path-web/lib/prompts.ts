@@ -141,14 +141,33 @@ export function getInitialAnalysisPrompt(formData: {
   processSteps: string[];
   outputTypes: string[];
   humanLoop: string;
-  dataSources: Array<{ type: string; description: string }>;
   errorTolerance: string;
   additionalContext?: string;
+  // 통합 선택 (카테고리별)
+  selectedGateways?: string[];
+  selectedRAGs?: string[];
+  selectedS3s?: string[];
+  integrationDetails?: Array<{
+    id: string;
+    type: string;
+    name: string;
+    description?: string;
+    summary?: string;
+    config?: Record<string, unknown>;
+  }>;
+  additionalSources?: string;
 }): string {
-  const dataSourceStr = formData.dataSources
-    .filter((ds) => ds.type && ds.description)
-    .map((ds) => `- ${ds.type}: ${ds.description}`)
+  // 통합 상세 정보로 데이터소스 문자열 생성
+  const integrationStr = (formData.integrationDetails || [])
+    .map((int) => `- ${int.summary || `[${int.type.toUpperCase()}] ${int.name}`}`)
     .join("\n");
+
+  // 추가 데이터소스
+  const additionalStr = formData.additionalSources?.trim()
+    ? `\n- [추가] ${formData.additionalSources.trim()}`
+    : "";
+
+  const dataSourceStr = integrationStr + additionalStr;
 
   return `다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
 
@@ -157,7 +176,7 @@ export function getInitialAnalysisPrompt(formData: {
 **PROCESS Steps**: ${formData.processSteps.join(", ")}
 **OUTPUT Types**: ${formData.outputTypes.join(", ")}
 **HUMAN-IN-LOOP**: ${formData.humanLoop}
-**Data Sources**:
+**Data Sources & Integrations**:
 ${dataSourceStr || "미지정"}
 **Error Tolerance**: ${formData.errorTolerance}
 **Additional Context**: ${formData.additionalContext || "없음"}

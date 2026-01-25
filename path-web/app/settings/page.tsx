@@ -4,22 +4,28 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Globe, Server, Database, HardDrive, Plus } from "lucide-react";
+import { ArrowLeft, Network, Key, Database, HardDrive, Plus, Server } from "lucide-react";
 import { IntegrationList } from "@/components/settings/IntegrationList";
-import { APIIntegrationForm } from "@/components/settings/APIIntegrationForm";
-import { MCPIntegrationForm } from "@/components/settings/MCPIntegrationForm";
+import { GatewayIntegrationForm } from "@/components/settings/GatewayIntegrationForm";
+import { IdentityIntegrationForm } from "@/components/settings/IdentityIntegrationForm";
 import { RAGIntegrationForm } from "@/components/settings/RAGIntegrationForm";
 import { S3IntegrationForm } from "@/components/settings/S3IntegrationForm";
+import { MCPRegistryTab } from "@/components/settings/MCPRegistryTab";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/drawer";
+import type { IntegrationType } from "@/lib/types";
+
+// Tab types for settings page (excluding mcp-server which is part of mcp-registry)
+type SettingsTabType = "gateway" | "identity" | "rag" | "s3" | "mcp-registry";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"api" | "mcp" | "rag" | "s3">("api");
+  const [activeTab, setActiveTab] = useState<SettingsTabType>("gateway");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -44,16 +50,16 @@ export default function SettingsPage() {
     setRefreshKey((k) => k + 1);
   };
 
-  const tabConfig = {
-    api: {
-      icon: Globe,
-      label: "API",
-      description: "OpenAPI/REST API 통합을 등록합니다",
+  const tabConfig: Record<SettingsTabType, { icon: typeof Network; label: string; description: string }> = {
+    gateway: {
+      icon: Network,
+      label: "Gateway",
+      description: "API, MCP, Lambda Target을 통합 관리합니다",
     },
-    mcp: {
-      icon: Server,
-      label: "MCP",
-      description: "Model Context Protocol 서버를 등록합니다",
+    identity: {
+      icon: Key,
+      label: "Identity",
+      description: "Credential Provider를 등록합니다",
     },
     rag: {
       icon: Database,
@@ -65,7 +71,15 @@ export default function SettingsPage() {
       label: "S3",
       description: "Amazon S3 버킷을 등록합니다",
     },
+    "mcp-registry": {
+      icon: Server,
+      label: "MCP Registry",
+      description: "MCP 서버를 등록하고 관리합니다",
+    },
   };
+
+  // Check if active tab is an integration type (not mcp-registry)
+  const isIntegrationTab = activeTab !== "mcp-registry";
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
@@ -89,21 +103,23 @@ export default function SettingsPage() {
               통합 설정
             </h1>
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              API, MCP, RAG, S3 통합을 등록하여 PATH 분석에 활용하세요
+              Gateway, Identity, RAG, S3, MCP 서버를 등록하여 PATH Agent에 활용하세요
             </p>
           </div>
-          <Button onClick={handleAdd}>
-            <Plus className="w-4 h-4 mr-2" />
-            통합 추가
-          </Button>
+          {isIntegrationTab && (
+            <Button onClick={handleAdd}>
+              <Plus className="w-4 h-4 mr-2" />
+              통합 추가
+            </Button>
+          )}
         </div>
 
         {/* Tabs */}
         <Tabs
           value={activeTab}
-          onValueChange={(v) => setActiveTab(v as "api" | "mcp" | "rag" | "s3")}
+          onValueChange={(v) => setActiveTab(v as SettingsTabType)}
         >
-          <TabsList className="grid w-full grid-cols-4 mb-6">
+          <TabsList className="grid w-full grid-cols-5 mb-6">
             {Object.entries(tabConfig).map(([key, config]) => (
               <TabsTrigger
                 key={key}
@@ -116,61 +132,72 @@ export default function SettingsPage() {
             ))}
           </TabsList>
 
-          {Object.entries(tabConfig).map(([key, config]) => (
-            <TabsContent key={key} value={key}>
-              <div className="mb-4">
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {config.description}
-                </p>
-              </div>
-              <IntegrationList
-                key={`${key}-${refreshKey}`}
-                type={key as "api" | "mcp" | "rag" | "s3"}
-                onEdit={handleEdit}
-                onRefresh={() => setRefreshKey((k) => k + 1)}
-              />
-            </TabsContent>
-          ))}
+          {/* Integration tabs */}
+          {Object.entries(tabConfig)
+            .filter(([key]) => key !== "mcp-registry")
+            .map(([key, config]) => (
+              <TabsContent key={key} value={key}>
+                <div className="mb-4">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {config.description}
+                  </p>
+                </div>
+                <IntegrationList
+                  key={`${key}-${refreshKey}`}
+                  type={key as IntegrationType}
+                  onEdit={handleEdit}
+                  onRefresh={() => setRefreshKey((k) => k + 1)}
+                />
+              </TabsContent>
+            ))}
+
+          {/* MCP Registry tab */}
+          <TabsContent value="mcp-registry">
+            <MCPRegistryTab />
+          </TabsContent>
         </Tabs>
 
-        {/* Form Dialog */}
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
+        {/* Form Drawer */}
+        <Drawer direction="right" open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DrawerContent className="h-full w-full sm:max-w-2xl">
+            <DrawerHeader className="border-b">
+              <DrawerTitle>
                 {editingId ? "통합 수정" : `${tabConfig[activeTab].label} 통합 추가`}
-              </DialogTitle>
-            </DialogHeader>
-            {activeTab === "api" && (
-              <APIIntegrationForm
-                integrationId={editingId}
-                onSaved={handleSaved}
-                onCancel={handleClose}
-              />
-            )}
-            {activeTab === "mcp" && (
-              <MCPIntegrationForm
-                integrationId={editingId}
-                onSaved={handleSaved}
-                onCancel={handleClose}
-              />
-            )}
-            {activeTab === "rag" && (
-              <RAGIntegrationForm
-                integrationId={editingId}
-                onSaved={handleSaved}
-                onCancel={handleClose}
-              />
-            )}
-            {activeTab === "s3" && (
-              <S3IntegrationForm
-                integrationId={editingId}
-                onSaved={handleSaved}
-                onCancel={handleClose}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+              </DrawerTitle>
+              <DrawerDescription>통합 설정을 구성합니다</DrawerDescription>
+            </DrawerHeader>
+            <div className="flex-1 overflow-auto p-6">
+              {activeTab === "gateway" && (
+                <GatewayIntegrationForm
+                  integrationId={editingId}
+                  onSaved={handleSaved}
+                  onCancel={handleClose}
+                />
+              )}
+              {activeTab === "identity" && (
+                <IdentityIntegrationForm
+                  integrationId={editingId}
+                  onSaved={handleSaved}
+                  onCancel={handleClose}
+                />
+              )}
+              {activeTab === "rag" && (
+                <RAGIntegrationForm
+                  integrationId={editingId}
+                  onSaved={handleSaved}
+                  onCancel={handleClose}
+                />
+              )}
+              {activeTab === "s3" && (
+                <S3IntegrationForm
+                  integrationId={editingId}
+                  onSaved={handleSaved}
+                  onCancel={handleClose}
+                />
+              )}
+            </div>
+          </DrawerContent>
+        </Drawer>
       </div>
     </div>
   );

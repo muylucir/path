@@ -6,15 +6,6 @@ export const INPUT_TYPES = [
   "Conditional (조건 충족 시)",
 ] as const;
 
-export const DATA_SOURCE_TYPES = [
-  "MCP Server",
-  "RAG",
-  "API",
-  "Database",
-  "File (S3/Local)",
-  "Web Scraping",
-] as const;
-
 export const PROCESS_STEPS = [
   "데이터 수집 (여러 소스에서 정보 조회)",
   "분석/분류 (패턴 인식, 카테고리 분류, 이상 탐지)",

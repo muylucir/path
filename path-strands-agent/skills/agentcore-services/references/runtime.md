@@ -47,6 +47,45 @@ AgentCore Runtime은 3가지 프로토콜을 지원하며, 동시 사용 가능�
 
 **사용 사례**: 파일 시스템, 데이터베이스, 외부 API 액세스
 
+### WebSocket (포트 8080)
+양방향 실시간 스트리밍을 위한 프로토콜입니다.
+
+| 엔드포인트 | 용도 |
+|-----------|------|
+| `/ws` | WebSocket 연결 |
+
+**구현:**
+```python
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+app = BedrockAgentCoreApp()
+
+@app.websocket
+async def websocket_handler(websocket, context):
+    """양방향 실시간 스트리밍 핸들러"""
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # 처리 로직
+            response = process_message(data)
+            await websocket.send_json({"response": response})
+    except Exception as e:
+        await websocket.send_json({"error": str(e)})
+    finally:
+        await websocket.close()
+```
+
+**사용 사례**: 음성 에이전트, 인터럽션 지원 채팅, 실시간 협업
+
+**WebSocket vs HTTP 선택:**
+| Use Case | 권장 프로토콜 |
+|----------|-------------|
+| 음성 에이전트, 인터럽션 지원 채팅 | WebSocket |
+| 단순 요청-응답, 단방향 스트리밍 | HTTP SSE |
+| 긴 폴링, 서버 푸시 | WebSocket |
+| 배치 처리, API 통합 | HTTP |
+
 ### A2A (포트 9000)
 에이전트 간 협업을 위한 프로토콜입니다.
 
@@ -90,8 +129,7 @@ agentcore configure --entrypoint agent.py --region us-east-1
 ```
 
 생성되는 파일:
-- `Dockerfile`: 컨테이너화 설정
-- `.bedrock_agentcore.yaml`: 배포 구성 (에이전트명, 리전, IAM 역할, ECR 등)
+- `.bedrock_agentcore.yaml`: 배포 구성 (에이전트명, 리전, IAM 역할 등)
 
 **OAuth 인증 설정** (선택):
 ```python
@@ -101,7 +139,6 @@ agentcore_runtime = Runtime()
 response = agentcore_runtime.configure(
     entrypoint="agent.py",
     execution_role=role_arn,
-    auto_create_ecr=True,
     authorizer_configuration={
         "customJWTAuthorizer": {
             "discoveryUrl": discovery_url,
@@ -111,21 +148,66 @@ response = agentcore_runtime.configure(
 )
 ```
 
-### 3. Launch (배포)
+### 3. Deploy (배포)
+
+AgentCore는 두 가지 배포 방식을 지원합니다.
+
+#### Direct Code Deploy (기본, 권장)
+
+코드를 직접 업로드하여 배포합니다. Docker 이미지 빌드가 필요 없습니다.
 
 ```bash
-# 클라우드 배포
-agentcore launch
+# 클라우드 배포 (Direct Code Deploy)
+agentcore deploy
 
 # 로컬 테스트
-agentcore launch --local
+agentcore deploy --local
 ```
 
 **배포 과정**:
-1. Docker 이미지 빌드 (CodeBuild 또는 로컬)
+1. 소스 코드 패키징
+2. S3에 업로드
+3. AgentCore Runtime 생성
+4. CloudWatch 로그 그룹 구성
+
+**장점:**
+- Docker 설정 불필요
+- 빠른 배포 (이미지 빌드 생략)
+- 간단한 워크플로우
+
+#### Container Deploy
+
+커스텀 Docker 이미지로 배포합니다. 특수 의존성이 필요한 경우 사용합니다.
+
+```bash
+# 로컬에서 Docker 이미지 빌드 후 배포
+agentcore deploy --local-build
+```
+
+**배포 과정**:
+1. Docker 이미지 빌드 (로컬 또는 CodeBuild)
 2. Amazon ECR에 이미지 푸시
 3. AgentCore Runtime 생성
 4. CloudWatch 로그 그룹 구성
+
+**CLI 옵션:**
+
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `--local` | 로컬 테스트 모드 | - |
+| `--local-build` | 로컬에서 Docker 빌드 | - |
+| `--idle-timeout` | 유휴 세션 타임아웃 (초) | 900 |
+| `--max-lifetime` | 세션 최대 지속 시간 (초) | 28800 |
+| `--protocol` | 프로토콜 (HTTP, MCP, A2A) | HTTP |
+
+**예시:**
+```bash
+# WebSocket 프로토콜로 배포
+agentcore deploy --protocol HTTP
+
+# 세션 타임아웃 설정
+agentcore deploy --idle-timeout 1800 --max-lifetime 14400
+```
 
 ### 4. Invoke (호출)
 
@@ -158,8 +240,20 @@ invoke_response = agentcore_runtime.invoke({"prompt": "How is the weather?"})
 | 상태 | 설명 |
 |------|------|
 | **Active** | 동기 요청 처리 중 또는 백그라운드 작업 수행 중 |
-| **Idle** | 요청 처리 완료 후 대기 중 (5분 후 일시 중단, 상태 유지) |
-| **Terminated** | 15분 비활성, 8시간 최대 지속, 또는 헬스체크 실패 |
+| **Idle** | 요청 처리 완료 후 대기 중 (기본 900초 후 종료, 상태 유지) |
+| **Terminated** | 유휴 타임아웃, 최대 지속 시간 초과, 또는 헬스체크 실패 |
+
+### 세션 타임아웃 설정
+
+| 설정 | 기본값 | 최대값 | 설명 |
+|------|--------|--------|------|
+| `idle-timeout` | 900초 (15분) | 28800초 (8시간) | 유휴 상태 유지 시간 |
+| `max-lifetime` | 28800초 (8시간) | 28800초 (8시간) | 세션 최대 지속 시간 |
+
+```bash
+# 배포 시 타임아웃 설정
+agentcore deploy --idle-timeout 1800 --max-lifetime 14400
+```
 
 ### 세션 지속성
 - `runtimeSessionId`로 세션 식별
@@ -229,10 +323,11 @@ CMD ["uv", "run", "uvicorn", "agent:app", "--host", "0.0.0.0", "--port", "8080"]
 | **페이로드** | 100MB |
 | **컨테이너 이미지** | 10GB |
 | **동시 실행** | 계정당 1000개 |
-| **세션 타임아웃** | 15분 비활성 |
-| **세션 최대 지속** | 8시간 |
+| **유휴 타임아웃** | 기본 900초, 최대 28800초 |
+| **세션 최대 지속** | 최대 8시간 (28800초) |
 | **Python** | 3.11 이상 |
 | **아키텍처** | ARM64 (linux/arm64) |
+| **프로토콜** | HTTP, WebSocket, MCP, A2A |
 
 ## 모니터링
 

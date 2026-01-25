@@ -50,8 +50,12 @@ export function SessionList() {
         processSteps: session.user_process_steps || session.process_steps,
         outputTypes: session.user_output_types || [session.output_type],
         humanLoop: session.human_loop,
-        dataSources: [],
-        data_source: session.data_source,  // 문자열 형태로 데이터 소스 저장
+        // 새 구조: 카테고리별 통합 (레거시 호환을 위해 data_source도 유지)
+        selectedGateways: [],
+        selectedRAGs: [],
+        selectedS3s: [],
+        data_source: session.data_source,  // 레거시 문자열 형태 (하위 호환)
+        additionalSources: "",
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
         useAgentCore: session.use_agentcore ?? true,  // AgentCore 항상 사용
