@@ -1,15 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, ArrowDown, ArrowUp, Settings, CheckCircle, RefreshCw, AlertCircle, Workflow } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList, Globe, Server, Database, HardDrive } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
+import { PROCESS_STEPS } from "@/lib/constants";
 
 interface Step3ResultsProps {
   analysis: Analysis;
@@ -26,12 +27,10 @@ export function Step3Results({
   initialSpecification,
   onSave,
 }: Step3ResultsProps) {
-  const router = useRouter();
   const { feasibility_score, pattern, feasibility_breakdown, risks, next_steps } = analysis;
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isNavigatingToBuilder, setIsNavigatingToBuilder] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -51,13 +50,14 @@ export function Step3Results({
     setStage("시작 중...");
     let fullSpec = "";
 
-    const useAgentCore = formData?.useAgentCore || false;
+    const useAgentCore = formData?.useAgentCore ?? true;  // AgentCore 항상 사용
+    const integrationDetails = formData?.integrationDetails || [];
 
     try {
       const response = await fetch("/api/bedrock/spec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis, useAgentCore }),
+        body: JSON.stringify({ analysis, useAgentCore, integrationDetails }),
       });
 
       const reader = response.body?.getReader();
@@ -123,37 +123,6 @@ export function Step3Results({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  };
-
-  const navigateToBuilder = async () => {
-    if (!specification) return;
-    setIsNavigatingToBuilder(true);
-
-    try {
-      // 명세서를 Canvas State로 변환
-      const response = await fetch("/api/builder/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ spec: specification, analysis }),
-      });
-
-      if (response.ok) {
-        const canvasState = await response.json();
-        // sessionStorage에 저장
-        sessionStorage.setItem("agentCanvasState", JSON.stringify(canvasState));
-        // Builder 페이지로 이동
-        router.push("/builder");
-      } else {
-        console.error("Failed to parse spec");
-        // 실패해도 기본 상태로 이동
-        router.push("/builder");
-      }
-    } catch (error) {
-      console.error("Error navigating to builder:", error);
-      router.push("/builder");
-    } finally {
-      setIsNavigatingToBuilder(false);
-    }
   };
 
   return (
@@ -237,6 +206,154 @@ export function Step3Results({
 
         {/* Tab 1: Analysis + Risks */}
         <TabsContent value="analysis" className="mt-6 space-y-6">
+          {/* Step 1 입력 정보 */}
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <ClipboardList className="h-4 w-4" />
+                입력 정보 요약
+              </h3>
+
+              {/* Pain Point */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">해결하려는 문제</p>
+                <p className="text-sm">{formData?.painPoint || formData?.pain_point || analysis?.pain_point || "-"}</p>
+              </div>
+
+              <Separator />
+
+              {/* INPUT / PROCESS / OUTPUT */}
+              <div className="grid md:grid-cols-3 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">INPUT</p>
+                  <p className="text-sm font-medium">
+                    {formData?.inputType || formData?.input_type || analysis?.input_type || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">PROCESS (사용자 선택)</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(() => {
+                      const steps = formData?.processSteps || [];
+                      if (steps.length > 0) {
+                        // 사용자 선택인지 확인 (PROCESS_STEPS 상수와 매칭)
+                        const isUserSelection = steps.some((step: string) =>
+                          PROCESS_STEPS.some(ps => ps === step)
+                        );
+                        if (isUserSelection) {
+                          return steps.map((step: string, idx: number) => (
+                            <Badge key={idx} variant="secondary" className="text-xs">{step}</Badge>
+                          ));
+                        }
+                        // Claude 분석 결과인 경우 (하위 호환)
+                        return <span className="text-sm text-muted-foreground">아래 Claude 분석 참조</span>;
+                      }
+                      return <span className="text-sm text-muted-foreground">-</span>;
+                    })()}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">OUTPUT</p>
+                  <div className="flex flex-wrap gap-1">
+                    {(formData?.outputTypes || formData?.output_types || analysis?.output_types)?.map((type: string, idx: number) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">{type}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Human-in-Loop / Error Tolerance */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Human-in-Loop</p>
+                  <p className="text-sm">{formData?.humanLoop || formData?.human_loop || analysis?.human_loop || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">오류 허용도</p>
+                  <p className="text-sm">{formData?.errorTolerance || formData?.error_tolerance || "-"}</p>
+                </div>
+              </div>
+
+              {/* Data Sources */}
+              {(() => {
+                // formData.dataSources가 있으면 사용, 없으면 data_source 문자열 파싱
+                const hasDataSources = formData?.dataSources?.length > 0 && formData.dataSources[0]?.type;
+                const dataSourceStr = formData?.data_source || formData?.dataSource;
+
+                if (hasDataSources) {
+                  return (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">데이터 소스</p>
+                        <ul className="text-sm space-y-1">
+                          {formData.dataSources.map((ds: { type: string; description: string }, idx: number) => (
+                            <li key={idx}>• {ds.type}: {ds.description}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
+                  );
+                } else if (dataSourceStr) {
+                  return (
+                    <>
+                      <Separator />
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-2">데이터 소스</p>
+                        <ul className="text-sm space-y-1">
+                          {dataSourceStr.split(", ").map((ds: string, idx: number) => (
+                            <li key={idx}>• {ds}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </>
+                  );
+                }
+                return null;
+              })()}
+
+              {/* Integrations */}
+              {formData?.integrationDetails?.length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-2">선택한 통합</p>
+                    <div className="flex flex-wrap gap-2">
+                      {formData.integrationDetails.map((int: { type?: string; name: string }, idx: number) => {
+                        const typeIcons: Record<string, typeof Globe> = {
+                          api: Globe,
+                          mcp: Server,
+                          rag: Database,
+                          s3: HardDrive,
+                        };
+                        const Icon = int.type ? typeIcons[int.type] : Globe;
+                        return (
+                          <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1">
+                            {Icon && <Icon className="h-3 w-3" />}
+                            {int.name}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Additional Context */}
+              {formData?.additionalContext && (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">추가 정보</p>
+                    <p className="text-sm">{formData.additionalContext}</p>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardContent className="pt-6 space-y-6">
               {/* Feasibility Breakdown */}
@@ -265,32 +382,11 @@ export function Step3Results({
 
               <Separator />
 
-              {/* Problem Decomposition */}
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <ArrowDown className="h-4 w-4" />
-                    INPUT
-                  </h4>
-                  <p className="text-sm text-muted-foreground">{analysis.input_type}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <ArrowUp className="h-4 w-4" />
-                    OUTPUT
-                  </h4>
-                  <ul className="text-sm text-muted-foreground space-y-1">
-                    {analysis.output_types?.map((type, idx) => (
-                      <li key={idx}>• {type}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-
+              {/* Claude 분석 PROCESS */}
               <div>
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
                   <Settings className="h-4 w-4" />
-                  PROCESS
+                  PROCESS (Claude 분석)
                 </h4>
                 <ul className="text-sm text-muted-foreground space-y-1">
                   {analysis.process_steps?.map((step, idx) => (
@@ -385,18 +481,6 @@ export function Step3Results({
                           <Button onClick={downloadSpec} variant="outline" className="flex-1">
                             <Download className="h-4 w-4 mr-2" />
                             다운로드
-                          </Button>
-                          <Button
-                            onClick={navigateToBuilder}
-                            disabled={isNavigatingToBuilder}
-                            className="flex-1 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
-                          >
-                            {isNavigatingToBuilder ? (
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                              <Workflow className="h-4 w-4 mr-2" />
-                            )}
-                            빌더로 이동
                           </Button>
                         </>
                       )}

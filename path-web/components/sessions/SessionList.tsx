@@ -45,14 +45,18 @@ export function SessionList() {
       // Store in sessionStorage
       sessionStorage.setItem("formData", JSON.stringify({
         painPoint: session.pain_point,
-        inputType: session.input_type,
-        processSteps: session.process_steps,
-        outputTypes: [session.output_type],
+        // 사용자 원본 입력 우선, 없으면 Claude 분석 결과 사용 (하위 호환)
+        inputType: session.user_input_type || session.input_type,
+        processSteps: session.user_process_steps || session.process_steps,
+        outputTypes: session.user_output_types || [session.output_type],
         humanLoop: session.human_loop,
         dataSources: [],
+        data_source: session.data_source,  // 문자열 형태로 데이터 소스 저장
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
-        useAgentCore: session.use_agentcore || false,
+        useAgentCore: session.use_agentcore ?? true,  // AgentCore 항상 사용
+        // 선택한 통합 정보
+        integrationDetails: session.integration_details || [],
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history));
       sessionStorage.setItem("analysis", JSON.stringify({
