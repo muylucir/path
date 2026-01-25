@@ -23,7 +23,7 @@ class StrandsUtils:
             **kwargs: 기타 Agent 파라미터
         """
         system_prompts = kwargs.get("system_prompts", "")
-        model_id = kwargs.get("model_id", "global.anthropic.claude-sonnet-4-5-20250929-v1:0")
+        model_id = kwargs.get("model_id", "global.anthropic.claude-opus-4-5-20251101-v1:0")
         tools = kwargs.get("tools", [])
         max_tokens = kwargs.get("max_tokens", 8192)
         temperature = kwargs.get("temperature", 0.3)

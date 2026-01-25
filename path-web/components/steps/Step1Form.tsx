@@ -207,7 +207,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
   };
 
   const handleFormSubmit = (data: FormValues) => {
-    // 통합 상세 정보 생성 (Claude 분석에 사용)
+    // 통합 상세 정보 생성 (Claude 분석 및 명세서 생성에 사용)
     const integrationDetails = selectedIntegrations.map((id) => {
       const info = integrationData[id];
       return {
@@ -216,6 +216,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
         name: info?.name || id,
         description: info?.description,
         summary: getIntegrationSummary(info?.type || 'api', info?.name || id, info?.config),
+        config: info?.config,  // AgentCore Gateway 매핑에 사용
       };
     });
 

@@ -5,6 +5,15 @@ export const dataSourceSchema = z.object({
   description: z.string().min(1, "설명을 입력해주세요"),
 });
 
+export const integrationDetailSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  name: z.string(),
+  description: z.string().optional(),
+  summary: z.string().optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const formSchema = z.object({
   painPoint: z.string().min(10, "최소 10자 이상 입력해주세요"),
   inputType: z.string().min(1, "INPUT 타입을 선택해주세요"),
@@ -14,8 +23,9 @@ export const formSchema = z.object({
   dataSources: z.array(dataSourceSchema).min(1, "최소 1개 이상 데이터 소스를 추가해주세요"),
   errorTolerance: z.string().min(1, "오류 허용도를 선택해주세요"),
   additionalContext: z.string().optional(),
-  useAgentCore: z.boolean().default(true),
+  useAgentCore: z.boolean(),
   selectedIntegrations: z.array(z.string()).optional(),
+  integrationDetails: z.array(integrationDetailSchema).optional(),
 });
 
 export type DataSource = z.infer<typeof dataSourceSchema>;

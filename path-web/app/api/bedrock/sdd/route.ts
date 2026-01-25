@@ -6,13 +6,13 @@ export const maxDuration = 600; // 10분 타임아웃
 
 export async function POST(req: NextRequest) {
   try {
-    const { analysis, useAgentCore, integrationDetails } = await req.json();
+    const { spec } = await req.json();
 
     // Strands Agent API 호출 (스트리밍)
-    const response = await fetch(`${STRANDS_API_URL}/spec`, {
+    const response = await fetch(`${STRANDS_API_URL}/sdd`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ analysis, useAgentCore, integrationDetails }),
+      body: JSON.stringify({ spec }),
     });
 
     if (!response.ok) {
@@ -28,11 +28,11 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (error: any) {
-    console.error("Error in spec API:", error);
+    console.error("Error in SDD API:", error);
     return new Response(
-      JSON.stringify({ 
-        error: "명세서 생성 중 오류가 발생했습니다",
-        details: error.message 
+      JSON.stringify({
+        error: "SDD 문서 생성 중 오류가 발생했습니다",
+        details: error.message,
       }),
       {
         status: 500,
