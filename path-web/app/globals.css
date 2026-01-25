@@ -4,6 +4,8 @@
 @custom-variant dark (&:is(.dark *));
 
 html {
+  /* Prevent layout shift when scrollbar appears/disappears */
+  overflow-y: scroll;
   scrollbar-gutter: stable;
 }
 

@@ -2,6 +2,64 @@
 
 복사해서 바로 사용할 수 있는 Strands Agent 코드 템플릿입니다.
 
+## Single Agent 템플릿
+```python
+from strands import Agent
+from strands.models.bedrock import BedrockModel
+
+model = BedrockModel(
+    model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    region_name="us-west-2"
+)
+
+chatbot = Agent(
+    name="chatbot",
+    model=model,
+    system_prompt="""당신은 [역할]입니다.
+
+주요 임무:
+- [임무 1]
+- [임무 2]
+
+응답 규칙:
+- [규칙 1]
+- [규칙 2]
+""",
+    tools=[]  # 필요시 도구 추가
+)
+
+# 단일 응답
+response = chatbot("사용자 질문")
+
+# 스트리밍 응답
+for event in chatbot.stream("사용자 질문"):
+    print(event, end="", flush=True)
+```
+
+## Single Agent + MCP 템플릿
+```python
+from strands import Agent
+from strands.models.bedrock import BedrockModel
+from strands.tools.mcp import MCPClient
+from mcp.client.streamable_http import streamablehttp_client
+
+model = BedrockModel(
+    model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    region_name="us-west-2"
+)
+
+mcp_client = MCPClient(lambda: streamablehttp_client(url="https://mcp-server.example.com"))
+with mcp_client:
+    tools = mcp_client.list_tools_sync()
+    chatbot = Agent(
+        name="tool_chatbot",
+        model=model,
+        system_prompt="...",
+        tools=tools
+    )
+    response = chatbot("사용자 질문")
+```
+
 ## 기본 Graph 템플릿
 ```python
 from strands import Agent

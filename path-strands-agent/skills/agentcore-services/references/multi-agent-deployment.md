@@ -25,21 +25,21 @@ app = BedrockAgentCoreApp()
 
 # Multi-Agent Graph 구성
 github_collector = Agent(
-    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
     name="github_collector",
     system_prompt="Collect GitHub data...",
     tools=[mcp_github]
 )
 
 resume_parser = Agent(
-    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
     name="resume_parser",
     system_prompt="Parse resume PDF...",
     tools=[pdf_tool]
 )
 
 analyzer = Agent(
-    model="us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    model="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
     name="analyzer",
     system_prompt="Analyze all collected data..."
 )

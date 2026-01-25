@@ -9,11 +9,14 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 import type {
   Integration,
-  APIIntegration,
-  MCPIntegration,
+  GatewayIntegration,
+  IdentityIntegration,
   RAGIntegration,
   S3Integration,
+  MCPServerIntegration,
   IntegrationListItem,
+  IntegrationType,
+  APIEndpoint,
 } from "@/lib/types";
 
 const client = new DynamoDBClient({
@@ -24,7 +27,7 @@ const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = "path-agent-integrations";
 
 export async function createIntegration(
-  integrationData: Omit<Integration, "id" | "createdAt" | "updatedAt">
+  integrationData: Record<string, unknown>
 ): Promise<string> {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
@@ -63,7 +66,7 @@ export async function getIntegration(id: string): Promise<Integration | null> {
 
 export async function updateIntegration(
   id: string,
-  integrationData: Partial<Omit<Integration, "id" | "createdAt" | "updatedAt">>
+  integrationData: Record<string, unknown>
 ): Promise<void> {
   const existing = await docClient.send(
     new GetCommand({
@@ -100,8 +103,9 @@ export async function deleteIntegration(id: string): Promise<void> {
 }
 
 export async function listIntegrations(
-  type?: "api" | "mcp" | "rag" | "s3",
-  limit: number = 50
+  type?: IntegrationType,
+  limit: number = 50,
+  full: boolean = false
 ): Promise<IntegrationListItem[]> {
   let response;
 
@@ -111,10 +115,15 @@ export async function listIntegrations(
       new ScanCommand({
         TableName: TABLE_NAME,
         FilterExpression: "#type = :type",
-        ExpressionAttributeNames: { "#type": "type", "#name": "name" },
+        ExpressionAttributeNames: {
+          "#type": "type",
+          "#name": "name",
+          "#config": "config",
+          "#source": "source",  // Reserved keyword
+        },
         ExpressionAttributeValues: { ":type": type },
         Limit: limit,
-        ProjectionExpression: "id, #type, #name, description, createdAt, updatedAt",
+        ProjectionExpression: "id, #type, #name, description, createdAt, updatedAt, #config, mcpConfig, #source, deployment, tools",
       })
     );
   } else {
@@ -122,13 +131,53 @@ export async function listIntegrations(
       new ScanCommand({
         TableName: TABLE_NAME,
         Limit: limit,
-        ProjectionExpression: "id, #type, #name, description, createdAt, updatedAt",
-        ExpressionAttributeNames: { "#type": "type", "#name": "name" },
+        ProjectionExpression: "id, #type, #name, description, createdAt, updatedAt, #config, mcpConfig, #source, deployment, tools",
+        ExpressionAttributeNames: {
+          "#type": "type",
+          "#name": "name",
+          "#config": "config",
+          "#source": "source",  // Reserved keyword
+        },
       })
     );
   }
 
-  const items = (response.Items || []) as IntegrationListItem[];
+  const rawItems = (response.Items || []) as Integration[];
+
+  // Transform to list items with additional fields
+  const items: IntegrationListItem[] = rawItems.map((item) => {
+    const base: IntegrationListItem = {
+      id: item.id,
+      type: item.type,
+      name: item.name,
+      description: item.description,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+
+    if (item.type === "gateway") {
+      const gateway = item as GatewayIntegration;
+      base.targetCount = gateway.config.targets?.length || 0;
+      base.gatewayStatus = gateway.config.gatewayStatus;
+    } else if (item.type === "identity") {
+      const identity = item as IdentityIntegration;
+      base.providerType = identity.config.providerType;
+      base.providerStatus = identity.config.providerStatus;
+      // Include providerArn when full=true
+      if (full && identity.config.providerArn) {
+        base.providerArn = identity.config.providerArn;
+      }
+    } else if (item.type === "mcp-server") {
+      const mcpServer = item as MCPServerIntegration;
+      base.mcpSourceType = mcpServer.source?.type;
+      base.mcpDeploymentStatus = mcpServer.deployment?.status;
+      base.mcpToolCount = mcpServer.tools?.length || 0;
+      base.mcpConfig = mcpServer.mcpConfig;  // Include for AWS role display
+    }
+
+    return base;
+  });
+
   return items.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -147,14 +196,21 @@ export async function getIntegrationFull(id: string): Promise<Integration | null
 function maskSensitiveData(integration: Integration): Integration {
   const masked = { ...integration };
 
-  if (masked.type === "api") {
-    const apiIntegration = masked as APIIntegration;
-    if (apiIntegration.config.authConfig) {
-      apiIntegration.config.authConfig = {
-        ...apiIntegration.config.authConfig,
-        apiKeyValue: apiIntegration.config.authConfig.apiKeyValue ? "***" : undefined,
-        basicPassword: apiIntegration.config.authConfig.basicPassword ? "***" : undefined,
+  if (masked.type === "identity") {
+    const identityIntegration = masked as IdentityIntegration;
+    // Mask API key values (they are stored but never returned)
+    if (identityIntegration.config.apiKey) {
+      identityIntegration.config.apiKey = {
+        ...identityIntegration.config.apiKey,
       };
+      // Note: apiKeyValue is not stored in config.apiKey, only headerName
+    }
+    // Mask OAuth2 client secret
+    if (identityIntegration.config.oauth2) {
+      identityIntegration.config.oauth2 = {
+        ...identityIntegration.config.oauth2,
+      };
+      // Note: clientSecret is not stored after creation
     }
   } else if (masked.type === "rag") {
     const ragIntegration = masked as RAGIntegration;
@@ -172,13 +228,13 @@ function maskSensitiveData(integration: Integration): Integration {
 // Parse OpenAPI spec and extract endpoints
 export function parseOpenAPISpec(spec: Record<string, unknown>): {
   baseUrl: string;
-  endpoints: APIIntegration["config"]["endpoints"];
+  endpoints: APIEndpoint[];
 } {
   const paths = (spec.paths || {}) as Record<string, Record<string, unknown>>;
   const servers = (spec.servers || []) as { url: string }[];
   const baseUrl = servers[0]?.url || "";
 
-  const endpoints: APIIntegration["config"]["endpoints"] = [];
+  const endpoints: APIEndpoint[] = [];
 
   for (const [path, methods] of Object.entries(paths)) {
     for (const [method, details] of Object.entries(methods)) {

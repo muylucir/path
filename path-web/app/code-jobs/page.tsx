@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Loader2, Download, Eye, CheckCircle, AlertCircle, Clock, Code2, Trash2 } from "lucide-react";
+import { Loader2, Download, Eye, CheckCircle, AlertCircle, Clock, Code2, Trash2, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -25,6 +25,16 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface CodeGenerationJob {
   job_id: string;
@@ -47,6 +57,12 @@ export default function CodeJobsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+
+  // Deploy dialog state
+  const [deployDialogOpen, setDeployDialogOpen] = useState(false);
+  const [jobToDeploy, setJobToDeploy] = useState<CodeGenerationJob | null>(null);
+  const [agentName, setAgentName] = useState("");
+  const [isDeploying, setIsDeploying] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -124,6 +140,54 @@ export default function CodeJobsPage() {
     } finally {
       setDeleteDialogOpen(false);
       setJobToDelete(null);
+    }
+  };
+
+  const openDeployDialog = (job: CodeGenerationJob) => {
+    setJobToDeploy(job);
+    // Generate a default agent name from pain_point or pattern
+    const defaultName = (job.pain_point || job.pattern || "agent")
+      .toLowerCase()
+      .replace(/[^a-z0-9가-힣]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 30);
+    setAgentName(defaultName || "my-agent");
+    setDeployDialogOpen(true);
+  };
+
+  const handleDeploy = async () => {
+    if (!jobToDeploy || !agentName) return;
+
+    setIsDeploying(true);
+    try {
+      const response = await fetch("/api/bedrock/deployments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          job_id: jobToDeploy.job_id,
+          agent_name: agentName,
+          region: "us-west-2",
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "배포 생성 실패");
+      }
+
+      toast.success("배포가 시작되었습니다");
+      setDeployDialogOpen(false);
+      setJobToDeploy(null);
+      setAgentName("");
+
+      // 배포 목록 페이지로 이동
+      router.push("/deployments");
+    } catch (error: any) {
+      console.error("Error creating deployment:", error);
+      toast.error(error.message || "배포 생성 실패");
+    } finally {
+      setIsDeploying(false);
     }
   };
 
@@ -259,6 +323,14 @@ export default function CodeJobsPage() {
                           </span>
                           <div className="flex gap-2">
                             <Button
+                              variant="default"
+                              size="sm"
+                              onClick={() => openDeployDialog(job)}
+                            >
+                              <Rocket className="h-4 w-4 mr-1" />
+                              배포
+                            </Button>
+                            <Button
                               variant="outline"
                               size="sm"
                               onClick={() => downloadJob(job.job_id)}
@@ -344,14 +416,24 @@ export default function CodeJobsPage() {
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             {job.status === "completed" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => downloadJob(job.job_id)}
-                              >
-                                <Download className="h-4 w-4 mr-1" />
-                                다운로드
-                              </Button>
+                              <>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => openDeployDialog(job)}
+                                >
+                                  <Rocket className="h-4 w-4 mr-1" />
+                                  배포
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => downloadJob(job.job_id)}
+                                >
+                                  <Download className="h-4 w-4 mr-1" />
+                                  다운로드
+                                </Button>
+                              </>
                             )}
                             <Button
                               variant="ghost"
@@ -392,6 +474,71 @@ export default function CodeJobsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Deploy Dialog */}
+      <Dialog open={deployDialogOpen} onOpenChange={setDeployDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>AgentCore 배포</DialogTitle>
+            <DialogDescription>
+              생성된 Agent 코드를 AgentCore Runtime에 배포합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {jobToDeploy && (
+              <div className="space-y-2 p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">
+                  {jobToDeploy.pain_point || "Agent"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {jobToDeploy.pattern}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="agent-name">Agent 이름</Label>
+              <Input
+                id="agent-name"
+                value={agentName}
+                onChange={(e) => setAgentName(e.target.value)}
+                placeholder="my-agent"
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                ECR 리포지토리와 Runtime 이름으로 사용됩니다. 영문 소문자, 숫자, 하이픈만 사용 가능합니다.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeployDialogOpen(false)}
+              disabled={isDeploying}
+            >
+              취소
+            </Button>
+            <Button
+              onClick={handleDeploy}
+              disabled={!agentName || isDeploying}
+            >
+              {isDeploying ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  배포 시작 중...
+                </>
+              ) : (
+                <>
+                  <Rocket className="h-4 w-4 mr-2" />
+                  배포 시작
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

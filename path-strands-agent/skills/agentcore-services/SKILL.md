@@ -21,6 +21,7 @@ AgentCore는 AI Agent 개발, 배포, 관리를 가속화하는 관리형 서비
 | **Browser** | 관리형 Chrome, 웹 자동화 | `browser.md` |
 | **Code Interpreter** | 안전한 Python 코드 실행 | `code-interpreter.md` |
 | **Identity** | OAuth 2.0, Token Vault, 위임 인증 | `identity.md` |
+| **Observability** | OpenTelemetry 트레이싱, 모니터링 | `observability.md` |
 
 ## AWS 서비스 통합 Quick Decision
 
@@ -48,6 +49,33 @@ Agent에서 AWS 서비스 호출 시 **직접 호출 vs Lambda + Gateway** 결�
 
 상세: `aws-service-integration.md`
 
+## MCP 통합 모드 선택 가이드 (중요)
+
+Agent에서 MCP 도구 사용 시 **Gateway Mode vs Standalone MCP Mode** 결정:
+
+| 요구사항 | 권장 모드 | 이유 |
+|---------|----------|------|
+| 기존 REST API 통합 | Gateway Mode (API Target) | OpenAPI → MCP 자동 변환 |
+| AWS 서비스 고급 기능 | Gateway Mode (Lambda Target) | 비동기/복잡 로직 캡슐화 |
+| 커스텀 도구 재사용 | Standalone MCP Mode | FastMCP로 구현, Runtime 배포 |
+| stdio MCP 서버 (uvx, npx) | Gateway Mode로 대체 | AgentCore에서 stdio 미지원 |
+
+**⚠️ stdio MCP 제한 (필수):**
+
+| MCP 타입 | 예시 | AgentCore 지원 |
+|---------|------|--------------|
+| stdio (npx/uvx) | `@anthropic/slack-mcp-server` | ❌ 미지원 |
+| streamablehttp | Gateway URL, Standalone MCP | ✅ 지원 |
+
+**AgentCore Runtime에서 stdio 실행 불가 이유:**
+- 샌드박스 환경에서 외부 프로세스 (npx, uvx) 실행 불가
+- mcp.so 레지스트리, AWS MCP 서버는 stdio 기반
+
+**대안:**
+1. **Gateway API Target**: 외부 서비스를 OpenAPI 스펙으로 Gateway에 등록
+2. **Gateway Lambda Target**: Lambda에서 로직 구현 후 MCP 도구로 노출
+3. **Standalone MCP**: FastMCP로 도구 재구현하여 별도 Runtime 배포
+
 ## Runtime Quick Decision (중요)
 
 **⚠️ 핵심 특징:**
@@ -63,11 +91,13 @@ Agent에서 AWS 서비스 호출 시 **직접 호출 vs Lambda + Gateway** 결�
 | 프로토콜 | 포트 | 용도 |
 |----------|------|------|
 | HTTP | 8080 | 표준 요청-응답, SSE 스트리밍 |
+| WebSocket | 8080 | 양방향 실시간 스트리밍 (음성 에이전트) |
 | MCP | 8000 | 도구 액세스 (표준 MCP SDK 호환) |
 | A2A | 9000 | 에이전트 간 협업 |
 
 **배포 방식:**
-- **Starter Toolkit (권장)**: `agentcore configure` → `agentcore launch`
+- **Direct Code Deploy (기본, 권장)**: `agentcore configure` → `agentcore deploy`
+- **Container Deploy**: `agentcore configure` → `agentcore deploy --local-build`
 - **FastAPI 직접 구현**: /invocations, /ping 엔드포인트 구현
 
 상세: `runtime.md`
@@ -110,7 +140,7 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent
 
 app = BedrockAgentCoreApp()
-agent = Agent(model="us.anthropic.claude-3-7-sonnet-20250219-v1:0")
+agent = Agent(model="global.anthropic.claude-sonnet-4-5-20250929-v1:0")
 
 @app.entrypoint
 def invoke(payload, context):
@@ -134,12 +164,13 @@ agent = Agent(session_manager=session_manager)
 
 상세 구현 가이드가 필요하면 `skill_tool`로 로드:
 
-- `runtime.md` - 서버리스 배포, entrypoint, 제약사항
+- `runtime.md` - 서버리스 배포, entrypoint, WebSocket, 제약사항
 - `memory.md` - STM/LTM, 4가지 전략, Strands 통합, Memory Forking
 - `gateway.md` - MCP Gateway 생성, Lambda 도구 추가
-- `browser.md` - 웹 자동화, 지원 기능
+- `browser.md` - 웹 자동화, Nova Act, Session Recording
 - `code-interpreter.md` - Python 코드 실행, 샌드박스
 - `identity.md` - OAuth 2LO/3LO, Token Vault, 보안 모범 사례
+- `observability.md` - OpenTelemetry 트레이싱, CloudWatch 모니터링
 - `multi-agent-deployment.md` - 1개 Runtime으로 Multi-Agent 호스팅
 - `aws-service-integration.md` - AWS 서비스 통합 패턴 (직접 호출 vs Lambda+Gateway)
 

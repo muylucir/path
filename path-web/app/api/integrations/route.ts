@@ -3,14 +3,21 @@ import {
   createIntegration,
   listIntegrations,
 } from "@/lib/aws/integrations-dynamodb";
+import type { IntegrationType } from "@/lib/types";
+
+const VALID_TYPES: IntegrationType[] = ["gateway", "identity", "rag", "s3"];
 
 // GET /api/integrations - List all integrations
+// Query params:
+// - type: filter by integration type
+// - full: include full details (e.g., providerArn for identity)
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") as "api" | "mcp" | "rag" | "s3" | null;
+    const type = searchParams.get("type") as IntegrationType | null;
+    const full = searchParams.get("full") === "true";
 
-    const integrations = await listIntegrations(type || undefined);
+    const integrations = await listIntegrations(type || undefined, 50, full);
     return NextResponse.json({ integrations });
   } catch (error) {
     console.error("Failed to list integrations:", error);
@@ -34,9 +41,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!["api", "mcp", "rag", "s3"].includes(type)) {
+    if (!VALID_TYPES.includes(type)) {
       return NextResponse.json(
-        { error: "Invalid type. Must be one of: api, mcp, rag, s3" },
+        { error: `Invalid type. Must be one of: ${VALID_TYPES.join(", ")}` },
         { status: 400 }
       );
     }

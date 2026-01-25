@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList, Globe, Server, Database, HardDrive, Code2 } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList, Globe, Server, Database, HardDrive, Code2, Network } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
@@ -147,6 +147,16 @@ export function Step3Results({
           painPoint: formData?.painPoint,
         }
       });
+
+      // 0. 세션 자동 저장
+      if (specification) {
+        try {
+          await onSave(specification);
+          console.log("세션 자동 저장 완료");
+        } catch (saveError) {
+          console.warn("세션 저장 실패 (계속 진행):", saveError);
+        }
+      }
 
       // 1. 코드 생성 작업 생성 (메타데이터 포함)
       const response = await fetch("/api/bedrock/code-jobs", {
@@ -329,34 +339,58 @@ export function Step3Results({
                 </div>
               </div>
 
-              {/* Data Sources */}
+              {/* Data Sources & Integrations */}
               {(() => {
-                // formData.dataSources가 있으면 사용, 없으면 data_source 문자열 파싱
-                const hasDataSources = formData?.dataSources?.length > 0 && formData.dataSources[0]?.type;
-                const dataSourceStr = formData?.data_source || formData?.dataSource;
+                // 새로운 구조: integrationDetails 배열, additionalSources 문자열
+                const hasIntegrations = formData?.integrationDetails?.length > 0;
+                const additionalSources = formData?.additionalSources;
+                // 레거시: data_source 문자열 (구 세션과의 하위 호환성)
+                const legacyDataSource = formData?.data_source || formData?.dataSource;
 
-                if (hasDataSources) {
+                if (hasIntegrations || additionalSources) {
+                  const typeIcons: Record<string, typeof Globe> = {
+                    gateway: Network,
+                    api: Globe,
+                    mcp: Server,
+                    rag: Database,
+                    s3: HardDrive,
+                    'mcp-server': Server,
+                  };
                   return (
                     <>
                       <Separator />
                       <div>
-                        <p className="text-xs text-muted-foreground mb-2">데이터 소스</p>
-                        <ul className="text-sm space-y-1">
-                          {formData.dataSources.map((ds: { type: string; description: string }, idx: number) => (
-                            <li key={idx}>• {ds.type}: {ds.description}</li>
-                          ))}
-                        </ul>
+                        <p className="text-xs text-muted-foreground mb-2">데이터 소스 및 통합</p>
+                        {hasIntegrations && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {formData.integrationDetails.map((int: { type?: string; name: string; summary?: string }, idx: number) => {
+                              const Icon = int.type ? typeIcons[int.type] : Globe;
+                              return (
+                                <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1">
+                                  {Icon && <Icon className="h-3 w-3" />}
+                                  {int.name}
+                                </Badge>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {additionalSources && (
+                          <p className="text-sm text-muted-foreground">
+                            추가: {additionalSources}
+                          </p>
+                        )}
                       </div>
                     </>
                   );
-                } else if (dataSourceStr) {
+                } else if (legacyDataSource) {
+                  // 레거시 데이터소스 표시 (하위 호환성)
                   return (
                     <>
                       <Separator />
                       <div>
                         <p className="text-xs text-muted-foreground mb-2">데이터 소스</p>
                         <ul className="text-sm space-y-1">
-                          {dataSourceStr.split(", ").map((ds: string, idx: number) => (
+                          {legacyDataSource.split(", ").map((ds: string, idx: number) => (
                             <li key={idx}>• {ds}</li>
                           ))}
                         </ul>
@@ -366,33 +400,6 @@ export function Step3Results({
                 }
                 return null;
               })()}
-
-              {/* Integrations */}
-              {formData?.integrationDetails?.length > 0 && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-2">선택한 통합</p>
-                    <div className="flex flex-wrap gap-2">
-                      {formData.integrationDetails.map((int: { type?: string; name: string }, idx: number) => {
-                        const typeIcons: Record<string, typeof Globe> = {
-                          api: Globe,
-                          mcp: Server,
-                          rag: Database,
-                          s3: HardDrive,
-                        };
-                        const Icon = int.type ? typeIcons[int.type] : Globe;
-                        return (
-                          <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1">
-                            {Icon && <Icon className="h-3 w-3" />}
-                            {int.name}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </>
-              )}
 
               {/* Additional Context */}
               {formData?.additionalContext && (
