@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList, Globe, Server, Database, HardDrive } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList, Globe, Server, Database, HardDrive, Code2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
@@ -31,6 +31,7 @@ export function Step3Results({
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCreatingJob, setIsCreatingJob] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -123,6 +124,58 @@ export function Step3Results({
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  const navigateToCodeGenerator = async () => {
+    setIsCreatingJob(true);
+    try {
+      // 메타데이터: analysis에서 우선, 없으면 formData에서 폴백
+      const pain_point = analysis.pain_point || formData?.painPoint || null;
+      const pattern = analysis.pattern || null;
+      const feasibility_score = analysis.feasibility_score || null;
+
+      console.log("Creating job with metadata:", {
+        pain_point,
+        pattern,
+        feasibility_score,
+        from_analysis: {
+          pain_point: analysis.pain_point,
+          pattern: analysis.pattern,
+          feasibility_score: analysis.feasibility_score,
+        },
+        from_formData: {
+          painPoint: formData?.painPoint,
+        }
+      });
+
+      // 1. 코드 생성 작업 생성 (메타데이터 포함)
+      const response = await fetch("/api/bedrock/code-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          path_spec: specification,
+          integration_details: formData?.integrationDetails || [],
+          // 메타데이터 추가 (폴백 포함)
+          pain_point,
+          pattern,
+          feasibility_score,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("작업 생성 실패");
+      }
+
+      const { job_id } = await response.json();
+      console.log("코드 생성 작업 시작:", job_id);
+
+      // 2. 작업 목록 페이지로 리다이렉트
+      window.location.href = "/code-jobs";
+    } catch (error) {
+      console.error("Error creating code generation job:", error);
+      alert("코드 생성 작업 생성 중 오류가 발생했습니다.");
+      setIsCreatingJob(false);
+    }
   };
 
   return (
@@ -480,7 +533,24 @@ export function Step3Results({
                           </Button>
                           <Button onClick={downloadSpec} variant="outline" className="flex-1">
                             <Download className="h-4 w-4 mr-2" />
-                            다운로드
+                            명세서 다운로드
+                          </Button>
+                          <Button
+                            onClick={navigateToCodeGenerator}
+                            disabled={isCreatingJob}
+                            className="flex-1 gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
+                          >
+                            {isCreatingJob ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                작업 생성 중...
+                              </>
+                            ) : (
+                              <>
+                                <Code2 className="h-4 w-4" />
+                                Strands 코드 생성
+                              </>
+                            )}
                           </Button>
                         </>
                       )}
