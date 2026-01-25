@@ -55,6 +55,16 @@ export default function ResultsPage() {
           });
         }
       } else {
+        // 통합 정보로 데이터소스 문자열 생성
+        const integrationDetails = formData.integrationDetails || [];
+        const integrationStr = integrationDetails
+          .map((int: { summary?: string; type: string; name: string }) =>
+            int.summary || `[${int.type.toUpperCase()}] ${int.name}`
+          )
+          .join(", ");
+        const additionalStr = formData.additionalSources?.trim() || "";
+        const dataSourceStr = [integrationStr, additionalStr].filter(Boolean).join(", ");
+
         // Create new session
         const sessionData = {
           pain_point: analysis.pain_point,
@@ -62,7 +72,7 @@ export default function ResultsPage() {
           process_steps: analysis.process_steps,
           output_type: analysis.output_types[0] || "",
           human_loop: analysis.human_loop,
-          data_source: formData.dataSources?.map((ds: any) => `${ds.type}: ${ds.description}`).join(", ") || "",
+          data_source: dataSourceStr || "",
           error_tolerance: formData.errorTolerance || "",
           additional_context: formData.additionalContext || "",
           use_agentcore: formData.useAgentCore ?? true,  // AgentCore 항상 사용
@@ -80,7 +90,7 @@ export default function ResultsPage() {
           user_process_steps: formData.processSteps || [],
           user_output_types: formData.outputTypes || [],
           // 선택한 통합 정보
-          integration_details: formData.integrationDetails || [],
+          integration_details: integrationDetails,
         };
 
         const response = await fetch("/api/sessions", {

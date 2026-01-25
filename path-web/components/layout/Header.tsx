@@ -58,6 +58,16 @@ export function Header() {
               >
                 코드 생성 작업
               </Link>
+              <Link
+                href="/deployments"
+                className={`text-sm font-medium transition-colors hover:text-primary ${
+                  pathname === "/deployments" || pathname.startsWith("/playground")
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                배포 관리
+              </Link>
             </nav>
           </div>
           

@@ -1,15 +1,15 @@
 ---
 name: strands-agent-patterns
-description: Strands Agent 핵심 패턴 가이드 - Graph, Agent-as-Tool, Reflection, Planning, Multi-Agent 패턴 개요와 선택 가이드. 상세 구현은 references/ 참조.
+description: Strands Agent 핵심 패턴 가이드 - Single Agent, Graph, Agent-as-Tool, Reflection, Planning, Multi-Agent 패턴 개요와 선택 가이드. 상세 구현은 references/ 참조.
 license: Apache-2.0
 metadata:
-  version: "2.0"
+  version: "2.1"
   author: path-team
 ---
 
 # Strands Agent Patterns Guide
 
-Strands Agent의 5가지 핵심 패턴 개요와 선택 가이드를 제공합니다.
+Strands Agent의 6가지 핵심 패턴 개요와 선택 가이드를 제공합니다.
 
 **중요: LLM은 Claude Sonnet/Haiku 4.5만 사용**
 
@@ -17,6 +17,7 @@ Strands Agent의 5가지 핵심 패턴 개요와 선택 가이드를 제공합�
 
 | 패턴 | 용도 | Reference |
 |------|------|-----------|
+| **Single Agent** | 단순 Q&A, 챗봇, 간단한 작업 | `single-agent-chatbot.md` |
 | **Graph Pattern** | 결정론적 워크플로우, 노드 기반 실행 | `graph-pattern.md` |
 | **Agent-as-Tool** | Agent를 다른 Agent의 도구로 사용 | `agent-as-tool.md` |
 | **Reflection** | 출력 검증 및 자가 개선 | `reflection-pattern.md` |
@@ -27,6 +28,8 @@ Strands Agent의 5가지 핵심 패턴 개요와 선택 가이드를 제공합�
 
 | 요구사항 | 추천 패턴 |
 |---------|----------|
+| 단순 Q&A/챗봇 | Single Agent Pattern |
+| 간단한 도구 사용 | Single Agent + Tools |
 | 순차적 작업 흐름 | Planning Pattern |
 | 품질 검증 필요 | Reflection Pattern |
 | 병렬 데이터 수집 | Multi-Agent Pattern |
@@ -58,6 +61,7 @@ result = graph("Your task here")
 
 상세 구현 가이드가 필요하면 `skill_tool`로 로드:
 
+- `single-agent-chatbot.md` - 단일 Agent 챗봇 구현 (System Prompt, 도구 연동, AgentCore 배포)
 - `graph-pattern.md` - Graph 기반 워크플로우 상세 (토폴로지, 조건부 분기, 피드백 루프)
 - `agent-as-tool.md` - Agent를 도구로 사용하는 방법
 - `reflection-pattern.md` - 자기 검증 패턴 구현

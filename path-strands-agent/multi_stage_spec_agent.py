@@ -40,15 +40,153 @@ class PatternAgent:
             temperature=0.3,
             tools=[file_read]
         )
-    
-    def analyze(self, analysis: Dict[str, Any]) -> str:
+
+    def _categorize_integrations(self, integration_details: list = None) -> dict:
+        """통합을 모드별로 분류 (Gateway Mode vs Standalone MCP Mode)"""
+        if not integration_details:
+            return {'gateway': [], 'standalone_mcp': [], 'rag': [], 's3': [], 'others': []}
+
+        categorized = {
+            'gateway': [],          # Gateway 통합 (API/Lambda/MCP 타겟 포함)
+            'standalone_mcp': [],   # Self-hosted/template MCP 서버 (배포됨)
+            'rag': [],              # RAG / Knowledge Base
+            's3': [],               # S3 저장소
+            'others': [],           # 기타 (직접 호출)
+        }
+
+        for detail in integration_details:
+            int_type = detail.get('type', '')
+            config = detail.get('config', {})
+
+            if int_type == 'gateway':
+                categorized['gateway'].append(detail)
+            elif int_type == 'mcp-server':
+                source = config.get('source', {})
+                source_type = source.get('type', 'external')
+                deployment = config.get('deployment', {})
+
+                # AgentCore 배포 가능 여부 확인 (self-hosted/template만)
+                if source_type in ['self-hosted', 'template']:
+                    status = deployment.get('status', 'pending')
+                    if status == 'ready':
+                        categorized['standalone_mcp'].append(detail)
+                    # pending 상태는 Others로
+                    else:
+                        categorized['others'].append(detail)
+                # external/aws는 Step1에서 필터링되어 여기 도달하지 않지만 안전장치
+            elif int_type == 'rag':
+                categorized['rag'].append(detail)
+            elif int_type == 's3':
+                categorized['s3'].append(detail)
+            else:
+                categorized['others'].append(detail)
+
+        return categorized
+
+    def _format_integration_context(self, integration_details: list = None) -> str:
+        """통합 정보를 프롬프트용 컨텍스트로 변환 (2가지 모드 명확히 구분)"""
+        if not integration_details:
+            return ""
+
+        categorized = self._categorize_integrations(integration_details)
+
+        integration_context = """
+<registered_integrations>
+다음 통합이 등록되어 있습니다. Agent Components 테이블의 Tools 컬럼에 반영하세요:
+
+## Gateway Mode (streamablehttp_client로 Gateway URL에 연결)
+"""
+        # Gateway 통합
+        for detail in categorized['gateway']:
+            name = detail.get('name', '')
+            config = detail.get('config', {})
+            gateway_status = config.get('gatewayStatus', 'creating')
+            gateway_url = config.get('gatewayUrl', '')
+            targets = config.get('targets', [])
+
+            if gateway_status == 'ready' and gateway_url:
+                target_summary = []
+                for target in targets[:3]:
+                    target_type = target.get('type', 'unknown')
+                    target_name = target.get('name', 'unnamed')
+                    target_summary.append(f"{target_type}:{target_name}")
+                integration_context += f"- [Gateway Mode] {name}: {gateway_url} ({', '.join(target_summary)})\n"
+            else:
+                integration_context += f"- [Gateway Mode - pending] {name}: 배포 대기 중\n"
+
+        if not categorized['gateway']:
+            integration_context += "- (등록된 Gateway 없음)\n"
+
+        integration_context += """
+## Standalone MCP Mode (streamablehttp_client로 MCP Runtime URL에 연결)
+"""
+        # Standalone MCP 통합
+        for detail in categorized['standalone_mcp']:
+            name = detail.get('name', '')
+            config = detail.get('config', {})
+            tools = config.get('tools', [])
+            deployment = config.get('deployment', {})
+            endpoint = deployment.get('endpointUrl', '')
+            tool_names = [t.get('name', '') for t in tools[:5]]
+            integration_context += f"- [Standalone MCP] {name}: {endpoint} ({', '.join(tool_names)})\n"
+
+        if not categorized['standalone_mcp']:
+            integration_context += "- (등록된 Standalone MCP 없음)\n"
+
+        integration_context += """
+## 데이터 소스 (boto3 직접 호출)
+"""
+        # RAG/S3 통합
+        for detail in categorized['rag']:
+            name = detail.get('name', '')
+            integration_context += f"- [RAG] {name}: Knowledge Base 검색 (boto3)\n"
+
+        for detail in categorized['s3']:
+            name = detail.get('name', '')
+            integration_context += f"- [S3] {name}: 파일 읽기/쓰기 (boto3)\n"
+
+        if not categorized['rag'] and not categorized['s3']:
+            integration_context += "- (등록된 데이터 소스 없음)\n"
+
+        # 기타 (pending 상태 등)
+        if categorized['others']:
+            integration_context += """
+## 기타 (배포 필요 또는 미지원)
+"""
+            for detail in categorized['others']:
+                int_type = detail.get('type', '')
+                name = detail.get('name', '')
+                config = detail.get('config', {})
+                if int_type == 'mcp-server':
+                    source = config.get('source', {})
+                    source_type = source.get('type', 'external')
+                    tools = config.get('tools', [])
+                    tool_names = [t.get('name', '') for t in tools[:5]]
+                    integration_context += f"- [MCP Server - {source_type}, 배포 필요] {name}: {', '.join(tool_names)}\n"
+                else:
+                    integration_context += f"- [{int_type}] {name}\n"
+
+        integration_context += """
+</registered_integrations>
+
+**MCP 연결 방식 (agentcore-services 스킬 참조)**:
+- Gateway Mode → streamablehttp_client로 Gateway URL 연결
+- Standalone MCP Mode → streamablehttp_client로 MCP Runtime URL 연결
+- RAG/S3 → boto3 직접 호출 (MCP 불필요)
+**중요**: Tools 컬럼에 위 통합의 도구들을 반영하세요.
+"""
+        return integration_context
+
+    def analyze(self, analysis: Dict[str, Any], integration_details: list = None) -> str:
         """패턴 분석"""
+        integration_context = self._format_integration_context(integration_details)
+
         prompt = f"""다음 분석 결과를 바탕으로 Strands Agent 패턴을 분석하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
-
+{integration_context}
 **필수 1단계**: file_read로 "strands-agent-patterns" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "aws-mcp-servers" 스킬의 SKILL.md를 읽으세요. (Tools 결정에 필수!)
+**필수 2단계**: file_read로 "agentcore-services" 스킬의 SKILL.md를 읽으세요. (Tools/MCP 결정에 필수!)
 **필수 3단계**: 두 스킬을 종합하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
 **중요 - 출력 규칙**:
@@ -62,7 +200,7 @@ class PatternAgent:
 | Agent Name | Role | Input | Output | LLM | Tools |
 |------------|------|-------|--------|-----|-------|
 
-**[중요] Tools 컬럼은 aws-mcp-servers 스킬의 Quick Decision 테이블과 작성 규칙을 반드시 따르세요.**
+**[중요] Tools 컬럼은 agentcore-services 스킬의 MCP 통합 모드 선택 가이드를 반드시 따르세요.**
 **중요: 테이블에 HTML 태그 금지.**
 **중요: LLM은 Claude Sonnet/Haiku 4.5만 사용**
 
@@ -72,7 +210,9 @@ class PatternAgent:
 
 ### Graph 구조
 ```python
-# aws-mcp-servers 스킬의 규칙에 따라 tools 파라미터 작성
+# agentcore-services 스킬의 MCP 모드 규칙에 따라 tools 파라미터 작성
+# Gateway Mode: streamablehttp_client로 Gateway URL 연결
+# Standalone MCP Mode: streamablehttp_client로 MCP Runtime URL 연결
 # boto3 직접 호출 서비스는 tools=[]
 ```
 
@@ -168,6 +308,77 @@ class AgentCoreAgent:
                     integration_context += f"- Access: {access_type}\n"
                     integration_context += f"- **Gateway 매핑**: 직접 호출 (boto3) - Gateway 불필요\n\n"
 
+                elif int_type == 'mcp-server':
+                    # MCP Server 통합 (external, aws, self-hosted)
+                    source = config.get('source', {})
+                    source_type = source.get('type', 'external')
+                    tools = config.get('tools', [])
+                    deployment = config.get('deployment', {})
+                    mcp_config = config.get('mcpConfig', {})
+
+                    integration_context += f"- Source Type: {source_type}\n"
+
+                    if source_type in ['external', 'aws']:
+                        command = mcp_config.get('command', '')
+                        args = mcp_config.get('args', [])
+
+                        # AWS MCP인 경우 역할 정보 표시
+                        env = mcp_config.get('env', {})
+                        aws_role = env.get('AWS_MCP_ROLE', '')
+
+                        if source_type == 'aws' and aws_role:
+                            role_labels = {
+                                'solutions-architect': 'Solutions Architect (아키텍처 설계)',
+                                'software-developer': 'Software Developer (코드 구현)',
+                                'devops-engineer': 'DevOps Engineer (배포/운영)',
+                                'data-engineer': 'Data Engineer (데이터 파이프라인)',
+                                'security-engineer': 'Security Engineer (보안)',
+                            }
+                            role_label = role_labels.get(aws_role, aws_role)
+                            integration_context += f"- AWS Role: {role_label}\n"
+
+                        integration_context += f"- Command: {command}\n"
+                        integration_context += f"- Args: {args}\n"
+                        integration_context += f"- Tools ({len(tools)}개):\n"
+                        for tool in tools[:5]:
+                            integration_context += f"  - {tool.get('name', '')}: {(tool.get('description', '') or '')[:60]}\n"
+                        integration_context += f"- **⚠️ AgentCore 제한**: stdio MCP 서버(uvx, npx)는 AgentCore Runtime에서 직접 실행 불가\n"
+                        integration_context += f"- **대안**: AgentCore Gateway를 사용하여 Lambda/OpenAPI Target으로 동일 기능 구현\n\n"
+
+                    elif source_type == 'self-hosted':
+                        status = deployment.get('status', 'pending')
+                        if status == 'ready':
+                            endpoint = deployment.get('endpointUrl', '')
+                            integration_context += f"- Endpoint URL: {endpoint}\n"
+                            integration_context += f"- Tools ({len(tools)}개):\n"
+                            for tool in tools[:5]:
+                                integration_context += f"  - {tool.get('name', '')}: {(tool.get('description', '') or '')[:60]}\n"
+                            integration_context += f"- **✅ AgentCore 지원**: streamablehttp_client로 연결 가능\n\n"
+                        else:
+                            integration_context += f"- ⚠️ 배포 상태: {status} (배포 필요)\n"
+                            integration_context += f"- **대기 중**: 배포 완료 후 streamablehttp_client 사용 예정\n\n"
+
+                elif int_type == 'gateway':
+                    # AgentCore Gateway 통합
+                    gateway_id = config.get('gatewayId', '')
+                    gateway_url = config.get('gatewayUrl', '')
+                    gateway_status = config.get('gatewayStatus', 'creating')
+                    targets = config.get('targets', [])
+
+                    integration_context += f"- Gateway ID: {gateway_id or '(pending)'}\n"
+                    integration_context += f"- Status: {gateway_status}\n"
+
+                    if gateway_status == 'ready' and gateway_url:
+                        integration_context += f"- Gateway URL: {gateway_url}\n"
+                        integration_context += f"- Targets ({len(targets)}개):\n"
+                        for target in targets[:5]:
+                            target_type = target.get('type', 'unknown')
+                            target_name = target.get('name', 'unnamed')
+                            integration_context += f"  - [{target_type.upper()}] {target_name}\n"
+                        integration_context += f"- **✅ AgentCore 지원**: streamablehttp_client로 Gateway URL에 연결\n\n"
+                    else:
+                        integration_context += f"- **대기 중**: Gateway 배포 완료 후 사용 가능\n\n"
+
             integration_context += """</registered_integrations>
 
 **중요 - 등록된 통합 자동 반영**:
@@ -246,10 +457,101 @@ class ArchitectureAgent:
             temperature=0.3,
             tools=[file_read]
         )
-    
-    def generate_diagrams(self, pattern_result: str, agentcore_result: Optional[str] = None, use_agentcore: bool = False) -> str:
+
+    def _format_integration_context_for_architecture(self, integration_details: list = None) -> str:
+        """통합 정보를 아키텍처 다이어그램용 컨텍스트로 변환"""
+        if not integration_details:
+            return ""
+
+        integration_context = """
+<registered_integrations>
+다음 통합이 등록되어 있습니다. Architecture Flowchart에 외부 서비스 연동으로 반영하세요:
+
+"""
+        for detail in integration_details:
+            int_type = detail.get('type', '')
+            name = detail.get('name', '')
+            config = detail.get('config', {})
+
+            if int_type == 'mcp':
+                server_url = config.get('serverUrl', '')
+                transport = config.get('transport', 'stdio')
+                integration_context += f"- [MCP Server] {name}: {server_url} ({transport})\n"
+            elif int_type == 'api':
+                base_url = config.get('baseUrl', '')
+                auth_type = config.get('authType', 'none')
+                integration_context += f"- [External API] {name}: {base_url} (Auth: {auth_type})\n"
+            elif int_type == 'rag':
+                provider = config.get('provider', '')
+                integration_context += f"- [RAG/KB] {name}: {provider}\n"
+            elif int_type == 's3':
+                bucket = config.get('bucketName', '')
+                integration_context += f"- [S3 Bucket] {name}: s3://{bucket}\n"
+            elif int_type == 'mcp-server':
+                # MCP Server 통합 (external, aws, self-hosted)
+                source = config.get('source', {})
+                source_type = source.get('type', 'external')
+                tools = config.get('tools', [])
+                deployment = config.get('deployment', {})
+                mcp_config = config.get('mcpConfig', {})
+                tool_count = len(tools)
+
+                if source_type in ['external', 'aws']:
+                    command = mcp_config.get('command', '')
+                    # AWS MCP인 경우 역할 정보 표시
+                    env = mcp_config.get('env', {})
+                    aws_role = env.get('AWS_MCP_ROLE', '')
+
+                    if source_type == 'aws' and aws_role:
+                        role_labels = {
+                            'solutions-architect': 'Solutions Architect',
+                            'software-developer': 'Software Developer',
+                            'devops-engineer': 'DevOps Engineer',
+                            'data-engineer': 'Data Engineer',
+                            'security-engineer': 'Security Engineer',
+                        }
+                        role_label = role_labels.get(aws_role, aws_role)
+                        integration_context += f"- [AWS MCP - {role_label}] {name}: {command} ({tool_count} tools)\n"
+                    else:
+                        integration_context += f"- [MCP Server - {source_type}] {name}: {command} ({tool_count} tools)\n"
+                elif source_type == 'self-hosted':
+                    status = deployment.get('status', 'pending')
+                    if status == 'ready':
+                        endpoint = deployment.get('endpointUrl', '')
+                        integration_context += f"- [MCP Server - deployed] {name}: {endpoint} ({tool_count} tools)\n"
+                    else:
+                        integration_context += f"- [MCP Server - pending] {name}: 배포 필요 ({tool_count} tools)\n"
+                else:
+                    integration_context += f"- [MCP Server] {name}: {tool_count} tools\n"
+
+            elif int_type == 'gateway':
+                # AgentCore Gateway 통합
+                gateway_status = config.get('gatewayStatus', 'creating')
+                gateway_url = config.get('gatewayUrl', '')
+                targets = config.get('targets', [])
+                target_count = len(targets)
+
+                if gateway_status == 'ready' and gateway_url:
+                    integration_context += f"- [AgentCore Gateway - ready] {name}: {gateway_url} ({target_count} targets)\n"
+                else:
+                    integration_context += f"- [AgentCore Gateway - pending] {name}: 배포 대기 중 ({target_count} targets)\n"
+
+        integration_context += """
+</registered_integrations>
+
+**중요**: Architecture Flowchart에 위 외부 서비스들과의 연동을 표시하세요.
+- API 통합 → Gateway 또는 직접 호출로 연결
+- MCP 통합 → MCP Server 노드로 표시
+- MCP Server 통합 → MCP Server 노드로 표시 (streamablehttp만 AgentCore 지원)
+- Gateway 통합 → AgentCore Gateway 노드로 표시 (streamablehttp_client로 연결)
+- RAG/S3 → 데이터 저장소 노드로 표시
+"""
+        return integration_context
+
+    def generate_diagrams(self, pattern_result: str, agentcore_result: Optional[str] = None, use_agentcore: bool = False, integration_details: list = None) -> str:
         """다이어그램 생성"""
         agentcore_section = f"\n\nAgentCore: {agentcore_result}" if agentcore_result else ""
+        integration_context = self._format_integration_context_for_architecture(integration_details)
 
         # 호스팅 환경에 따른 아키텍처 지침
         if use_agentcore:
@@ -267,7 +569,7 @@ class ArchitectureAgent:
         prompt = f"""Mermaid 다이어그램 3개를 생성하세요:
 
 패턴: {pattern_result}{agentcore_section}
-
+{integration_context}
 **호스팅 환경**: {"Amazon Bedrock AgentCore" if use_agentcore else "EC2/ECS/EKS (AgentCore 미사용)"}
 
 **필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
@@ -489,9 +791,9 @@ class MultiStageSpecAgent:
         import asyncio
 
         try:
-            # 1단계: 패턴 분석 (0-25%)
+            # 1단계: 패턴 분석 (0-25%) - integration_details 전달
             yield f"data: {json.dumps({'progress': 0, 'stage': '패턴 분석 시작'}, ensure_ascii=False)}\n\n"
-            task = asyncio.create_task(asyncio.to_thread(self.pattern_agent.analyze, analysis))
+            task = asyncio.create_task(asyncio.to_thread(self.pattern_agent.analyze, analysis, integration_details))
             progress = 5
             while not task.done():
                 await asyncio.sleep(3)
@@ -519,10 +821,10 @@ class MultiStageSpecAgent:
             else:
                 yield f"data: {json.dumps({'progress': 50, 'stage': 'AgentCore 건너뜀'}, ensure_ascii=False)}\n\n"
 
-            # 2단계: 아키텍처 (50-75%)
+            # 2단계: 아키텍처 (50-75%) - integration_details 전달
             yield f"data: {json.dumps({'progress': 50, 'stage': '아키텍처 생성 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
-                self.architecture_agent.generate_diagrams, pattern_result, agentcore_result, use_agentcore
+                self.architecture_agent.generate_diagrams, pattern_result, agentcore_result, use_agentcore, integration_details
             ))
             progress = 55
             while not task.done():

@@ -94,7 +94,7 @@ with browser_session("us-west-2") as client:
 
 ### 패턴 2: Nova Act + Browser Tool
 
-Nova LLM이 자연어 명령을 기반으로 브라우저 행동 계획 및 실행:
+**Amazon Nova Act**는 자연어 명령을 브라우저 행동으로 변환하는 AI 에이전트입니다.
 
 ```python
 from nova_act import NovaAct
@@ -109,6 +109,41 @@ with browser_session("us-west-2") as client:
         starting_page="https://www.amazon.com",
     ) as nova_act:
         result = nova_act.act("Search for coffee makers and find the cheapest one.")
+```
+
+**Nova Act SDK 설치:**
+```bash
+pip install nova-act
+```
+
+**Nova Act 주요 기능:**
+
+| 기능 | 설명 |
+|------|------|
+| `act()` | 자연어 명령 실행 |
+| `observe()` | 현재 페이지 상태 분석 |
+| `screenshot()` | 스크린샷 캡처 |
+| `get_page_content()` | 페이지 HTML 추출 |
+
+**복잡한 작업 체인:**
+```python
+with NovaAct(
+    cdp_endpoint_url=ws_url,
+    cdp_headers=headers,
+    nova_act_api_key=NOVA_ACT_API_KEY,
+    starting_page="https://www.example.com",
+) as nova_act:
+    # 1단계: 로그인
+    nova_act.act("Click the login button and enter username 'test@example.com'")
+
+    # 2단계: 검색
+    nova_act.act("Search for 'laptop' in the search bar")
+
+    # 3단계: 필터 적용
+    nova_act.act("Filter by price under $1000 and sort by rating")
+
+    # 4단계: 결과 추출
+    result = nova_act.observe("List the top 5 products with their prices")
 ```
 
 **특징:**
@@ -168,7 +203,7 @@ browser_session = BrowserSession(
 await browser_session.start()
 
 bedrock_chat = ChatBedrockClaude(
-    model_id="anthropic.claude-3-5-sonnet",
+    model_id="global.anthropic.claude-sonnet-4-5-20250929-v1:0",
     region="us-west-2",
 )
 
@@ -185,6 +220,82 @@ result = await agent.run()
 - 멀티 페이지 이동, 복잡한 입력 폼 처리
 - LLM이 페이지 상태를 판단하며 다음 행동 결정
 - 대규모 웹 기반 운영 시스템, 승인 절차 자동화에 적합
+
+## Session Recording & Replay
+
+브라우저 세션을 녹화하여 나중에 재생하거나 디버깅에 활용할 수 있습니다.
+
+### Recording 활성화
+
+```python
+from bedrock_agentcore.tools.browser import browser_session, RecordingConfig
+
+# S3에 녹화 저장
+recording_config = RecordingConfig(
+    enabled=True,
+    s3_bucket="my-browser-recordings",
+    s3_prefix="sessions/",
+    include_screenshots=True,
+    screenshot_interval_ms=1000  # 1초마다 스크린샷
+)
+
+with browser_session("us-west-2", recording_config=recording_config) as client:
+    ws_url, headers = client.generate_ws_headers()
+
+    with sync_playwright() as p:
+        browser = p.chromium.connect_over_cdp(ws_url, headers=headers)
+        page = browser.contexts[0].pages[0]
+
+        page.goto("https://example.com")
+        page.click("#button")
+
+    # 세션 종료 시 자동으로 S3에 업로드
+```
+
+### Recording 구조
+
+S3에 저장되는 녹화 데이터:
+
+```
+s3://my-browser-recordings/sessions/{session_id}/
+├── metadata.json          # 세션 메타데이터
+├── events.jsonl           # CDP 이벤트 로그
+├── screenshots/           # 스크린샷 디렉토리
+│   ├── 0001.png
+│   ├── 0002.png
+│   └── ...
+└── video.webm             # 세션 비디오 (선택)
+```
+
+### Recording 재생
+
+```python
+from bedrock_agentcore.tools.browser import BrowserRecordingPlayer
+
+# 녹화 로드
+player = BrowserRecordingPlayer(
+    s3_bucket="my-browser-recordings",
+    s3_key="sessions/{session_id}/"
+)
+
+# 메타데이터 조회
+metadata = player.get_metadata()
+print(f"Session duration: {metadata['duration_ms']}ms")
+print(f"Total events: {metadata['event_count']}")
+
+# 이벤트 재생
+for event in player.replay_events():
+    print(f"[{event['timestamp']}] {event['type']}: {event['data']}")
+```
+
+### 활용 사례
+
+| 사례 | 설명 |
+|------|------|
+| **디버깅** | 실패한 자동화 작업의 원인 분석 |
+| **감사** | AI 브라우저 행동 기록 및 검토 |
+| **테스트** | 녹화된 세션을 테스트 케이스로 활용 |
+| **교육** | 자동화 프로세스 시연 및 문서화 |
 
 ## DCV Live View
 
