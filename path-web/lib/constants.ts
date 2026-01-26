@@ -34,3 +34,60 @@ export const ERROR_TOLERANCE_OPTIONS = [
   "높은 정확도 필요 (90%+)",
   "매우 높은 정확도 필요 (99%+)",
 ] as const;
+
+// P.A.T.H 4단계 - 기본 정보(P) → 준비도 점검(T) → 패턴 분석(A) → 명세서(H)
+export const STEPS = ["기본 정보", "준비도 점검", "패턴 분석", "명세서"] as const;
+
+// 준비도 레벨 시스템 (점수 → 아이콘 기반 단계)
+export const READINESS_LEVELS = {
+  READY: { icon: "✅", label: "준비됨", min: 8, color: "green", description: "바로 진행 가능" },
+  GOOD: { icon: "🔵", label: "양호", min: 6, color: "blue", description: "약간의 보완으로 충분" },
+  NEEDS_WORK: { icon: "🟡", label: "보완 필요", min: 4, color: "yellow", description: "추가 준비 권장" },
+  PREPARE: { icon: "🟠", label: "준비 필요", min: 0, color: "orange", description: "상당한 준비 필요" },
+} as const;
+
+// Feasibility 항목 이름 매핑 (하위 호환성 유지)
+export const FEASIBILITY_ITEM_NAMES = {
+  data_access: "데이터 접근성",
+  decision_clarity: "판단 명확성",
+  error_tolerance: "오류 허용도",
+  latency: "지연 요구사항",
+  integration: "통합 복잡도",
+} as const;
+
+// 준비도 항목별 상세 정보 (툴팁용)
+export const READINESS_ITEM_DETAILS = {
+  data_access: {
+    name: "데이터 접근성",
+    description: "에이전트가 필요한 데이터에 접근할 수 있는 정도",
+    criteria: "API 존재 여부, 인증 방식, 데이터 형식",
+  },
+  decision_clarity: {
+    name: "판단 명확성",
+    description: "에이전트가 내려야 할 판단의 명확성",
+    criteria: "규칙화 가능 여부, 예시 데이터 존재, 전문가 지식 문서화",
+  },
+  error_tolerance: {
+    name: "오류 허용도",
+    description: "에이전트 실수의 허용 가능 범위",
+    criteria: "검토 프로세스, 롤백 가능 여부, 리스크 수준",
+  },
+  latency: {
+    name: "지연 요구사항",
+    description: "응답 시간에 대한 요구사항",
+    criteria: "실시간 필요 여부, 배치 처리 가능 여부, SLA",
+  },
+  integration: {
+    name: "통합 복잡도",
+    description: "외부 시스템과의 연동 복잡성",
+    criteria: "연동 시스템 수, API 표준화, 인증 복잡도",
+  },
+} as const;
+
+// Feasibility 판정 기준 (하위 호환성 유지)
+export const FEASIBILITY_JUDGMENT = {
+  PROCEED: { min: 40, label: "즉시 진행", emoji: "✅" },
+  CONDITIONAL: { min: 30, label: "조건부 진행", emoji: "⚠️" },
+  REEVALUATE: { min: 20, label: "재평가 필요", emoji: "🔄" },
+  ALTERNATIVE: { min: 0, label: "대안 모색", emoji: "❌" },
+} as const;

@@ -9,21 +9,49 @@ import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
-import type { Analysis, ChatMessage } from "@/lib/types";
-import { PROCESS_STEPS } from "@/lib/constants";
+import type { Analysis, ChatMessage, FeasibilityEvaluation, FeasibilityItemDetail } from "@/lib/types";
+import { PROCESS_STEPS, READINESS_LEVELS, FEASIBILITY_ITEM_NAMES, READINESS_ITEM_DETAILS } from "@/lib/constants";
 
 interface Step3ResultsProps {
   analysis: Analysis;
   chatHistory: ChatMessage[];
   formData: any;
+  feasibility?: FeasibilityEvaluation | null;
   initialSpecification?: string;
   onSave: (specification: string) => Promise<void>;
+}
+
+type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
+
+// 점수에 따른 레벨 반환
+function getReadinessLevel(score: number) {
+  if (score >= 8) return READINESS_LEVELS.READY;
+  if (score >= 6) return READINESS_LEVELS.GOOD;
+  if (score >= 4) return READINESS_LEVELS.NEEDS_WORK;
+  return READINESS_LEVELS.PREPARE;
+}
+
+// 레벨에 따른 배지 스타일
+function getLevelBadgeClass(color: string) {
+  switch (color) {
+    case "green":
+      return "bg-green-100 text-green-800 border-green-200";
+    case "blue":
+      return "bg-blue-100 text-blue-800 border-blue-200";
+    case "yellow":
+      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+    case "orange":
+      return "bg-orange-100 text-orange-800 border-orange-200";
+    default:
+      return "bg-gray-100 text-gray-800 border-gray-200";
+  }
 }
 
 export function Step3Results({
   analysis,
   chatHistory,
   formData,
+  feasibility,
   initialSpecification,
   onSave,
 }: Step3ResultsProps) {
@@ -143,9 +171,22 @@ export function Step3Results({
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <BarChart3 className="h-5 w-5 text-muted-foreground" />
-                <p className="text-base font-medium text-muted-foreground">Feasibility</p>
+                <p className="text-base font-medium text-muted-foreground">준비도</p>
               </div>
-              <p className="text-xl font-bold">{feasibility_score}/50</p>
+              <div className="flex items-center justify-center gap-2">
+                <p className="text-xl font-bold">{feasibility_score}/50</p>
+                {(() => {
+                  // 50점 기준 준비도 레벨 (평균 점수 기준)
+                  const avgScore = feasibility_score / 5;
+                  const level = getReadinessLevel(avgScore);
+                  return (
+                    <Badge variant="outline" className={`${getLevelBadgeClass(level.color)} gap-1`}>
+                      <span>{level.icon}</span>
+                      <span className="text-xs">{level.label}</span>
+                    </Badge>
+                  );
+                })()}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -155,24 +196,29 @@ export function Step3Results({
             <div className="text-center">
               <div className="flex items-center justify-center gap-2 mb-2">
                 <CheckCircle className="h-5 w-5 text-muted-foreground" />
-                <p className="text-base font-medium text-muted-foreground">판정</p>
+                <p className="text-base font-medium text-muted-foreground">다음 단계</p>
               </div>
               <div className="flex items-center justify-center gap-2">
                 {feasibility_score >= 40 ? (
-                  <>
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                    <p className="text-xl font-bold">Go</p>
-                  </>
+                  <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 gap-1 text-base py-1 px-3">
+                    <span>✅</span>
+                    <span>바로 진행</span>
+                  </Badge>
                 ) : feasibility_score >= 30 ? (
-                  <>
-                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                    <p className="text-xl font-bold">조건부</p>
-                  </>
+                  <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100 gap-1 text-base py-1 px-3">
+                    <span>🔵</span>
+                    <span>보완 후 진행</span>
+                  </Badge>
+                ) : feasibility_score >= 20 ? (
+                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 gap-1 text-base py-1 px-3">
+                    <span>🟡</span>
+                    <span>재검토 권장</span>
+                  </Badge>
                 ) : (
-                  <>
-                    <RefreshCw className="h-5 w-5 text-red-600" />
-                    <p className="text-xl font-bold">개선 필요</p>
-                  </>
+                  <Badge className="bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100 gap-1 text-base py-1 px-3">
+                    <span>🟠</span>
+                    <span>준비 필요</span>
+                  </Badge>
                 )}
               </div>
             </div>
@@ -318,6 +364,97 @@ export function Step3Results({
               )}
             </CardContent>
           </Card>
+
+          {/* Step 2: 준비도 점검 결과 (feasibility 데이터가 있을 때만 표시) */}
+          {feasibility && (
+            <Card>
+              <CardContent className="pt-6 space-y-6">
+                <div>
+                  <h3 className="font-semibold mb-4 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    준비도 점검 결과
+                  </h3>
+
+                  {/* Summary */}
+                  <div className="bg-muted/50 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-muted-foreground">{feasibility.summary}</p>
+                  </div>
+
+                  {/* Item Breakdown */}
+                  <div className="space-y-3">
+                    {(
+                      Object.entries(feasibility.feasibility_breakdown) as [
+                        ReadinessKey,
+                        FeasibilityItemDetail,
+                      ][]
+                    ).map(([key, item]) => {
+                      const level = getReadinessLevel(item.score);
+                      const details = READINESS_ITEM_DETAILS[key];
+
+                      return (
+                        <div key={key} className="border rounded-lg p-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge
+                              variant="outline"
+                              className={`${getLevelBadgeClass(level.color)} gap-1`}
+                            >
+                              <span>{level.icon}</span>
+                              <span>{level.label}</span>
+                            </Badge>
+                            <span className="font-medium text-sm">{details.name}</span>
+                            <span className="text-xs text-muted-foreground ml-auto">{item.score}/10</span>
+                          </div>
+                          <p className="text-sm text-muted-foreground">{item.reason}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Weak Items with Improvement Suggestions */}
+                {feasibility.weak_items && feasibility.weak_items.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        개선 제안
+                      </h4>
+                      <div className="space-y-2">
+                        {feasibility.weak_items.map((weak, idx) => (
+                          <div key={idx} className="bg-amber-50 dark:bg-amber-950 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{weak.item}</p>
+                            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">{weak.improvement_suggestion}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Risks from Feasibility */}
+                {feasibility.risks && feasibility.risks.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <AlertTriangle className="h-4 w-4 text-red-600" />
+                        준비도 리스크
+                      </h4>
+                      <ul className="space-y-1">
+                        {feasibility.risks.map((risk, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-sm">
+                            <span className="text-red-500">•</span>
+                            <span className="text-red-700 dark:text-red-300">{risk}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardContent className="pt-6 space-y-6">

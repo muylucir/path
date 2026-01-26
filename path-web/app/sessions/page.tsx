@@ -118,6 +118,33 @@ export default function SessionsPage() {
         next_steps: session.next_steps,
       }));
 
+      // Store feasibility for the new 4-step flow
+      if (session.feasibility_evaluation) {
+        // 새 세션: 상세 준비도 점검 결과 사용
+        sessionStorage.setItem("feasibility", JSON.stringify(session.feasibility_evaluation));
+      } else if (session.feasibility_breakdown) {
+        // 레거시 세션: 숫자만 있는 데이터를 상세 구조로 변환
+        const convertedBreakdown: Record<string, { score: number; reason: string; current_state: string }> = {};
+        for (const [key, value] of Object.entries(session.feasibility_breakdown)) {
+          const score = typeof value === 'number' ? value : 0;
+          convertedBreakdown[key] = {
+            score,
+            reason: "기존 세션에서 로드됨 (상세 정보 없음)",
+            current_state: score >= 8 ? "준비됨" : score >= 6 ? "양호" : score >= 4 ? "보완 필요" : "준비 필요",
+          };
+        }
+        sessionStorage.setItem("feasibility", JSON.stringify({
+          feasibility_breakdown: convertedBreakdown,
+          feasibility_score: session.feasibility_score,
+          judgment: session.feasibility_score >= 40 ? "즉시 진행" :
+                    session.feasibility_score >= 30 ? "조건부 진행" :
+                    session.feasibility_score >= 20 ? "재평가 필요" : "대안 모색",
+          weak_items: [],
+          risks: session.risks || [],
+          summary: session.recommendation || "",
+        }));
+      }
+
       // Store session ID for update capability
       sessionStorage.setItem("currentSessionId", sessionId);
 

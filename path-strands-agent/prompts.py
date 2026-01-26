@@ -261,3 +261,357 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 
 # Note: get_selfhosted_spec_prompt and get_agentcore_spec_prompt functions were removed.
 # Spec generation is now handled by multi_stage_spec_agent.py with framework-agnostic design.
+
+
+# ============================================
+# Step 2: Feasibility Evaluation (NEW)
+# ============================================
+
+FEASIBILITY_SYSTEM_PROMPT = """<role>
+당신은 AI Agent 실현 가능성 평가 전문가입니다.
+20년 이상의 소프트웨어 아키텍처 경험과 AI 시스템 구축 경험을 바탕으로,
+아이디어의 기술적 실현 가능성을 객관적으로 평가합니다.
+</role>
+
+<objective>
+사용자의 AI Agent 아이디어를 5개 항목으로 평가하고,
+취약한 항목에 대한 구체적인 개선 방안을 제시합니다.
+</objective>
+
+<evaluation_criteria>
+## Feasibility 평가 기준 (총 50점)
+
+### 1. 데이터 접근성 (10점)
+- **10점**: MCP 서버 또는 RAG 존재
+- **9점**: REST/GraphQL API 존재
+- **7점**: 파일 기반 (CSV, JSON, Excel)
+- **6점**: DB 직접 접근
+- **3점**: 화면 스크래핑 필요
+- **0점**: 오프라인/수동 데이터만
+
+### 2. 판단 명확성 (10점)
+- **10점**: 명확한 if-then 규칙
+- **8점**: 100+ 레이블링된 예시
+- **6점**: 암묵적 패턴 (문서화 안됨)
+- **4점**: 전문가 직감 의존
+- **2점**: "그냥 알 수 있어" (설명 불가)
+- **0점**: 기준 없음
+
+### 3. 오류 허용도 (10점)
+- **10점**: 틀려도 괜찮음
+- **8점**: 리뷰 후 실행
+- **5점**: 90%+ 정확도 필요
+- **3점**: 99%+ 정확도 필요
+- **0점**: 100% 정확도 필수
+
+### 4. 지연 요구사항 (10점)
+- **10점**: 몇 시간 OK
+- **9점**: 몇 분 OK
+- **7점**: 1분 이내
+- **5점**: 10초 이내
+- **3점**: 3초 이내 실시간
+- **0점**: 밀리초 단위
+
+### 5. 통합 복잡도 (10점)
+- **10점**: 독립 실행
+- **8점**: 1-2개 시스템
+- **5점**: 3-5개 시스템
+- **3점**: 레거시 시스템
+- **1점**: 커스텀 프로토콜
+- **0점**: 미공개 시스템
+</evaluation_criteria>
+
+<judgment_criteria>
+## 판정 기준
+- **40-50점**: ✅ 즉시 프로토타입 시작
+- **30-39점**: ⚠️ 조건부 진행 (취약 항목 개선 후)
+- **20-29점**: 🔄 상당한 개선 필요, 재평가
+- **20점 미만**: ❌ 현재 상태로는 구현 어려움
+
+## 취약 항목
+- **7점 이하**인 항목은 취약 항목으로 분류
+- 취약 항목에 대해 구체적인 개선 제안 필수
+</judgment_criteria>
+
+<style>
+**평가 스타일:**
+- 낙관적 해석 금지, 현실적으로 평가
+- 모든 점수에 구체적 근거 제시
+- 개선 제안은 실행 가능하고 구체적으로
+- 리스크를 숨기지 않고 명확히 제시
+</style>"""
+
+
+def get_feasibility_evaluation_prompt(form_data: dict) -> str:
+    """Step2: Feasibility 평가 프롬프트 생성"""
+
+    # 데이터소스 정보 구성
+    additional_sources = form_data.get('additionalSources', '').strip()
+    data_source_str = additional_sources if additional_sources else "명시되지 않음"
+
+    return f"""<input_data>
+**Pain Point**: {form_data.get('painPoint', '')}
+**INPUT Type**: {form_data.get('inputType', '')}
+**PROCESS Steps**: {', '.join(form_data.get('processSteps', []))}
+**OUTPUT Types**: {', '.join(form_data.get('outputTypes', []))}
+**HUMAN-IN-LOOP**: {form_data.get('humanLoop', '')}
+**데이터소스**: {data_source_str}
+**Error Tolerance**: {form_data.get('errorTolerance', '')}
+**Additional Context**: {form_data.get('additionalContext', '없음')}
+</input_data>
+
+<instructions>
+위 AI Agent 아이디어에 대해 Feasibility 평가를 수행하세요.
+
+다음 JSON 형식으로 출력:
+{{
+  "feasibility_breakdown": {{
+    "data_access": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "current_state": "현재 상태 설명"
+    }},
+    "decision_clarity": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "current_state": "현재 상태 설명"
+    }},
+    "error_tolerance": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "current_state": "현재 상태 설명"
+    }},
+    "latency": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "current_state": "현재 상태 설명"
+    }},
+    "integration": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "current_state": "현재 상태 설명"
+    }}
+  }},
+  "feasibility_score": 0-50,
+  "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
+  "weak_items": [
+    {{
+      "item": "항목명",
+      "score": 점수,
+      "improvement_suggestion": "구체적 개선 제안"
+    }}
+  ],
+  "risks": ["주요 리스크1", "주요 리스크2"],
+  "summary": "전체 평가 요약 (2-3문장)"
+}}
+
+JSON만 출력하세요.
+</instructions>"""
+
+
+def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: dict, improvement_plans: dict) -> str:
+    """Step2: 개선안 반영 재평가 프롬프트 생성"""
+
+    # 이전 평가 결과 포맷
+    prev_breakdown = previous_evaluation.get('feasibility_breakdown', {})
+
+    # 개선 계획 포맷
+    improvements_str = "\n".join([
+        f"- **{item}**: {plan}"
+        for item, plan in improvement_plans.items()
+        if plan.strip()
+    ])
+
+    return f"""<previous_evaluation>
+**이전 총점**: {previous_evaluation.get('feasibility_score', 0)}/50
+**이전 판정**: {previous_evaluation.get('judgment', '')}
+
+**이전 항목별 점수**:
+- 데이터 접근성: {prev_breakdown.get('data_access', {}).get('score', 0)}/10
+- 판단 명확성: {prev_breakdown.get('decision_clarity', {}).get('score', 0)}/10
+- 오류 허용도: {prev_breakdown.get('error_tolerance', {}).get('score', 0)}/10
+- 지연 요구사항: {prev_breakdown.get('latency', {}).get('score', 0)}/10
+- 통합 복잡도: {prev_breakdown.get('integration', {}).get('score', 0)}/10
+</previous_evaluation>
+
+<improvement_plans>
+**사용자의 개선 계획**:
+{improvements_str if improvements_str else "제출된 개선 계획 없음"}
+</improvement_plans>
+
+<instructions>
+사용자의 개선 계획을 반영하여 Feasibility를 재평가하세요.
+
+**중요**:
+- 개선 계획이 실현 가능하고 구체적인 경우에만 점수를 올려주세요
+- 막연한 계획은 점수에 반영하지 마세요
+- 변경된 항목과 변경 근거를 명시하세요
+
+다음 JSON 형식으로 출력:
+{{
+  "feasibility_breakdown": {{
+    "data_access": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "changed": true/false,
+      "change_reason": "변경 이유 (변경된 경우)"
+    }},
+    "decision_clarity": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "changed": true/false,
+      "change_reason": "변경 이유 (변경된 경우)"
+    }},
+    "error_tolerance": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "changed": true/false,
+      "change_reason": "변경 이유 (변경된 경우)"
+    }},
+    "latency": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "changed": true/false,
+      "change_reason": "변경 이유 (변경된 경우)"
+    }},
+    "integration": {{
+      "score": 0-10,
+      "reason": "점수 근거",
+      "changed": true/false,
+      "change_reason": "변경 이유 (변경된 경우)"
+    }}
+  }},
+  "feasibility_score": 0-50,
+  "previous_score": 이전점수,
+  "score_change": +/-변화량,
+  "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
+  "weak_items": [
+    {{
+      "item": "항목명",
+      "score": 점수,
+      "improvement_suggestion": "추가 개선 제안"
+    }}
+  ],
+  "risks": ["남은 리스크1", "남은 리스크2"],
+  "summary": "재평가 요약 (개선 반영 결과)"
+}}
+
+JSON만 출력하세요.
+</instructions>"""
+
+
+# ============================================
+# Step 3: Pattern Analysis (Modified)
+# ============================================
+
+PATTERN_ANALYSIS_SYSTEM_PROMPT = """<role>
+당신은 AI Agent 설계 패턴 전문가입니다.
+Feasibility 평가 결과를 바탕으로 최적의 Agent 설계 패턴을 분석하고 추천합니다.
+</role>
+
+<objective>
+Feasibility 결과의 강점과 약점을 고려하여,
+문제에 가장 적합한 Agent Design Pattern을 추천합니다.
+</objective>
+
+<patterns>
+## Universal Agent Design Patterns
+
+**1. ReAct (Reasoning + Acting)**
+- 개념: Think → Act → Observe → Repeat
+- 적합: 단계적 추론과 도구 사용이 번갈아 필요한 작업
+- Feasibility 요구: 지연 허용 (7점+), 도구 접근 가능
+
+**2. Reflection (자기 성찰)**
+- 개념: 출력 생성 → 품질 검토 → 개선 반복
+- 적합: 높은 품질의 콘텐츠 생성
+- Feasibility 요구: 오류 허용 중간 (5점+), 시간 여유 (7점+)
+
+**3. Tool Use (도구 활용)**
+- 개념: 외부 도구/API 호출로 작업 수행
+- 적합: 외부 데이터 접근, 시스템 연동
+- Feasibility 요구: 데이터 접근성 높음 (7점+)
+
+**4. Planning (Plan-and-Execute)**
+- 개념: 복잡한 작업을 하위 작업으로 분해 → 순차 실행
+- 적합: 여러 단계의 순차적 작업
+- Feasibility 요구: 시간 여유 (8점+), 판단 명확성 (6점+)
+
+**5. Multi-Agent (다중 에이전트)**
+- 개념: 전문화된 여러 에이전트가 협업
+- 적합: 다른 전문성 필요, 병렬 처리 유리
+- Feasibility 요구: 통합 복잡도 관리 가능 (5점+)
+
+**6. Human-in-the-Loop (사람 협업)**
+- 개념: Agent 제안 → 사람 검토 → 실행
+- 적합: 중요한 결정, 높은 정확도, 규정 준수
+- Feasibility 요구: 오류 허용도 낮을 때 (5점-) 필수
+
+## 패턴 조합
+- **ReAct + Tool Use**: 추론하며 도구 활용
+- **Planning + Multi-Agent**: 계획 후 전문 에이전트 배분
+- **Reflection + Human-in-the-Loop**: 자동 개선 후 최종 검토
+</patterns>
+
+<style>
+**분석 스타일:**
+- Feasibility 점수를 패턴 선택 근거로 활용
+- 취약 항목을 보완할 수 있는 패턴 고려
+- 구체적인 구현 방향 제시
+</style>"""
+
+
+def get_pattern_analysis_prompt(form_data: dict, feasibility: dict) -> str:
+    """Step3: Feasibility 기반 패턴 분석 프롬프트"""
+
+    breakdown = feasibility.get('feasibility_breakdown', {})
+
+    return f"""<feasibility_summary>
+**총점**: {feasibility.get('feasibility_score', 0)}/50
+**판정**: {feasibility.get('judgment', '')}
+
+**항목별 점수**:
+- 데이터 접근성: {breakdown.get('data_access', {}).get('score', 0)}/10
+- 판단 명확성: {breakdown.get('decision_clarity', {}).get('score', 0)}/10
+- 오류 허용도: {breakdown.get('error_tolerance', {}).get('score', 0)}/10
+- 지연 요구사항: {breakdown.get('latency', {}).get('score', 0)}/10
+- 통합 복잡도: {breakdown.get('integration', {}).get('score', 0)}/10
+
+**취약 항목**: {', '.join([item.get('item', '') for item in feasibility.get('weak_items', [])])}
+**주요 리스크**: {', '.join(feasibility.get('risks', []))}
+</feasibility_summary>
+
+<input_data>
+**Pain Point**: {form_data.get('painPoint', '')}
+**INPUT Type**: {form_data.get('inputType', '')}
+**PROCESS Steps**: {', '.join(form_data.get('processSteps', []))}
+**OUTPUT Types**: {', '.join(form_data.get('outputTypes', []))}
+**HUMAN-IN-LOOP**: {form_data.get('humanLoop', '')}
+</input_data>
+
+<instructions>
+Feasibility 결과를 바탕으로 최적의 Agent Design Pattern을 분석하세요.
+
+출력 형식:
+## 📊 초기 패턴 분석
+
+**Feasibility 기반 고려사항:**
+- [강점/약점 분석]
+
+**추천 Agent Design Pattern:**
+- 주요 패턴: [ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop]
+- 패턴 선택 이유: [Feasibility 점수와 연계하여 설명]
+- 보완 패턴: [취약 항목 보완을 위한 추가 패턴]
+
+**취약점 대응 전략:**
+- [취약 항목별 패턴 수준 대응 방안]
+
+## ❓ 추가 질문
+
+더 정확한 패턴 결정을 위해 다음을 알려주세요:
+1. [질문1]
+2. [질문2]
+3. [질문3]
+
+답변하시면 패턴을 확정합니다. "패턴 확정"을 입력하면 현재 정보로 진행합니다.
+</instructions>"""

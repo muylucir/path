@@ -7,21 +7,22 @@ import { StepIndicator } from "@/components/layout/StepIndicator";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { RefreshCw, ArrowLeft } from "lucide-react";
-import type { Analysis, ChatMessage } from "@/lib/types";
-
-const STEPS = ["기본 정보", "Claude 분석", "결과 확인"];
+import { STEPS } from "@/lib/constants";
+import type { Analysis, ChatMessage, FeasibilityEvaluation } from "@/lib/types";
 
 export default function ResultsPage() {
   const router = useRouter();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [formData, setFormData] = useState<any>(null);
+  const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
   const [specification, setSpecification] = useState<string>("");
 
   useEffect(() => {
     const analysisData = sessionStorage.getItem("analysis");
     const chatData = sessionStorage.getItem("chatHistory");
     const formDataStr = sessionStorage.getItem("formData");
+    const feasibilityStr = sessionStorage.getItem("feasibility");
     const specData = sessionStorage.getItem("specification");
 
     if (!analysisData || !formDataStr) {
@@ -32,6 +33,7 @@ export default function ResultsPage() {
     setAnalysis(JSON.parse(analysisData));
     setChatHistory(chatData ? JSON.parse(chatData) : []);
     setFormData(JSON.parse(formDataStr));
+    setFeasibility(feasibilityStr ? JSON.parse(feasibilityStr) : null);
     setSpecification(specData || "");
   }, [router]);
 
@@ -91,6 +93,8 @@ export default function ResultsPage() {
           user_output_types: formData.outputTypes || [],
           // 선택한 통합 정보
           integration_details: integrationDetails,
+          // Step 2 상세 준비도 점검 결과
+          feasibility_evaluation: feasibility,
         };
 
         const response = await fetch("/api/sessions", {
@@ -131,7 +135,7 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
         {/* 세션 목록으로 돌아가기 버튼 */}
         <div className="mb-4">
           <Button
@@ -144,13 +148,14 @@ export default function ResultsPage() {
           </Button>
         </div>
         
-        <StepIndicator currentStep={3} steps={STEPS} />
+        <StepIndicator currentStep={4} steps={[...STEPS]} />
         
         <div className="mt-8 space-y-6">
           <Step3Results
             analysis={analysis}
             chatHistory={chatHistory}
             formData={formData}
+            feasibility={feasibility}
             initialSpecification={specification}
             onSave={handleSave}
           />

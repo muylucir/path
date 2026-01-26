@@ -2,23 +2,32 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Step2Analysis } from "@/components/steps/Step2Analysis";
+import { Step3PatternAnalysis } from "@/components/steps/Step3PatternAnalysis";
 import { StepIndicator } from "@/components/layout/StepIndicator";
-import type { ChatMessage, Analysis } from "@/lib/types";
-
-const STEPS = ["기본 정보", "Claude 분석", "결과 확인"];
+import { STEPS } from "@/lib/constants";
+import type { ChatMessage, Analysis, FeasibilityEvaluation } from "@/lib/types";
 
 export default function AnalyzePage() {
   const router = useRouter();
   const [formData, setFormData] = useState<any>(null);
+  const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
 
   useEffect(() => {
-    const data = sessionStorage.getItem("formData");
-    if (!data) {
+    const formDataStr = sessionStorage.getItem("formData");
+    const feasibilityStr = sessionStorage.getItem("feasibility");
+
+    if (!formDataStr) {
       router.push("/");
       return;
     }
-    setFormData(JSON.parse(data));
+
+    if (!feasibilityStr) {
+      router.push("/feasibility");
+      return;
+    }
+
+    setFormData(JSON.parse(formDataStr));
+    setFeasibility(JSON.parse(feasibilityStr));
   }, [router]);
 
   const handleComplete = (chatHistory: ChatMessage[], analysis: Analysis) => {
@@ -27,7 +36,7 @@ export default function AnalyzePage() {
     router.push("/results");
   };
 
-  if (!formData) {
+  if (!formData || !feasibility) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">로딩 중...</div>
@@ -37,10 +46,14 @@ export default function AnalyzePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto px-4 py-6 max-w-5xl">
-        <StepIndicator currentStep={2} steps={STEPS} />
+      <div className="container mx-auto px-4 py-6 max-w-7xl">
+        <StepIndicator currentStep={3} steps={[...STEPS]} />
         <div className="mt-8">
-          <Step2Analysis formData={formData} onComplete={handleComplete} />
+          <Step3PatternAnalysis
+            formData={formData}
+            feasibility={feasibility}
+            onComplete={handleComplete}
+          />
         </div>
       </div>
     </div>
