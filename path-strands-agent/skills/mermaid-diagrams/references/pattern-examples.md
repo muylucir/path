@@ -1,4 +1,6 @@
-# Strands Agent 패턴별 다이어그램
+# Agent 패턴별 다이어그램
+
+프레임워크 독립적인 Agent 워크플로우 다이어그램 예제입니다.
 
 ## 1. Sequential Pipeline (순차 파이프라인)
 
@@ -36,75 +38,142 @@ graph TD
 
 ```mermaid
 graph TD
-    A[Draft Writer] --> B[Reviewer]
-    B --> C{Quality Check}
-    C -->|Needs Revision| A
-    C -->|Approved| D[Publisher]
+    A[Generator] --> B[Reviewer]
+    B --> C{"Quality >= 8?"}
+    C -->|No| A
+    C -->|Yes| D[Final Output]
 ```
 
-## 5. Multi-Agent with Tools (도구 통합)
+## 5. ReAct Pattern (추론 + 행동)
 
 ```mermaid
 graph TD
-    A[Orchestrator] --> B[Data Collector]
-    B --> C[GitHub API]
-    B --> D[LinkedIn API]
-    B --> E[Resume Parser]
-    C --> F[Analyzer]
-    D --> F
-    E --> F
-    F --> G[Report Generator]
+    Input([User Query]) --> Think[Think: Analyze]
+    Think --> Act[Act: Use Tool]
+    Act --> Observe[Observe: Check Result]
+    Observe --> Done{"Goal Achieved?"}
+    Done -->|No| Think
+    Done -->|Yes| Output([Final Answer])
+```
+
+## 6. Multi-Agent Collaboration (협업)
+
+```mermaid
+graph TD
+    A[Coordinator] --> B[Researcher]
+    A --> C[Writer]
+    A --> D[Editor]
+    B --> E[Knowledge Base]
+    B --> Collect[Collect Results]
+    C --> Collect
+    D --> Collect
+    Collect --> F[Final Document]
+```
+
+## 7. Human-in-the-Loop (사람 개입)
+
+```mermaid
+graph TD
+    Start([Request]) --> Agent[Agent Analysis]
+    Agent --> Proposal[Generate Proposal]
+    Proposal --> Human{Human Review}
+    Human -->|Approve| Execute[Execute Action]
+    Human -->|Reject| Agent
+    Human -->|Modify| Edit[Edit Proposal]
+    Edit --> Human
+    Execute --> End([Complete])
+
+    style Human fill:#FFF3E0,stroke:#F57C00,stroke-width:2px
+```
+
+## 8. Tool Use Pattern (도구 활용)
+
+```mermaid
+graph TD
+    Input([User Request]) --> Agent[Agent]
+    Agent --> Decide{Which Tool?}
+    Decide -->|Search| Search[Search Tool]
+    Decide -->|Calculate| Calc[Calculator]
+    Decide -->|Query| DB[(Database)]
+    Search --> Process[Process Results]
+    Calc --> Process
+    DB --> Process
+    Process --> Output([Response])
 ```
 
 ## 실전 예제: 이메일 자동화 Agent
 
 ```mermaid
 graph TD
-    Start([Email Trigger]) --> Classify[Classifier Agent]
-    Classify --> Urgent{Urgent?}
-    Urgent -->|Yes| Priority[Priority Handler]
-    Urgent -->|No| Normal[Normal Handler]
-    Priority --> Template[Template Retriever]
+    Start([Email Received]) --> Classify[Classifier Agent]
+    Classify --> Urgent{"Priority?"}
+    Urgent -->|High| Priority[Urgent Handler]
+    Urgent -->|Normal| Normal[Standard Handler]
+    Priority --> Template[Get Template]
     Normal --> Template
-    Template --> Generate[Response Generator]
-    Generate --> Review[Quality Reviewer]
-    Review --> Check{Quality > 70?}
-    Check -->|No| Generate
-    Check -->|Yes| Send[Send Email]
+    Template --> Generate[Generate Response]
+    Generate --> Review[Quality Check]
+    Review --> Quality{"Score >= 7?"}
+    Quality -->|No| Generate
+    Quality -->|Yes| Send[Send Email]
     Send --> End([Complete])
 
     style Start fill:#E3F2FD
     style End fill:#E8F5E9
     style Urgent fill:#FFF3E0
-    style Check fill:#FFF3E0
+    style Quality fill:#FFF3E0
 ```
 
-## 실전 예제: AgentCore 통합
+## 실전 예제: 콘텐츠 제작 파이프라인
 
 ```mermaid
 graph TD
-    User([User Input]) --> Runtime[AgentCore Runtime]
-    Runtime --> Memory[(AgentCore Memory)]
-    Runtime --> Agent[Strands Agent]
+    Topic([Topic Input]) --> Research[Researcher Agent]
+    Research --> Sources[(External Sources)]
+    Sources --> Research
+    Research --> Draft[Writer Agent]
+    Draft --> Review[Editor Agent]
+    Review --> Check{"Approved?"}
+    Check -->|Needs Work| Feedback[Feedback]
+    Feedback --> Draft
+    Check -->|Approved| Publish[Publisher Agent]
+    Publish --> Output([Published Content])
 
-    Agent --> Gateway[AgentCore Gateway]
-    Gateway --> Tool1[Calculator]
-    Gateway --> Tool2[Weather API]
-    Gateway --> Tool3[Database]
+    style Topic fill:#E3F2FD
+    style Output fill:#E8F5E9
+```
 
-    Agent --> Browser[AgentCore Browser]
-    Agent --> CodeInt[Code Interpreter]
+## 실전 예제: 데이터 분석 시스템
 
-    Memory --> Agent
-    Tool1 --> Agent
-    Tool2 --> Agent
-    Tool3 --> Agent
-    Browser --> Agent
-    CodeInt --> Agent
+```mermaid
+flowchart TB
+    subgraph Input
+        UI[User Interface]
+        API[API]
+    end
 
-    Agent --> Response([Response])
+    subgraph Processing
+        Coordinator[Coordinator Agent]
+        Analyzer[Data Analyzer]
+        Visualizer[Chart Generator]
+    end
 
-    style Runtime fill:#E3F2FD,stroke:#1976D2,stroke-width:3px
-    style Memory fill:#FFF3E0,stroke:#F57C00,stroke-width:2px
-    style Gateway fill:#FFF3E0,stroke:#F57C00,stroke-width:2px
+    subgraph External
+        DB[(Database)]
+        FileStore[File Storage]
+    end
+
+    subgraph Output
+        Report[Report]
+        Dashboard[Dashboard]
+    end
+
+    UI --> Coordinator
+    API --> Coordinator
+    Coordinator --> Analyzer
+    Coordinator --> Visualizer
+    Analyzer --> DB
+    Analyzer --> FileStore
+    Visualizer --> Report
+    Visualizer --> Dashboard
 ```

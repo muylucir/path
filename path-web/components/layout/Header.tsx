@@ -16,7 +16,7 @@ export function Header() {
               <Bot className="h-7 w-7" />
               <h1 className="text-xl font-bold">P.A.T.H Agent Designer</h1>
             </Link>
-            
+
             <nav className="flex items-center gap-4">
               <Link
                 href="/"
@@ -35,14 +35,6 @@ export function Header() {
                 세션 목록
               </Link>
               <Link
-                href="/settings"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === "/settings" ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                통합 설정
-              </Link>
-              <Link
                 href="/framework"
                 className={`text-sm font-medium transition-colors hover:text-primary ${
                   pathname === "/framework" ? "text-primary" : "text-muted-foreground"
@@ -50,27 +42,9 @@ export function Header() {
               >
                 프레임워크
               </Link>
-              <Link
-                href="/code-jobs"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === "/code-jobs" ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                코드 생성 작업
-              </Link>
-              <Link
-                href="/deployments"
-                className={`text-sm font-medium transition-colors hover:text-primary ${
-                  pathname === "/deployments" || pathname.startsWith("/playground")
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-              >
-                배포 관리
-              </Link>
             </nav>
           </div>
-          
+
           <p className="text-sm text-muted-foreground hidden md:block">
             AI Agent 아이디어를 프로토타입으로
           </p>

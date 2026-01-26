@@ -1,38 +1,31 @@
 """
-Multi-Stage Spec Agents - 명세서 생성을 4개 Agent로 분할 (순차 호출)
+Multi-Stage Spec Agents - 명세서 생성을 3개 Agent로 분할 (순차 호출)
 
-순서: PatternAgent → AgentCoreAgent → ArchitectureAgent → AssemblerAgent
+순서: DesignAgent → DiagramAgent → DetailAgent → AssemblerAgent
+
+프레임워크 독립적 Agent 설계 명세서 생성
 """
 
 from strands import Agent
 from strands.models import BedrockModel
-from typing import Dict, Any, Optional, AsyncIterator
+from typing import Dict, Any, AsyncIterator
 import json
 from strands_tools import file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
 
-# 공통 모델 설정
-def get_bedrock_model(max_tokens: int = 8192) -> BedrockModel:
-    """공통 Bedrock 모델 설정"""
-    return BedrockModel(
-        model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
-        max_tokens=max_tokens,
-        temperature=0.3
-    )
 
-
-class PatternAgent:
-    """1단계: 패턴 분석 Agent"""
+class DesignAgent:
+    """1단계: Agent 설계 (프레임워크 독립적)"""
 
     def __init__(self):
         skills = discover_skills("./skills")
         skill_prompt = generate_skills_prompt(skills)
 
-        system_prompt = """당신은 Strands Agent 패턴 전문가입니다."""
+        system_prompt = """당신은 AI Agent 설계 전문가입니다.
+프레임워크에 독립적인 Agent 아키텍처를 설계합니다."""
         enhanced_prompt = system_prompt + "\n" + skill_prompt
 
-        # strands_utils 사용하여 Agent 생성 (tool 호환성 보장)
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
@@ -41,415 +34,56 @@ class PatternAgent:
             tools=[file_read]
         )
 
-    def _categorize_integrations(self, integration_details: list = None) -> dict:
-        """통합을 모드별로 분류 (Gateway Mode vs Standalone MCP Mode)"""
-        if not integration_details:
-            return {'gateway': [], 'standalone_mcp': [], 'rag': [], 's3': [], 'others': []}
+    def analyze(self, analysis: Dict[str, Any]) -> str:
+        """Agent 설계"""
 
-        categorized = {
-            'gateway': [],          # Gateway 통합 (API/Lambda/MCP 타겟 포함)
-            'standalone_mcp': [],   # Self-hosted/template MCP 서버 (배포됨)
-            'rag': [],              # RAG / Knowledge Base
-            's3': [],               # S3 저장소
-            'others': [],           # 기타 (직접 호출)
-        }
-
-        for detail in integration_details:
-            int_type = detail.get('type', '')
-            config = detail.get('config', {})
-
-            if int_type == 'gateway':
-                categorized['gateway'].append(detail)
-            elif int_type == 'mcp-server':
-                source = config.get('source', {})
-                source_type = source.get('type', 'external')
-                deployment = config.get('deployment', {})
-
-                # AgentCore 배포 가능 여부 확인 (self-hosted/template만)
-                if source_type in ['self-hosted', 'template']:
-                    status = deployment.get('status', 'pending')
-                    if status == 'ready':
-                        categorized['standalone_mcp'].append(detail)
-                    # pending 상태는 Others로
-                    else:
-                        categorized['others'].append(detail)
-                # external/aws는 Step1에서 필터링되어 여기 도달하지 않지만 안전장치
-            elif int_type == 'rag':
-                categorized['rag'].append(detail)
-            elif int_type == 's3':
-                categorized['s3'].append(detail)
-            else:
-                categorized['others'].append(detail)
-
-        return categorized
-
-    def _format_integration_context(self, integration_details: list = None) -> str:
-        """통합 정보를 프롬프트용 컨텍스트로 변환 (2가지 모드 명확히 구분)"""
-        if not integration_details:
-            return ""
-
-        categorized = self._categorize_integrations(integration_details)
-
-        integration_context = """
-<registered_integrations>
-다음 통합이 등록되어 있습니다. Agent Components 테이블의 Tools 컬럼에 반영하세요:
-
-## Gateway Mode (streamablehttp_client로 Gateway URL에 연결)
-"""
-        # Gateway 통합
-        for detail in categorized['gateway']:
-            name = detail.get('name', '')
-            config = detail.get('config', {})
-            gateway_status = config.get('gatewayStatus', 'creating')
-            gateway_url = config.get('gatewayUrl', '')
-            targets = config.get('targets', [])
-
-            if gateway_status == 'ready' and gateway_url:
-                target_summary = []
-                for target in targets[:3]:
-                    target_type = target.get('type', 'unknown')
-                    target_name = target.get('name', 'unnamed')
-                    target_summary.append(f"{target_type}:{target_name}")
-                integration_context += f"- [Gateway Mode] {name}: {gateway_url} ({', '.join(target_summary)})\n"
-            else:
-                integration_context += f"- [Gateway Mode - pending] {name}: 배포 대기 중\n"
-
-        if not categorized['gateway']:
-            integration_context += "- (등록된 Gateway 없음)\n"
-
-        integration_context += """
-## Standalone MCP Mode (streamablehttp_client로 MCP Runtime URL에 연결)
-"""
-        # Standalone MCP 통합
-        for detail in categorized['standalone_mcp']:
-            name = detail.get('name', '')
-            config = detail.get('config', {})
-            tools = config.get('tools', [])
-            deployment = config.get('deployment', {})
-            endpoint = deployment.get('endpointUrl', '')
-            tool_names = [t.get('name', '') for t in tools[:5]]
-            integration_context += f"- [Standalone MCP] {name}: {endpoint} ({', '.join(tool_names)})\n"
-
-        if not categorized['standalone_mcp']:
-            integration_context += "- (등록된 Standalone MCP 없음)\n"
-
-        integration_context += """
-## 데이터 소스 (boto3 직접 호출)
-"""
-        # RAG/S3 통합
-        for detail in categorized['rag']:
-            name = detail.get('name', '')
-            integration_context += f"- [RAG] {name}: Knowledge Base 검색 (boto3)\n"
-
-        for detail in categorized['s3']:
-            name = detail.get('name', '')
-            integration_context += f"- [S3] {name}: 파일 읽기/쓰기 (boto3)\n"
-
-        if not categorized['rag'] and not categorized['s3']:
-            integration_context += "- (등록된 데이터 소스 없음)\n"
-
-        # 기타 (pending 상태 등)
-        if categorized['others']:
-            integration_context += """
-## 기타 (배포 필요 또는 미지원)
-"""
-            for detail in categorized['others']:
-                int_type = detail.get('type', '')
-                name = detail.get('name', '')
-                config = detail.get('config', {})
-                if int_type == 'mcp-server':
-                    source = config.get('source', {})
-                    source_type = source.get('type', 'external')
-                    tools = config.get('tools', [])
-                    tool_names = [t.get('name', '') for t in tools[:5]]
-                    integration_context += f"- [MCP Server - {source_type}, 배포 필요] {name}: {', '.join(tool_names)}\n"
-                else:
-                    integration_context += f"- [{int_type}] {name}\n"
-
-        integration_context += """
-</registered_integrations>
-
-**MCP 연결 방식 (agentcore-services 스킬 참조)**:
-- Gateway Mode → streamablehttp_client로 Gateway URL 연결
-- Standalone MCP Mode → streamablehttp_client로 MCP Runtime URL 연결
-- RAG/S3 → boto3 직접 호출 (MCP 불필요)
-**중요**: Tools 컬럼에 위 통합의 도구들을 반영하세요.
-"""
-        return integration_context
-
-    def analyze(self, analysis: Dict[str, Any], integration_details: list = None) -> str:
-        """패턴 분석"""
-        integration_context = self._format_integration_context(integration_details)
-
-        prompt = f"""다음 분석 결과를 바탕으로 Strands Agent 패턴을 분석하세요:
+        prompt = f"""다음 분석 결과를 바탕으로 프레임워크 독립적인 Agent 설계를 수행하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
-{integration_context}
-**필수 1단계**: file_read로 "strands-agent-patterns" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "agentcore-services" 스킬의 SKILL.md를 읽으세요. (Tools/MCP 결정에 필수!)
-**필수 3단계**: 두 스킬을 종합하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
+
+**필수 1단계**: file_read로 "universal-agent-patterns" 스킬의 SKILL.md를 읽으세요.
+**필수 2단계**: 스킬을 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
 - "스킬을 읽었으므로", "분석을 진행하겠습니다" 같은 문구 금지
 - 바로 분석 결과만 출력하세요
+- **특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지**
 
-분석 형식:
+**출력 형식:**
 
-### Agent Components
-| Agent Name | Role | Input | Output | LLM | Tools |
-|------------|------|-------|--------|-----|-------|
+## 2. Agent Design Pattern
 
-**[중요] Tools 컬럼은 agentcore-services 스킬의 MCP 통합 모드 선택 가이드를 반드시 따르세요.**
-**중요: 테이블에 HTML 태그 금지.**
-**중요: LLM은 Claude Sonnet/Haiku 4.5만 사용**
+### 2.1 Pattern Selection
+- **Primary Pattern**: [ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop]
+- **Pattern Combination**: [조합 패턴, 해당시]
+- **Selection Rationale**: [선택 이유 2-3문장]
 
-### 패턴 분석
-선택된 패턴과 Strands Agent 구현 방법:
-- [패턴명]: [Graph 구조 설명 1-2문장]
-
-### Graph 구조
-```python
-# agentcore-services 스킬의 MCP 모드 규칙에 따라 tools 파라미터 작성
-# Gateway Mode: streamablehttp_client로 Gateway URL 연결
-# Standalone MCP Mode: streamablehttp_client로 MCP Runtime URL 연결
-# boto3 직접 호출 서비스는 tools=[]
-```
-
-### Agent-as-Tool
-| Agent Name | Role | Input | Output | 사용 시점 |
-|------------|------|-------|--------|----------|
+### 2.2 Agent Components
+| Agent Name | Role | Input | Output | Complexity |
+|------------|------|-------|--------|------------|
 **중요: 테이블에 HTML 태그 금지.**
 
-### Invocation State 활용
-에이전트 간 상태 공유:
-- **용도**: [어떤 데이터를 공유할지]
-- **업데이트 시점**: [언제 상태를 업데이트할지]
-- **활용 방법**: [다음 노드에서 어떻게 사용할지]
-
+### 2.3 State Management
+- **Shared State**: [Agent 간 공유 데이터]
+- **Session State**: [세션 내 유지 데이터]
+- **Persistent State**: [영구 저장 필요 데이터]
 """
         result = self.agent(prompt)
         return result.message['content'][0]['text']
 
 
-class AgentCoreAgent:
-    """3단계: AgentCore 서비스 구성"""
+class DiagramAgent:
+    """2단계: 다이어그램 생성 (프레임워크 독립적)"""
 
     def __init__(self):
         skills = discover_skills("./skills")
         skill_prompt = generate_skills_prompt(skills)
 
-        system_prompt = """당신은 Amazon Bedrock AgentCore 전문가입니다."""
+        system_prompt = """당신은 아키텍처 시각화 전문가입니다.
+프레임워크 독립적인 Agent 워크플로우를 Mermaid 다이어그램으로 표현합니다."""
         enhanced_prompt = system_prompt + "\n" + skill_prompt
 
-        # strands_utils 사용하여 Agent 생성
-        self.agent = strands_utils.get_agent(
-            system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
-            max_tokens=16000,
-            temperature=0.3,
-            tools=[file_read]
-        )
-    
-    def configure(self, analysis: Dict[str, Any], pattern_result: str, integration_details: list = None) -> str:
-        """AgentCore 구성 - PatternAgent 결과 기반"""
-
-        # 등록된 통합 정보를 Gateway 매핑 가이드로 변환
-        integration_context = ""
-        if integration_details:
-            integration_context = """
-<registered_integrations>
-아래는 사용자가 등록한 통합입니다. AgentCore Gateway 구성 시 이를 자동 반영하세요:
-
-"""
-            for detail in integration_details:
-                int_type = detail.get('type', 'api')
-                name = detail.get('name', '')
-                config = detail.get('config', {})
-
-                integration_context += f"### [{int_type.upper()}] {name}\n"
-
-                if int_type == 'api':
-                    base_url = config.get('baseUrl', '')
-                    auth_type = config.get('authType', 'none')
-                    endpoints = config.get('endpoints', [])
-
-                    integration_context += f"- Base URL: {base_url}\n"
-                    integration_context += f"- Auth: {auth_type}\n"
-                    integration_context += f"- Endpoints ({len(endpoints)}개):\n"
-                    for ep in endpoints[:5]:
-                        integration_context += f"  - {ep.get('method', 'GET')} {ep.get('path', '')}: {ep.get('summary', '')}\n"
-                    integration_context += f"- **Gateway 매핑**: OpenAPI Target으로 등록 (S3에 OpenAPI 스키마 업로드 후 연결)\n\n"
-
-                elif int_type == 'mcp':
-                    server_url = config.get('serverUrl', '')
-                    transport = config.get('transport', 'stdio')
-                    tools = config.get('tools', [])
-
-                    integration_context += f"- Server URL: {server_url}\n"
-                    integration_context += f"- Transport: {transport}\n"
-                    integration_context += f"- Tools ({len(tools)}개):\n"
-                    for tool in tools[:5]:
-                        integration_context += f"  - {tool.get('name', '')}: {(tool.get('description', '') or '')[:60]}\n"
-                    integration_context += f"- **Gateway 매핑**: MCP Server Target으로 등록\n\n"
-
-                elif int_type == 'rag':
-                    provider = config.get('provider', '')
-                    integration_context += f"- Provider: {provider}\n"
-                    if provider == 'bedrock-kb':
-                        kb_config = config.get('bedrockKb', {})
-                        integration_context += f"- Knowledge Base ID: {kb_config.get('knowledgeBaseId', '')}\n"
-                    integration_context += f"- **Gateway 매핑**: 직접 호출 (boto3) - Gateway 불필요\n\n"
-
-                elif int_type == 's3':
-                    bucket = config.get('bucketName', '')
-                    access_type = config.get('accessType', 'read')
-                    integration_context += f"- Bucket: s3://{bucket}\n"
-                    integration_context += f"- Access: {access_type}\n"
-                    integration_context += f"- **Gateway 매핑**: 직접 호출 (boto3) - Gateway 불필요\n\n"
-
-                elif int_type == 'mcp-server':
-                    # MCP Server 통합 (external, aws, self-hosted)
-                    source = config.get('source', {})
-                    source_type = source.get('type', 'external')
-                    tools = config.get('tools', [])
-                    deployment = config.get('deployment', {})
-                    mcp_config = config.get('mcpConfig', {})
-
-                    integration_context += f"- Source Type: {source_type}\n"
-
-                    if source_type in ['external', 'aws']:
-                        command = mcp_config.get('command', '')
-                        args = mcp_config.get('args', [])
-
-                        # AWS MCP인 경우 역할 정보 표시
-                        env = mcp_config.get('env', {})
-                        aws_role = env.get('AWS_MCP_ROLE', '')
-
-                        if source_type == 'aws' and aws_role:
-                            role_labels = {
-                                'solutions-architect': 'Solutions Architect (아키텍처 설계)',
-                                'software-developer': 'Software Developer (코드 구현)',
-                                'devops-engineer': 'DevOps Engineer (배포/운영)',
-                                'data-engineer': 'Data Engineer (데이터 파이프라인)',
-                                'security-engineer': 'Security Engineer (보안)',
-                            }
-                            role_label = role_labels.get(aws_role, aws_role)
-                            integration_context += f"- AWS Role: {role_label}\n"
-
-                        integration_context += f"- Command: {command}\n"
-                        integration_context += f"- Args: {args}\n"
-                        integration_context += f"- Tools ({len(tools)}개):\n"
-                        for tool in tools[:5]:
-                            integration_context += f"  - {tool.get('name', '')}: {(tool.get('description', '') or '')[:60]}\n"
-                        integration_context += f"- **⚠️ AgentCore 제한**: stdio MCP 서버(uvx, npx)는 AgentCore Runtime에서 직접 실행 불가\n"
-                        integration_context += f"- **대안**: AgentCore Gateway를 사용하여 Lambda/OpenAPI Target으로 동일 기능 구현\n\n"
-
-                    elif source_type == 'self-hosted':
-                        status = deployment.get('status', 'pending')
-                        if status == 'ready':
-                            endpoint = deployment.get('endpointUrl', '')
-                            integration_context += f"- Endpoint URL: {endpoint}\n"
-                            integration_context += f"- Tools ({len(tools)}개):\n"
-                            for tool in tools[:5]:
-                                integration_context += f"  - {tool.get('name', '')}: {(tool.get('description', '') or '')[:60]}\n"
-                            integration_context += f"- **✅ AgentCore 지원**: streamablehttp_client로 연결 가능\n\n"
-                        else:
-                            integration_context += f"- ⚠️ 배포 상태: {status} (배포 필요)\n"
-                            integration_context += f"- **대기 중**: 배포 완료 후 streamablehttp_client 사용 예정\n\n"
-
-                elif int_type == 'gateway':
-                    # AgentCore Gateway 통합
-                    gateway_id = config.get('gatewayId', '')
-                    gateway_url = config.get('gatewayUrl', '')
-                    gateway_status = config.get('gatewayStatus', 'creating')
-                    targets = config.get('targets', [])
-
-                    integration_context += f"- Gateway ID: {gateway_id or '(pending)'}\n"
-                    integration_context += f"- Status: {gateway_status}\n"
-
-                    if gateway_status == 'ready' and gateway_url:
-                        integration_context += f"- Gateway URL: {gateway_url}\n"
-                        integration_context += f"- Targets ({len(targets)}개):\n"
-                        for target in targets[:5]:
-                            target_type = target.get('type', 'unknown')
-                            target_name = target.get('name', 'unnamed')
-                            integration_context += f"  - [{target_type.upper()}] {target_name}\n"
-                        integration_context += f"- **✅ AgentCore 지원**: streamablehttp_client로 Gateway URL에 연결\n\n"
-                    else:
-                        integration_context += f"- **대기 중**: Gateway 배포 완료 후 사용 가능\n\n"
-
-            integration_context += """</registered_integrations>
-
-**중요 - 등록된 통합 자동 반영**:
-- API 통합 → OpenAPI Target으로 Gateway에 등록
-- MCP 통합 → MCP Server Target으로 Gateway에 등록
-- RAG/S3 → 직접 호출 (Gateway 불필요)
-- 인증이 필요한 API/MCP는 Identity에 해당 인증 정보 등록
-
-"""
-
-        prompt = f"""다음 Strands Agent 패턴 분석 결과를 기반으로 AgentCore 서비스를 구성하세요:
-
-{pattern_result}
-{integration_context}
-**필수 1단계**: file_read로 "agentcore-services" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
-**필수 2단계**: 로드된 SKILL 내용만을 사용하여 구성하세요. SKILL에 없는 내용은 절대 추가하지 마세요.
-
-**중요 - 출력 규칙**:
-- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
-- "스킬을 읽었으므로", "구성을 진행하겠습니다" 같은 문구 금지
-- 바로 AgentCore 서비스 구성 결과만 출력하세요
-
-**핵심 원칙** (SKILL 참조):
-- **1개의 AgentCore Runtime**으로 전체 Multi-Agent Graph를 호스팅 (Agent별 Runtime 분리 금지 - 비용 N배, 레이턴시 증가)
-- Memory는 STM(Short-term)/LTM(Long-term) 용도에 맞게 선택
-- Gateway는 MCP 표준 준수
-
-**중요**: 위에 정의된 Agent들(Agent Components 테이블)을 AgentCore에 배포한다고 가정하고 작성하세요.
-새로운 Agent를 만들지 말고, 위에 나온 Agent들에 필요한 AgentCore 서비스를 매핑하세요.
-
-## Amazon Bedrock AgentCore 서비스 구성
-
-### 필요한 서비스 분석
-
-위 Agent Components 테이블을 보고:
-1. 각 Agent가 사용하는 Tools를 확인
-2. 필요한 AgentCore 서비스 판단
-3. 서비스별 구체적 설정 제시 
-- Memory는 메모리 전략, Namespace 구성 등을 자세히 기술
-- Identity는 어떤 인증정보를 어떻게 저장하고 어디서 사용하는지 자세히 명시
-- Gateway는 어떤 도구를 등록하고 어떤 Identity로부터 인증방식을 사용하는지 명시 
-
-### 서비스 구성 테이블
-
-| 서비스 | 사용 여부 | 용도 (위 Agent들 기준) | 설정 |
-|--------|-----------|----------------------|------|
-| **AgentCore Runtime** | ✅ | 전체 Multi-Agent가 Graph패턴일 때 호스팅 (1개만 사용) | [총 Agent 개수]개 Agent를 1개의 Runtime에서 호스팅 |
-| **AgentCore Memory** | ✅/❌ | [어떤 상태를 저장하는지] | Short-term Memory/Long-term Memory(어떤 메모리 전략을 사용하는지) |
-| **AgentCore Gateway** | ✅/❌ | [어떤 MCP를 연동하는지] | Lambda/OpenAPI/Self-hosted MCP |
-| **AgentCore Identity** | ✅/❌ | [어떤 API 인증이 필요한지] | API Key/OAuth |
-| **AgentCore Browser** | ✅/❌ | [웹 자동화 필요 여부] | - |
-| **AgentCore Code Interpreter** | ✅/❌ | [코드 실행 필요 여부] | - |
-
-**중요: 테이블에 HTML 태그 금지. 위 패턴 분석 결과에 나온 Agent들만 언급하세요.**
-**중요: AgentCore Memory의 Namespace 전략을 테이블 안에 표기하지 마세요.
-"""
-        result = self.agent(prompt)
-        return result.message['content'][0]['text']
-
-
-class ArchitectureAgent:
-    """2단계: 아키텍처 다이어그램"""
-
-    def __init__(self):
-        skills = discover_skills("./skills")
-        skill_prompt = generate_skills_prompt(skills)
-
-        system_prompt = """당신은 아키텍처 시각화 전문가입니다."""
-        enhanced_prompt = system_prompt + "\n" + skill_prompt
-
-        # strands_utils 사용하여 Agent 생성
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
@@ -458,157 +92,133 @@ class ArchitectureAgent:
             tools=[file_read]
         )
 
-    def _format_integration_context_for_architecture(self, integration_details: list = None) -> str:
-        """통합 정보를 아키텍처 다이어그램용 컨텍스트로 변환"""
-        if not integration_details:
-            return ""
-
-        integration_context = """
-<registered_integrations>
-다음 통합이 등록되어 있습니다. Architecture Flowchart에 외부 서비스 연동으로 반영하세요:
-
-"""
-        for detail in integration_details:
-            int_type = detail.get('type', '')
-            name = detail.get('name', '')
-            config = detail.get('config', {})
-
-            if int_type == 'mcp':
-                server_url = config.get('serverUrl', '')
-                transport = config.get('transport', 'stdio')
-                integration_context += f"- [MCP Server] {name}: {server_url} ({transport})\n"
-            elif int_type == 'api':
-                base_url = config.get('baseUrl', '')
-                auth_type = config.get('authType', 'none')
-                integration_context += f"- [External API] {name}: {base_url} (Auth: {auth_type})\n"
-            elif int_type == 'rag':
-                provider = config.get('provider', '')
-                integration_context += f"- [RAG/KB] {name}: {provider}\n"
-            elif int_type == 's3':
-                bucket = config.get('bucketName', '')
-                integration_context += f"- [S3 Bucket] {name}: s3://{bucket}\n"
-            elif int_type == 'mcp-server':
-                # MCP Server 통합 (external, aws, self-hosted)
-                source = config.get('source', {})
-                source_type = source.get('type', 'external')
-                tools = config.get('tools', [])
-                deployment = config.get('deployment', {})
-                mcp_config = config.get('mcpConfig', {})
-                tool_count = len(tools)
-
-                if source_type in ['external', 'aws']:
-                    command = mcp_config.get('command', '')
-                    # AWS MCP인 경우 역할 정보 표시
-                    env = mcp_config.get('env', {})
-                    aws_role = env.get('AWS_MCP_ROLE', '')
-
-                    if source_type == 'aws' and aws_role:
-                        role_labels = {
-                            'solutions-architect': 'Solutions Architect',
-                            'software-developer': 'Software Developer',
-                            'devops-engineer': 'DevOps Engineer',
-                            'data-engineer': 'Data Engineer',
-                            'security-engineer': 'Security Engineer',
-                        }
-                        role_label = role_labels.get(aws_role, aws_role)
-                        integration_context += f"- [AWS MCP - {role_label}] {name}: {command} ({tool_count} tools)\n"
-                    else:
-                        integration_context += f"- [MCP Server - {source_type}] {name}: {command} ({tool_count} tools)\n"
-                elif source_type == 'self-hosted':
-                    status = deployment.get('status', 'pending')
-                    if status == 'ready':
-                        endpoint = deployment.get('endpointUrl', '')
-                        integration_context += f"- [MCP Server - deployed] {name}: {endpoint} ({tool_count} tools)\n"
-                    else:
-                        integration_context += f"- [MCP Server - pending] {name}: 배포 필요 ({tool_count} tools)\n"
-                else:
-                    integration_context += f"- [MCP Server] {name}: {tool_count} tools\n"
-
-            elif int_type == 'gateway':
-                # AgentCore Gateway 통합
-                gateway_status = config.get('gatewayStatus', 'creating')
-                gateway_url = config.get('gatewayUrl', '')
-                targets = config.get('targets', [])
-                target_count = len(targets)
-
-                if gateway_status == 'ready' and gateway_url:
-                    integration_context += f"- [AgentCore Gateway - ready] {name}: {gateway_url} ({target_count} targets)\n"
-                else:
-                    integration_context += f"- [AgentCore Gateway - pending] {name}: 배포 대기 중 ({target_count} targets)\n"
-
-        integration_context += """
-</registered_integrations>
-
-**중요**: Architecture Flowchart에 위 외부 서비스들과의 연동을 표시하세요.
-- API 통합 → Gateway 또는 직접 호출로 연결
-- MCP 통합 → MCP Server 노드로 표시
-- MCP Server 통합 → MCP Server 노드로 표시 (streamablehttp만 AgentCore 지원)
-- Gateway 통합 → AgentCore Gateway 노드로 표시 (streamablehttp_client로 연결)
-- RAG/S3 → 데이터 저장소 노드로 표시
-"""
-        return integration_context
-
-    def generate_diagrams(self, pattern_result: str, agentcore_result: Optional[str] = None, use_agentcore: bool = False, integration_details: list = None) -> str:
+    def generate_diagrams(self, design_result: str) -> str:
         """다이어그램 생성"""
-        agentcore_section = f"\n\nAgentCore: {agentcore_result}" if agentcore_result else ""
-        integration_context = self._format_integration_context_for_architecture(integration_details)
 
-        # 호스팅 환경에 따른 아키텍처 지침
-        if use_agentcore:
-            architecture_instruction = """3. **Architecture Flowchart**:
-   - 전체 시스템 아키텍처 (Amazon Bedrock AgentCore 기반)
-   - AgentCore Runtime, Gateway, Identity, Memory 등 서비스 포함
-   - 외부 서비스 연동 (MCP, API 등)"""
-        else:
-            architecture_instruction = """3. **Architecture Flowchart**:
-   - 전체 시스템 아키텍처 (EC2/ECS/EKS 기반, AgentCore 미사용)
-   - **중요: AgentCore Runtime, Gateway, Identity 등을 포함하지 마세요**
-   - Python 애플리케이션이 직접 외부 서비스 호출
-   - 외부 서비스 연동 (MCP 서버, API 등)"""
+        prompt = f"""다음 Agent 설계를 기반으로 Mermaid 다이어그램을 생성하세요:
 
-        prompt = f"""Mermaid 다이어그램 3개를 생성하세요:
+{design_result}
 
-패턴: {pattern_result}{agentcore_section}
-{integration_context}
-**호스팅 환경**: {"Amazon Bedrock AgentCore" if use_agentcore else "EC2/ECS/EKS (AgentCore 미사용)"}
-
-**필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요. (위 available_skills의 location 참조)
+**필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요.
 **필수 2단계**: 로드된 SKILL의 템플릿과 베스트 프랙티스만을 사용하세요.
-**필수 3단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요 (SKILL의 핵심 규칙).
+**필수 3단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
 - "스킬을 읽었으므로", "다이어그램을 생성하겠습니다" 같은 문구 금지
 - 바로 다이어그램만 출력하세요
+- **특정 프레임워크 컴포넌트(AgentCore Runtime, Gateway, GraphBuilder 등) 금지**
+- **Agent, Tool, User, External Service 등 추상 개념만 사용**
 
-다음 3가지 다이어그램을 생성:
+**출력 형식:**
 
-1. **Graph Structure** (graph TB 또는 TD):
-   - Agent Components 테이블의 Agent들을 노드로 표현
-   - 노드 간 연결 관계 (edges) 표시
-   - subgraph로 논리적 그룹화
-   - 스타일링 적용 (classDef)
+## 3. Visual Design
 
-2. **Sequence Diagram**:
-   - 사용자 요청부터 최종 응답까지의 호출 흐름
-   - Agent 간 메시지 전달 순서
-   - 조건부 분기 표현 (alt/opt)
-   - {"AgentCore Runtime을 중앙 오케스트레이터로 사용" if use_agentcore else "AgentCore를 사용하지 않고 Python 애플리케이션이 직접 Agent 호출"}
+### 3.1 Agent Workflow
+```mermaid
+flowchart TD
+    [Agent 간 워크플로우 - 추상적 개념만]
+```
 
-{architecture_instruction}
+### 3.2 Sequence Diagram
+```mermaid
+sequenceDiagram
+    [User, Agent, Tool 간 상호작용]
+```
 
-**출력 형식**:
-- 각 다이어그램은 ```mermaid 코드 블록 1개만 출력
-- 다이어그램 코드를 설명용으로 다시 출력하지 말 것
-- "**코드:**" 섹션 금지
+### 3.3 Architecture Overview
+```mermaid
+flowchart TB
+    [시스템 아키텍처 - 추상적 컴포넌트만]
+```
 
-**중요 - 특수 문자 이스케이프 (필수)**:
+**특수 문자 이스케이프 (필수)**:
 - 노드 텍스트에 `>=`, `>`, `<`, `?`, `&` 등 특수 문자가 있으면 **반드시 따옴표로 감싸세요**
 - 잘못된 예: `{{Score >= 70?}}`
 - 올바른 예: `{{"Score >= 70?"}}`
 
-**중요: 다이어그램에 HTML 태그 금지. mermaid-diagrams 스킬의 템플릿 구조를 따르세요.**
-{"**중요: AgentCore 서비스(Runtime, Gateway, Identity, Memory 등)를 다이어그램에 포함하지 마세요.**" if not use_agentcore else ""}
+**중요: 다이어그램에 HTML 태그 금지.**
+"""
+        result = self.agent(prompt)
+        return result.message['content'][0]['text']
+
+
+class DetailAgent:
+    """3단계: 상세 설계 (프롬프트, 도구)"""
+
+    def __init__(self):
+        skills = discover_skills("./skills")
+        skill_prompt = generate_skills_prompt(skills)
+
+        system_prompt = """당신은 AI Agent 상세 설계 전문가입니다.
+Agent의 System Prompt와 Tool 스키마를 정의합니다."""
+        enhanced_prompt = system_prompt + "\n" + skill_prompt
+
+        self.agent = strands_utils.get_agent(
+            system_prompts=enhanced_prompt,
+            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
+            max_tokens=16000,
+            temperature=0.3,
+            tools=[file_read]
+        )
+
+    def generate_details(self, design_result: str) -> str:
+        """프롬프트 및 도구 정의 생성"""
+
+        prompt = f"""다음 Agent 설계를 기반으로 프롬프트와 도구를 정의하세요:
+
+{design_result}
+
+**필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
+**필수 2단계**: file_read로 "tool-schema" 스킬의 SKILL.md를 읽으세요.
+**필수 3단계**: 두 스킬을 참고하여 상세 설계하세요.
+
+**중요 - 출력 규칙**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
+- 바로 설계 결과만 출력하세요
+
+**출력 형식:**
+
+## 4. Agent Prompts
+
+위 Agent Components 테이블의 각 Agent에 대해 아래 형식으로 작성:
+
+### 4.1 [Agent Name]
+**System Prompt:**
+```
+당신은 [역할]입니다.
+[구체적인 지시사항]
+```
+
+**Example User Prompt:**
+```
+[예시 사용자 입력]
+```
+
+**Expected Output:**
+```
+[예상 출력 형식]
+```
+
+## 5. Tool Definitions
+
+필요한 각 Tool에 대해 아래 형식으로 작성:
+
+### 5.1 [Tool Name]
+- **Description**: [도구 설명]
+- **Input Schema**:
+```json
+{{
+  "param1": {{ "type": "string", "description": "..." }}
+}}
+```
+- **Output Schema**:
+```json
+{{
+  "result": {{ "type": "string", "description": "..." }}
+}}
+```
 """
         result = self.agent(prompt)
         return result.message['content'][0]['text']
@@ -618,28 +228,22 @@ class AssemblerAgent:
     """4단계: 최종 조합 - LLM 없이 단순 문자열 조합"""
 
     def __init__(self):
-        # LLM 불필요 - 단순 템플릿 조합만 수행
         pass
 
     def _clean_internal_comments(self, text: str) -> str:
         """내부 코멘트 제거 (Claude의 메타 발언)"""
         import re
 
-        # 제거할 패턴 목록 (줄 단위)
         line_patterns = [
-            # 스킬 로드 관련
             r'^네,?\s*(이미|먼저)?\s*스킬을?\s*(읽었으므로|로드했으므로).*$',
             r'^이미\s+SKILL\.?md를?\s*(로드|읽).*$',
             r'^(먼저|우선)?\s*스킬을?\s*(로드|읽).*$',
-            # 작업 시작 선언
             r'^(바로|이제)?\s*(분석|다이어그램|명세서).*?(진행|생성|작성)하겠습니다.*$',
             r'^(바로|이제)?\s*\d+가지\s*다이어그램을?\s*생성하겠습니다.*$',
-            # 일반적인 메타 코멘트
             r'^(알겠습니다|네,?\s*알겠습니다).*$',
             r'^(그럼|그러면)\s*(바로|이제)?.*?(시작|진행).*$',
         ]
 
-        # 줄 단위로 처리
         lines = text.split('\n')
         cleaned_lines = []
         for line in lines:
@@ -652,11 +256,7 @@ class AssemblerAgent:
                 cleaned_lines.append(line)
 
         cleaned = '\n'.join(cleaned_lines)
-
-        # 문서 시작 부분의 불필요한 구분선 제거
         cleaned = re.sub(r'^---\s*\n+', '', cleaned)
-
-        # 연속 빈 줄 정리 (3개 이상 → 2개)
         cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
 
         return cleaned.strip()
@@ -664,19 +264,18 @@ class AssemblerAgent:
     async def assemble_stream(
         self,
         analysis: Dict[str, Any],
-        pattern_result: str,
-        architecture_result: str,
-        agentcore_result: Optional[str] = None
-    ) -> AsyncIterator[str]:
+        design_result: str,
+        diagram_result: str,
+        detail_result: str
+    ) -> AsyncIterator[dict]:
         """최종 조합 - LLM 없이 단순 문자열 조합 후 스트리밍"""
 
         import asyncio
 
         # 내부 코멘트 제거
-        pattern_result = self._clean_internal_comments(pattern_result)
-        architecture_result = self._clean_internal_comments(architecture_result)
-        if agentcore_result:
-            agentcore_result = self._clean_internal_comments(agentcore_result)
+        design_result = self._clean_internal_comments(design_result)
+        diagram_result = self._clean_internal_comments(diagram_result)
+        detail_result = self._clean_internal_comments(detail_result)
 
         # 데이터 추출
         pain_point = analysis.get('pain_point', analysis.get('painPoint', 'N/A'))
@@ -694,7 +293,7 @@ class AssemblerAgent:
         # 명세서 조합
         spec = f"""# AI Agent Design Specification
 
-# 1. Executive Summary
+## 1. Executive Summary
 
 - **Problem**: {pain_point}
 - **Solution**: {pattern} 패턴 사용
@@ -702,150 +301,119 @@ class AssemblerAgent:
 - **Feasibility**: {feasibility_score}/50
 - **Recommendation**: {recommendation}
 
-# 2. Strands Agent 구현
+{design_result}
 
-{pattern_result}
-"""
+{diagram_result}
 
-        # AgentCore 섹션 (선택적)
-        if agentcore_result:
-            spec += f"""
-# 3. Amazon Bedrock AgentCore
+{detail_result}
 
-{agentcore_result}
-"""
-
-        # Architecture 섹션
-        section_num = "4" if agentcore_result else "3"
-        spec += f"""
-# {section_num}. Architecture
-
-{architecture_result}
-"""
-
-        # Problem Decomposition 섹션
-        section_num = "5" if agentcore_result else "4"
-        process_text = '\n'.join([f'  - {step}' for step in process_steps])
-        output_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
-
-        spec += f"""
-# {section_num}. Problem Decomposition
+## 6. Problem Decomposition
 
 - **INPUT**: {input_type}
 - **PROCESS**:
-{process_text}
-- **OUTPUT**: {output_text}
+"""
+        # PROCESS 단계 추가
+        for step in process_steps:
+            spec += f'  - {step}\n'
+
+        output_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
+        spec += f"""- **OUTPUT**: {output_text}
 - **Human-in-Loop**: {human_loop}
 """
 
         # Risks 섹션 (있는 경우)
         if risks:
-            section_num = "6" if agentcore_result else "5"
-            risks_text = '\n'.join([f'- {risk}' for risk in risks])
-            spec += f"""
-## {section_num}. Risks
-
-{risks_text}
-"""
+            spec += "\n## 7. Risks\n\n"
+            for risk in risks:
+                spec += f'- {risk}\n'
 
         # Next Steps 섹션 (있는 경우)
         if next_steps:
-            section_num = "7" if agentcore_result else ("6" if risks else "5")
-            next_steps_text = '\n'.join([f'{i+1}. {step}' for i, step in enumerate(next_steps)])
-            spec += f"""
-## {section_num}. Next Steps
+            section_num = "8" if risks else "7"
+            spec += f"\n## {section_num}. Next Steps\n\n"
+            for i, step in enumerate(next_steps):
+                spec += f'{i+1}. {step}\n'
 
-{next_steps_text}
-"""
-
-        # 스트리밍으로 전송 (청크 단위로, progress 포함)
+        # 스트리밍으로 전송
         chunk_size = 100
-        total_chunks = (len(spec) + chunk_size - 1) // chunk_size  # 올림 나눗셈
+        total_chunks = (len(spec) + chunk_size - 1) // chunk_size
 
         for i in range(0, len(spec), chunk_size):
             chunk = spec[i:i+chunk_size]
             chunk_index = i // chunk_size
-            # Progress를 75%→95%로 증가 (스트리밍 중)
-            progress = 75 + int((chunk_index / total_chunks) * 20)  # 75-95%
+            progress = 70 + int((chunk_index / total_chunks) * 25)
             yield {'text': chunk, 'progress': min(progress, 95)}
-            await asyncio.sleep(0.01)  # 스트리밍 효과
+            await asyncio.sleep(0.01)
 
 
 class MultiStageSpecAgent:
     """명세서 생성 조율 - 순차 호출"""
-    
+
     def __init__(self):
-        self.pattern_agent = PatternAgent()
-        self.agentcore_agent = AgentCoreAgent()
-        self.architecture_agent = ArchitectureAgent()
+        self.design_agent = DesignAgent()
+        self.diagram_agent = DiagramAgent()
+        self.detail_agent = DetailAgent()
         self.assembler_agent = AssemblerAgent()
-    
+
     async def generate_spec_stream(
         self,
-        analysis: Dict[str, Any],
-        use_agentcore: bool = False,
-        integration_details: list = None
+        analysis: Dict[str, Any]
     ) -> AsyncIterator[str]:
         """명세서 생성 - keep-alive 포함"""
 
         import asyncio
 
         try:
-            # 1단계: 패턴 분석 (0-25%) - integration_details 전달
-            yield f"data: {json.dumps({'progress': 0, 'stage': '패턴 분석 시작'}, ensure_ascii=False)}\n\n"
-            task = asyncio.create_task(asyncio.to_thread(self.pattern_agent.analyze, analysis, integration_details))
+            # 1단계: Agent 설계 (0-40%)
+            yield f"data: {json.dumps({'progress': 0, 'stage': 'Agent 설계 시작'}, ensure_ascii=False)}\n\n"
+            task = asyncio.create_task(asyncio.to_thread(self.design_agent.analyze, analysis))
             progress = 5
             while not task.done():
                 await asyncio.sleep(3)
                 if not task.done():
-                    progress = min(progress + 5, 20)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '패턴 분석 중...'}, ensure_ascii=False)}\n\n"
-            pattern_result = await task
-            yield f"data: {json.dumps({'progress': 25, 'stage': '패턴 분석 완료'}, ensure_ascii=False)}\n\n"
+                    progress = min(progress + 5, 35)
+                    yield f"data: {json.dumps({'progress': progress, 'stage': 'Agent 설계 중...'}, ensure_ascii=False)}\n\n"
+            design_result = await task
+            yield f"data: {json.dumps({'progress': 40, 'stage': 'Agent 설계 완료'}, ensure_ascii=False)}\n\n"
 
-            # 3단계: AgentCore (조건부, 25-50%)
-            agentcore_result = None
-            if use_agentcore:
-                yield f"data: {json.dumps({'progress': 25, 'stage': 'AgentCore 구성 시작'}, ensure_ascii=False)}\n\n"
-                task = asyncio.create_task(asyncio.to_thread(
-                    self.agentcore_agent.configure, analysis, pattern_result, integration_details
-                ))
-                progress = 30
-                while not task.done():
-                    await asyncio.sleep(3)
-                    if not task.done():
-                        progress = min(progress + 5, 45)
-                        yield f"data: {json.dumps({'progress': progress, 'stage': 'AgentCore 구성 중...'}, ensure_ascii=False)}\n\n"
-                agentcore_result = await task
-                yield f"data: {json.dumps({'progress': 50, 'stage': 'AgentCore 구성 완료'}, ensure_ascii=False)}\n\n"
-            else:
-                yield f"data: {json.dumps({'progress': 50, 'stage': 'AgentCore 건너뜀'}, ensure_ascii=False)}\n\n"
-
-            # 2단계: 아키텍처 (50-75%) - integration_details 전달
-            yield f"data: {json.dumps({'progress': 50, 'stage': '아키텍처 생성 시작'}, ensure_ascii=False)}\n\n"
+            # 2단계: 다이어그램 (40-70%)
+            yield f"data: {json.dumps({'progress': 40, 'stage': '다이어그램 생성 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
-                self.architecture_agent.generate_diagrams, pattern_result, agentcore_result, use_agentcore, integration_details
+                self.diagram_agent.generate_diagrams, design_result
             ))
-            progress = 55
+            progress = 45
             while not task.done():
                 await asyncio.sleep(3)
                 if not task.done():
-                    progress = min(progress + 5, 70)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '아키텍처 생성 중...'}, ensure_ascii=False)}\n\n"
-            architecture_result = await task
-            yield f"data: {json.dumps({'progress': 75, 'stage': '아키텍처 생성 완료'}, ensure_ascii=False)}\n\n"
+                    progress = min(progress + 5, 65)
+                    yield f"data: {json.dumps({'progress': progress, 'stage': '다이어그램 생성 중...'}, ensure_ascii=False)}\n\n"
+            diagram_result = await task
+            yield f"data: {json.dumps({'progress': 70, 'stage': '다이어그램 생성 완료'}, ensure_ascii=False)}\n\n"
 
-            # 4단계: 최종 조합 (75-100%, 스트리밍)
-            yield f"data: {json.dumps({'progress': 75, 'stage': '명세서 조합 시작'}, ensure_ascii=False)}\n\n"
+            # 3단계: 상세 설계 (70-95%)
+            yield f"data: {json.dumps({'progress': 70, 'stage': '상세 설계 시작'}, ensure_ascii=False)}\n\n"
+            task = asyncio.create_task(asyncio.to_thread(
+                self.detail_agent.generate_details, design_result
+            ))
+            progress = 75
+            while not task.done():
+                await asyncio.sleep(3)
+                if not task.done():
+                    progress = min(progress + 5, 90)
+                    yield f"data: {json.dumps({'progress': progress, 'stage': '상세 설계 중...'}, ensure_ascii=False)}\n\n"
+            detail_result = await task
+            yield f"data: {json.dumps({'progress': 95, 'stage': '상세 설계 완료'}, ensure_ascii=False)}\n\n"
+
+            # 4단계: 최종 조합 (95-100%, 스트리밍)
+            yield f"data: {json.dumps({'progress': 95, 'stage': '명세서 조합 시작'}, ensure_ascii=False)}\n\n"
             async for chunk_data in self.assembler_agent.assemble_stream(
-                analysis, pattern_result, architecture_result, agentcore_result
+                analysis, design_result, diagram_result, detail_result
             ):
-                # chunk_data는 {'text': ..., 'progress': ...} 형식
                 yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
 
             # 최종 100% 도달
             yield f"data: {json.dumps({'progress': 100, 'stage': '완료'}, ensure_ascii=False)}\n\n"
             yield "data: [DONE]\n\n"
-            
+
         except Exception as e:
             yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"

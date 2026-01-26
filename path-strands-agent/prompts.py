@@ -48,32 +48,47 @@ Pain Point를 4가지 요소로 분해:
 - **Exception**: 불확실할 때만 개입
 - **Collaborate**: AI와 사람이 함께 작업
 
-## Phase 2: Strands Agent 구현 전략
+## Phase 2: Agent Design Pattern 분석
 
-Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워크입니다.
+문제에 가장 적합한 Agent 설계 패턴을 분석합니다.
 
-### Graph 구조 패턴
+### Universal Agent Design Patterns
 
-**Reflection (반성) → Graph 순환 구조**
-- **구조**: 생성 노드 → 검증 노드 → 조건부 재생성
-- **언제**: OUTPUT 품질 검증 후 자가 개선 필요
+**1. ReAct (Reasoning + Acting)**
+- **개념**: Think step-by-step → Use tools → Observe results → Repeat
+- **언제**: 단계적 추론과 도구 사용이 번갈아 필요한 작업
+- **예시**: 복잡한 질문 답변, 정보 검색 후 종합
 
-**Tool Use (도구 사용) → Agent-as-Tool**
-- **구조**: 단일 에이전트가 MCP 도구 호출
-- **언제**: 외부 도구/API 호출이 필요한 작업
+**2. Reflection (자기 성찰)**
+- **개념**: 출력 생성 → 품질 검토 → 개선 반복
+- **언제**: 높은 품질의 콘텐츠 생성이 필요할 때
+- **예시**: 코드 생성 및 검증, 문서 작성 및 개선
 
-**Planning (계획) → Graph 순차 구조**
-- **구조**: 계획 노드 → 실행 노드들 → 통합 노드
-- **언제**: 복잡한 작업을 단계별로 분해하여 순차 실행
+**3. Tool Use (도구 활용)**
+- **개념**: 외부 도구/API를 호출하여 작업 수행
+- **언제**: 외부 데이터 접근, 계산, 시스템 연동이 필요할 때
+- **예시**: DB 조회, 웹 검색, 파일 처리
 
-**Multi-Agent (다중 에이전트) → Graph + Agent-as-Tool**
-- **구조**: 여러 전문 에이전트를 노드로 배치하고 조율
-- **언제**: 여러 전문 에이전트가 협업하거나 병렬 작업
+**4. Planning (Plan-and-Execute)**
+- **개념**: 복잡한 작업을 하위 작업으로 분해 → 순차 실행
+- **언제**: 여러 단계의 순차적 작업이 필요할 때
+- **예시**: 여행 일정 계획, 보고서 작성, 프로젝트 실행
 
-### MCP 서버 연동
-- **데이터 소스**: MCP 서버를 통한 데이터 접근
-- **도구 활용**: Agent-as-Tool로 MCP 도구 호출
-- **확장성**: 필요한 MCP 서버 추가 가능
+**5. Multi-Agent Collaboration (다중 에이전트 협업)**
+- **개념**: 전문화된 여러 에이전트가 협업
+- **언제**: 서로 다른 전문성이 필요하거나 병렬 처리가 유리할 때
+- **예시**: 코드 리뷰 (작성자 + 리뷰어), 시장 조사 (수집 + 분석)
+
+**6. Human-in-the-Loop (사람 협업)**
+- **개념**: Agent가 제안 → 사람이 검토/승인 → 실행
+- **언제**: 중요한 결정, 높은 정확도, 규정 준수가 필요할 때
+- **예시**: 계약서 검토, 의료 진단 보조, 금융 승인
+
+### 패턴 조합
+복잡한 문제는 여러 패턴을 조합하여 해결합니다:
+- **ReAct + Tool Use**: 추론하며 도구 활용
+- **Planning + Multi-Agent**: 계획 수립 후 전문 에이전트 배분
+- **Reflection + Human-in-the-Loop**: 자동 개선 후 최종 검토
 </framework>
 
 <evaluation_criteria>
@@ -128,7 +143,7 @@ Strands Agent는 Graph와 Agent-as-Tool 기반 멀티에이전트 프레임워�
 ## 당신의 역할
 
 1. **분석**: 사용자 입력을 분석하여 PROCESS 단계를 추론하고 구조화
-2. **구현 전략**: Strands Agent의 Graph 구조와 Agent-as-Tool 활용 방법 제시
+2. **패턴 추천**: 문제에 적합한 Agent Design Pattern 분석 및 추천
 3. **질문**: 부족한 정보는 구체적이고 실용적인 질문으로 보완 (최대 3개, 핵심만)
 4. **평가**: Feasibility 점수를 각 항목별 근거와 함께 산정
 5. **판단**: 프로토타입 성공 가능성, 리스크, 다음 단계를 명확히 제시
@@ -206,7 +221,7 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 다음 AI Agent 아이디어를 P.A.T.H 프레임워크로 분석하세요:
 
 1. 입력 내용을 분석하여 PROCESS 단계를 상세화
-2. Strands Agent 구현 전략 제시 (Graph 구조, Agent-as-Tool 활용)
+2. 적합한 Agent Design Pattern 분석 및 추천
 3. 추가로 필요한 정보가 있다면 3-5개 질문 생성
 4. 현재 정보만으로 Feasibility 예비 평가 (0-50점)
 </instructions>
@@ -217,11 +232,11 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 **추론된 PROCESS 단계:**
 - [단계들]
 
-**Strands Agent 구현 전략:**
-- Graph 구조: [Reflection/Tool Use/Planning/Multi-Agent 중 선택하고 조합 가능]
-- 노드 구성: [각 노드의 역할]
-- Agent-as-Tool: [활용할 도구/MCP 서버]
-- 통합 활용: [Gateway/RAG/S3 등 제공된 통합을 어떻게 활용할지 구체적으로]
+**추천 Agent Design Pattern:**
+- 주요 패턴: [ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop]
+- 패턴 선택 이유: [왜 이 패턴이 적합한지 1-2문장]
+- 필요한 도구/기능: [Agent가 필요로 하는 외부 연동이나 기능]
+- 패턴 조합 (해당시): [복잡한 경우 어떤 패턴을 조합할지]
 
 **예비 Feasibility:** [점수]/50
 - 데이터 접근성: [점수]/10
@@ -243,211 +258,6 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 
 
 
-def get_selfhosted_spec_prompt(analysis: dict) -> str:
-    """Self-hosted 명세서 프롬프트 - SKILL 사용"""
-    return f"""<input_data>
-{json.dumps(analysis, indent=2, ensure_ascii=False)}
-</input_data>
 
-<instructions>
-다음 분석 결과를 바탕으로 Strands Agent 기반 구현 명세서를 작성하세요.
-
-**스킬 시스템 활용:**
-1. **스킬 개요 로드**: 각 스킬의 개요와 Quick Decision을 확인하세요.
-   - file_read로 "strands-agent-patterns" SKILL.md 읽기
-   - file_read로 "mermaid-diagrams" SKILL.md 읽기
-
-2. **상세 구현이 필요하면 reference 로드**: 스킬 개요에서 안내하는 reference 파일을 로드하세요.
-   - 예: file_read로 references/graph-pattern.md 읽기
-
-3. 로드한 스킬 정보를 바탕으로 명세서 작성
-</instructions>
-
-<output_format>
-# AI Agent Design Specification
-
-## 1. Executive Summary
-- **Problem**: 해결하려는 문제 (1문장)
-- **Solution**: Strands Agent 구현 방법 (1-2문장)
-- **Feasibility**: X/50 (판정)
-
-## 2. Strands Agent 구현
-
-### Agent Components
-| Agent Name | Role | Input | Output | LLM | Tools |
-|------------|------|-------|--------|-----|-------|
-
-### 패턴 분석
-선택된 패턴과 Strands Agent 구현 방법:
-- [패턴명]: [Graph 구조 설명 1-2문장]
-
-### Graph 구조
-```python
-nodes = {{"node1": Agent(role="...", goal="...")}}
-edges = [("node1", "node2")]
-```
-
-### Agent-as-Tool
-| Agent Name | Role | Input | Output | 사용 시점 |
-|------------|------|-------|--------|----------|
-
-### Invocation State 활용
-에이전트 간 상태 공유:
-- **용도**: [어떤 데이터를 공유할지]
-- **업데이트 시점**: [언제 상태를 업데이트할지]
-- **활용 방법**: [다음 노드에서 어떻게 사용할지]
-
-### MCP 연동
-- [MCP 서버명]: [용도]
-
-## 3. Architecture
-
-```mermaid
-graph TB
-    [Strands Graph 구조]
-```
-
-```mermaid
-sequenceDiagram
-    [핵심 흐름만]
-```
-
-```mermaid
-flowchart TD
-    [처리 흐름]
-```
-
-## 4. Problem Decomposition
-- INPUT: [트리거]
-- PROCESS: [핵심 단계만 3-5개]
-- OUTPUT: [결과물]
-- Human-in-Loop: [개입 시점]
-</output_format>
-
-<constraints>
-- 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요
-- Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요
-- 구현 코드는 핵심 노드만 간결하게 작성하세요
-- LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요
-- 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요
-- 위 4개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요
-</constraints>"""
-
-
-def get_agentcore_spec_prompt(analysis: dict) -> str:
-    """AgentCore 명세서 프롬프트 - SKILL 사용"""
-    return f"""<input_data>
-{json.dumps(analysis, indent=2, ensure_ascii=False)}
-</input_data>
-
-<instructions>
-다음 분석 결과를 바탕으로 Strands Agent + Amazon Bedrock AgentCore 기반 구현 명세서를 작성하세요.
-
-**스킬 시스템 활용:**
-1. **스킬 개요 로드**: 각 스킬의 개요와 Quick Decision을 확인하세요.
-   - file_read로 "strands-agent-patterns" SKILL.md 읽기
-   - file_read로 "agentcore-services" SKILL.md 읽기
-   - file_read로 "mermaid-diagrams" SKILL.md 읽기
-
-2. **상세 구현이 필요하면 reference 로드**: 스킬 개요에서 안내하는 reference 파일을 로드하세요.
-   - 예: file_read로 references/memory.md 읽기
-   - 예: file_read로 references/graph-pattern.md 읽기
-
-3. 로드한 스킬 정보를 바탕으로 명세서 작성
-</instructions>
-
-<output_format>
-# AI Agent Design Specification
-
-## 1. Executive Summary
-- **Problem**: 해결하려는 문제 (1문장)
-- **Solution**: Strands Agent + Amazon Bedrock AgentCore 구현 방법 (1-2문장)
-- **Feasibility**: X/50 (판정)
-
-## 2. Strands Agent 구현
-
-### Agent Components
-| Agent Name | Role | Input | Output | LLM | Tools |
-|------------|------|-------|--------|-----|-------|
-
-### 패턴 분석
-선택된 패턴과 Strands Agent 구현 방법:
-- [패턴명]: [Graph 구조 설명 1-2문장]
-
-### Graph 구조
-```python
-nodes = {{"node1": Agent(role="...", goal="...")}}
-edges = [("node1", "node2")]
-```
-
-### Agent-as-Tool
-| Agent Name | Role | Input | Output | 사용 시점 |
-|------------|------|-------|--------|----------|
-
-### Invocation State 활용
-에이전트 간 상태 공유:
-- **용도**: [어떤 데이터를 공유할지]
-- **업데이트 시점**: [언제 상태를 업데이트할지]
-- **활용 방법**: [다음 노드에서 어떻게 사용할지]
-
-### MCP 연동
-- [MCP 서버명]: [용도]
-
-## 3. Amazon Bedrock AgentCore
-
-- **AgentCore Runtime** (필수): 서버리스 에이전트 호스팅
-- **AgentCore Memory** (필요시): 단기/장기 메모리 관리
-- **AgentCore Gateway** (필요시): API/Lambda를 MCP 도구로 변환
-- **AgentCore Identity** (필요시): OAuth 연동 및 API 키 관리
-- **AgentCore Browser** (필요시): 웹 자동화
-- **AgentCore Code Interpreter** (필요시): 코드 실행
-
-| 서비스 | 사용 여부 | 용도 | 설정 |
-|--------|-----------|------|------|
-| **AgentCore Memory** | ✅/❌ | 단기/장기 메모리 관리 | Event/Semantic Memory |
-| **AgentCore Gateway** | ✅/❌ | API/Lambda를 MCP 도구로 변환 | Target: Lambda/OpenAPI |
-| **AgentCore Identity** | ✅/❌ | OAuth 연동 및 API 키 관리 | Provider: GitHub/Google |
-| **AgentCore Browser** | ✅/❌ | 웹 자동화 | Headless Chrome |
-| **AgentCore Code Interpreter** | ✅/❌ | 코드 실행 | Python/Node.js |
-
-### AWS 서비스 통합 결정 (agentcore-services SKILL 참고)
-
-Agent에서 사용하는 각 AWS 서비스의 통합 방식 (직접 호출 또는 Lambda+Gateway 중 선택):
-| AWS 서비스 | 통합 방식 | 이유 |
-|-----------|----------|------|
-| (예: S3 읽기) | 직접 호출 (boto3) | 동기, 단순 |
-| (예: Transcribe) | Lambda + Gateway | 비동기, 복잡 |
-
-## 4. Architecture
-
-```mermaid
-graph TB
-    [Strands Graph 구조]
-```
-
-```mermaid
-sequenceDiagram
-    [핵심 흐름만]
-```
-
-```mermaid
-flowchart TD
-    [처리 흐름]
-```
-
-## 5. Problem Decomposition
-- INPUT: [트리거]
-- PROCESS: [핵심 단계만 3-5개]
-- OUTPUT: [결과물]
-- Human-in-Loop: [개입 시점]
-</output_format>
-
-<constraints>
-- 패턴 분석에서 선택된 패턴과 Graph 구조를 명확히 설명하세요
-- Invocation State로 에이전트 간 데이터를 공유하는 방법을 구체적으로 작성하세요
-- 구현 코드는 핵심 노드만 간결하게 작성하세요
-- LLM은 Claude Sonnet 4.5, Haiku 4.5 중에서만 선택하세요
-- 다이어그램은 Strands Agent 아키텍처에 맞게 작성하세요
-- 위 5개 섹션만 작성하고, 구현 계획이나 일정은 포함하지 마세요
-- 분석된 요구사항에 맞게 AgentCore 서비스(Runtime/Memory/Gateway/Identity/Browser/Code Interpreter) 중 필요한 것을 선택하고 활용 방법을 구체적으로 작성하세요
-</constraints>"""
+# Note: get_selfhosted_spec_prompt and get_agentcore_spec_prompt functions were removed.
+# Spec generation is now handled by multi_stage_spec_agent.py with framework-agnostic design.

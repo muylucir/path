@@ -7,27 +7,25 @@ export const INPUT_TYPES = [
 ] as const;
 
 export const PROCESS_STEPS = [
-  "데이터 수집 (여러 소스에서 정보 조회)",
-  "분석/분류 (패턴 인식, 카테고리 분류, 이상 탐지)",
-  "판단/평가 (의사결정, 점수 산정, 우선순위 결정)",
-  "콘텐츠 생성 (문서, 이메일, 코드, 보고서 작성)",
-  "검증/개선 (품질 확인, 오류 수정, 반복 개선)",
-  "실행/연동 (API 호출, DB 업데이트, 알림)",
+  { label: "검색, API 조회, 문서 읽기 (정보 수집)", example: "예: 고객 DB에서 주문 내역 조회, 날씨 API 호출, PDF 문서에서 계약 조건 추출" },
+  { label: "요약, 분류, 패턴 인식 (분석/이해)", example: "예: 긴 이메일을 3줄로 요약, 문의를 '환불/배송/기타'로 분류, 매출 데이터에서 이상 패턴 탐지" },
+  { label: "의사결정, 평가, 우선순위 (추론/판단)", example: "예: 환불 승인 여부 결정, 이력서 적합도 점수 산정, 긴급 티켓 우선순위 배정" },
+  { label: "문서, 코드, 응답 작성 (생성/작성)", example: "예: 고객 응대 이메일 작성, Python 코드 생성, 주간 보고서 초안 작성" },
+  { label: "품질 확인, 자기 수정 (검증/반복)", example: "예: 생성된 코드 실행 후 오류 수정, 답변의 정확성 재검토, 여러 버전 비교 후 최선안 선택" },
 ] as const;
 
 export const OUTPUT_TYPES = [
-  "Decision (의사결정: 승인/거절, 분류, 점수)",
-  "Content (콘텐츠: 문서, 이메일, 보고서)",
-  "Notification (알림: Slack, 이메일, SMS)",
-  "Action (액션: 티켓 생성, API 호출, DB 업데이트)",
-  "Insight (인사이트: 분석, 추천, 예측)",
+  { label: "답변, 요약, 설명 (텍스트 응답)", example: "예: 챗봇 답변, 문서 요약문, 개념 설명" },
+  { label: "이메일, 리포트, 코드 (문서/보고서)", example: "예: 고객 회신 이메일, 주간 분석 리포트, API 연동 코드" },
+  { label: "JSON, 분류 결과, 점수 (구조화된 데이터)", example: "예: {\"category\": \"환불\", \"priority\": \"high\"}, 적합도 85점" },
+  { label: "DB 업데이트, 티켓 생성, 알림 (외부 시스템 변경)", example: "예: 주문 상태를 '처리완료'로 변경, Jira 티켓 생성, Slack 알림 발송" },
 ] as const;
 
 export const HUMAN_LOOP_OPTIONS = [
-  "None (완전 자동)",
-  "Review (실행 전 승인 필요)",
-  "Exception (불확실할 때만)",
-  "Collaborate (AI와 함께 작업)",
+  "완전 자동 (None)",
+  "실행 전 승인 필요 (Review)",
+  "불확실할 때만 개입 (Exception)",
+  "AI와 함께 작업 (Collaborate)",
 ] as const;
 
 export const ERROR_TOLERANCE_OPTIONS = [
