@@ -72,15 +72,7 @@ checkpoint*
 *.tmp
 *.bak
 
-PATH_old.md
-CASE.md
-.gitignore
-path/.python-version
-prompt_v3.txt
-agent_pattern_v3.md
 
-
-spec/
 .kiro/
 path-test-agent/
 path-test-agent/venv/
@@ -90,11 +82,7 @@ strands-skill-system/
 
 CLAUDE.md
 .claude/
-.kiro/
 .gitignore
 spec/
-plan.md
-plan2.md
-sample-strands-agents-agentskills/
 .mcp.json
-sdd-template/
+
