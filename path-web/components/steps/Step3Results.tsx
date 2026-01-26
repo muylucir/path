@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Rocket, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList, Globe, Server, Database, HardDrive, Code2, Network } from "lucide-react";
+import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage } from "@/lib/types";
@@ -27,11 +27,10 @@ export function Step3Results({
   initialSpecification,
   onSave,
 }: Step3ResultsProps) {
-  const { feasibility_score, pattern, feasibility_breakdown, risks, next_steps } = analysis;
+  const { feasibility_score, pattern, feasibility_breakdown, risks } = analysis;
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isCreatingJob, setIsCreatingJob] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -51,14 +50,11 @@ export function Step3Results({
     setStage("시작 중...");
     let fullSpec = "";
 
-    const useAgentCore = formData?.useAgentCore ?? true;  // AgentCore 항상 사용
-    const integrationDetails = formData?.integrationDetails || [];
-
     try {
       const response = await fetch("/api/bedrock/spec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis, useAgentCore, integrationDetails }),
+        body: JSON.stringify({ analysis }),
       });
 
       const reader = response.body?.getReader();
@@ -126,68 +122,6 @@ export function Step3Results({
     URL.revokeObjectURL(url);
   };
 
-  const navigateToCodeGenerator = async () => {
-    setIsCreatingJob(true);
-    try {
-      // 메타데이터: analysis에서 우선, 없으면 formData에서 폴백
-      const pain_point = analysis.pain_point || formData?.painPoint || null;
-      const pattern = analysis.pattern || null;
-      const feasibility_score = analysis.feasibility_score || null;
-
-      console.log("Creating job with metadata:", {
-        pain_point,
-        pattern,
-        feasibility_score,
-        from_analysis: {
-          pain_point: analysis.pain_point,
-          pattern: analysis.pattern,
-          feasibility_score: analysis.feasibility_score,
-        },
-        from_formData: {
-          painPoint: formData?.painPoint,
-        }
-      });
-
-      // 0. 세션 자동 저장
-      if (specification) {
-        try {
-          await onSave(specification);
-          console.log("세션 자동 저장 완료");
-        } catch (saveError) {
-          console.warn("세션 저장 실패 (계속 진행):", saveError);
-        }
-      }
-
-      // 1. 코드 생성 작업 생성 (메타데이터 포함)
-      const response = await fetch("/api/bedrock/code-jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          path_spec: specification,
-          integration_details: formData?.integrationDetails || [],
-          // 메타데이터 추가 (폴백 포함)
-          pain_point,
-          pattern,
-          feasibility_score,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("작업 생성 실패");
-      }
-
-      const { job_id } = await response.json();
-      console.log("코드 생성 작업 시작:", job_id);
-
-      // 2. 작업 목록 페이지로 리다이렉트
-      window.location.href = "/code-jobs";
-    } catch (error) {
-      console.error("Error creating code generation job:", error);
-      alert("코드 생성 작업 생성 중 오류가 발생했습니다.");
-      setIsCreatingJob(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
@@ -248,7 +182,7 @@ export function Step3Results({
 
       {/* Tabs */}
       <Tabs defaultValue="analysis" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="analysis" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             분석 결과
@@ -260,10 +194,6 @@ export function Step3Results({
           <TabsTrigger value="spec" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
             명세서
-          </TabsTrigger>
-          <TabsTrigger value="actions" className="flex items-center gap-2">
-            <Rocket className="h-4 w-4" />
-            액션
           </TabsTrigger>
         </TabsList>
 
@@ -301,7 +231,7 @@ export function Step3Results({
                       if (steps.length > 0) {
                         // 사용자 선택인지 확인 (PROCESS_STEPS 상수와 매칭)
                         const isUserSelection = steps.some((step: string) =>
-                          PROCESS_STEPS.some(ps => ps === step)
+                          PROCESS_STEPS.some(ps => ps.label === step)
                         );
                         if (isUserSelection) {
                           return steps.map((step: string, idx: number) => (
@@ -339,46 +269,21 @@ export function Step3Results({
                 </div>
               </div>
 
-              {/* Data Sources & Integrations */}
+              {/* Data Sources */}
               {(() => {
-                // 새로운 구조: integrationDetails 배열, additionalSources 문자열
-                const hasIntegrations = formData?.integrationDetails?.length > 0;
                 const additionalSources = formData?.additionalSources;
                 // 레거시: data_source 문자열 (구 세션과의 하위 호환성)
                 const legacyDataSource = formData?.data_source || formData?.dataSource;
 
-                if (hasIntegrations || additionalSources) {
-                  const typeIcons: Record<string, typeof Globe> = {
-                    gateway: Network,
-                    api: Globe,
-                    mcp: Server,
-                    rag: Database,
-                    s3: HardDrive,
-                    'mcp-server': Server,
-                  };
+                if (additionalSources) {
                   return (
                     <>
                       <Separator />
                       <div>
-                        <p className="text-xs text-muted-foreground mb-2">데이터 소스 및 통합</p>
-                        {hasIntegrations && (
-                          <div className="flex flex-wrap gap-2 mb-2">
-                            {formData.integrationDetails.map((int: { type?: string; name: string; summary?: string }, idx: number) => {
-                              const Icon = int.type ? typeIcons[int.type] : Globe;
-                              return (
-                                <Badge key={idx} variant="outline" className="text-xs flex items-center gap-1">
-                                  {Icon && <Icon className="h-3 w-3" />}
-                                  {int.name}
-                                </Badge>
-                              );
-                            })}
-                          </div>
-                        )}
-                        {additionalSources && (
-                          <p className="text-sm text-muted-foreground">
-                            추가: {additionalSources}
-                          </p>
-                        )}
+                        <p className="text-xs text-muted-foreground mb-2">데이터 소스</p>
+                        <p className="text-sm text-muted-foreground">
+                          {additionalSources}
+                        </p>
                       </div>
                     </>
                   );
@@ -423,7 +328,7 @@ export function Step3Results({
                   {feasibility_breakdown && Object.entries(feasibility_breakdown).map(([key, value]) => {
                     const score = typeof value === 'object' && value !== null ? value.score : value;
                     const reason = typeof value === 'object' && value !== null ? value.reason : '';
-                    
+
                     return (
                       <div key={key}>
                         <div className="flex justify-between text-sm mb-1">
@@ -540,24 +445,19 @@ export function Step3Results({
                           </Button>
                           <Button onClick={downloadSpec} variant="outline" className="flex-1">
                             <Download className="h-4 w-4 mr-2" />
-                            명세서 다운로드
+                            다운로드
                           </Button>
                           <Button
-                            onClick={navigateToCodeGenerator}
-                            disabled={isCreatingJob}
-                            className="flex-1 gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white"
+                            onClick={handleSave}
+                            disabled={isSaving}
+                            className="flex-1"
                           >
-                            {isCreatingJob ? (
-                              <>
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                작업 생성 중...
-                              </>
+                            {isSaving ? (
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             ) : (
-                              <>
-                                <Code2 className="h-4 w-4" />
-                                Strands 코드 생성
-                              </>
+                              <Save className="h-4 w-4 mr-2" />
                             )}
+                            {isSaving ? "저장 중..." : "세션 저장"}
                           </Button>
                         </>
                       )}
@@ -595,52 +495,6 @@ export function Step3Results({
           </Card>
         </TabsContent>
 
-        {/* Tab 3: Actions + Next Steps */}
-        <TabsContent value="actions" className="mt-6">
-          <Card>
-            <CardContent className="pt-6 space-y-6">
-              <div>
-                <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Rocket className="h-5 w-5" />
-                  다음 단계
-                </h3>
-                <ol className="space-y-2 text-sm">
-                  {next_steps?.map((step, idx) => (
-                    <li key={idx}>{idx + 1}. {step}</li>
-                  ))}
-                </ol>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3">
-                <Button
-                  onClick={handleSave}
-                  disabled={isSaving || !specification}
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      저장 중...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      세션 저장
-                    </>
-                  )}
-                </Button>
-                {!specification && (
-                  <p className="text-sm text-muted-foreground text-center">
-                    명세서를 먼저 생성해주세요
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
     </div>
   );

@@ -137,16 +137,15 @@ class EvaluatorAgent:
 
 이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
 
-**패턴 용어 정의 (혼동 주의)**:
-- **Tool Use**: Agent가 MCP 서버, 외부 API, 데이터베이스 등 외부 도구를 직접 호출하는 패턴
-- **Agent-as-Tool**: 다른 Agent가 특정 Agent를 "도구"로 사용하는 패턴 (Agent → Agent 호출)
-- **Planning**: 복잡한 작업을 단계별로 분해하여 순차 실행
-- **Reflection**: 출력 품질 검증 후 자가 개선 루프
-- **Multi-Agent (Graph)**: 여러 Agent가 협업하는 구조
+**Universal Agent Design Patterns**:
+- **ReAct**: 단계적 추론(Think) → 도구 사용(Act) → 결과 관찰(Observe) → 반복
+- **Reflection**: 출력 생성 → 품질 검토 → 개선 반복 (자기 성찰 루프)
+- **Tool Use**: 외부 도구/API를 호출하여 데이터 접근, 계산, 시스템 연동
+- **Planning**: 복잡한 작업을 하위 작업으로 분해하여 순차 실행
+- **Multi-Agent**: 전문화된 여러 에이전트가 역할 분담하여 협업
+- **Human-in-the-Loop**: Agent 제안 → 사람 검토/승인 → 실행
 
-**중요**: pattern_reason 작성 시 "Tool Use"와 "Agent-as-Tool"을 혼동하지 마세요.
-- MCP/API 호출 = Tool Use (Agent-as-Tool 아님)
-- Agent가 다른 Agent를 도구로 사용 = Agent-as-Tool
+**패턴 조합도 가능**: 예) "ReAct + Tool Use", "Planning + Multi-Agent"
 
 {{
   "pain_point": "사용자 Pain Point",
@@ -156,8 +155,8 @@ class EvaluatorAgent:
   "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
   "output_detail": "OUTPUT 상세",
   "human_loop": "None/Review/Exception/Collaborate",
-  "pattern": "Reflection/Tool Use/Planning/Multi-Agent",
-  "pattern_reason": "패턴 선택 이유 (Tool Use와 Agent-as-Tool 구분하여 정확히 기술)",
+  "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
+  "pattern_reason": "패턴 선택 이유 (문제의 특성과 패턴의 적합성 설명)",
   "feasibility_breakdown": {{
     "data_access": 0-10,
     "decision_clarity": 0-10,
