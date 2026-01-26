@@ -29,12 +29,51 @@ export interface ChatMessage {
   content: string;
 }
 
+// 기존 FeasibilityBreakdown (단순 점수만)
 export interface FeasibilityBreakdown {
   data_access: number;
   decision_clarity: number;
   error_tolerance: number;
   latency: number;
   integration: number;
+}
+
+// Step2: Feasibility 상세 항목 (점수 + 근거)
+export interface FeasibilityItemDetail {
+  score: number;
+  reason: string;
+  current_state: string;
+  changed?: boolean;
+  change_reason?: string;
+}
+
+// Step2: Feasibility 상세 평가 결과
+export interface FeasibilityDetailedBreakdown {
+  data_access: FeasibilityItemDetail;
+  decision_clarity: FeasibilityItemDetail;
+  error_tolerance: FeasibilityItemDetail;
+  latency: FeasibilityItemDetail;
+  integration: FeasibilityItemDetail;
+}
+
+// Step2: 취약 항목
+export interface WeakItem {
+  item: string;
+  score: number;
+  improvement_suggestion: string;
+}
+
+// Step2: Feasibility 평가 결과
+export interface FeasibilityEvaluation {
+  feasibility_breakdown: FeasibilityDetailedBreakdown;
+  feasibility_score: number;
+  judgment: string;
+  weak_items: WeakItem[];
+  risks: string[];
+  summary: string;
+  // 재평가 시 추가 필드
+  previous_score?: number;
+  score_change?: number;
 }
 
 export interface Analysis {
@@ -81,6 +120,8 @@ export interface Session {
   user_output_types?: string[];
   // 하위 호환성용 (deprecated) - 기존 세션에서 통합 정보 표시
   integration_details?: IntegrationDetail[];
+  // Step 2 상세 준비도 점검 결과 (새 플로우)
+  feasibility_evaluation?: FeasibilityEvaluation;
 }
 
 export interface SessionListItem {

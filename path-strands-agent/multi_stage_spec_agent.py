@@ -364,20 +364,20 @@ class MultiStageSpecAgent:
         import asyncio
 
         try:
-            # 1단계: Agent 설계 (0-40%)
-            yield f"data: {json.dumps({'progress': 0, 'stage': 'Agent 설계 시작'}, ensure_ascii=False)}\n\n"
+            # 1단계: Agent 설계 패턴 (0-40%) - Section 2: Agent Design Pattern
+            yield f"data: {json.dumps({'progress': 0, 'stage': '2. 에이전트 설계 패턴 분석 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(self.design_agent.analyze, analysis))
             progress = 5
             while not task.done():
                 await asyncio.sleep(3)
                 if not task.done():
                     progress = min(progress + 5, 35)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': 'Agent 설계 중...'}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'progress': progress, 'stage': '2. 에이전트 설계 패턴 분석 중...'}, ensure_ascii=False)}\n\n"
             design_result = await task
-            yield f"data: {json.dumps({'progress': 40, 'stage': 'Agent 설계 완료'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'progress': 40, 'stage': '2. 에이전트 설계 패턴 완료'}, ensure_ascii=False)}\n\n"
 
-            # 2단계: 다이어그램 (40-70%)
-            yield f"data: {json.dumps({'progress': 40, 'stage': '다이어그램 생성 시작'}, ensure_ascii=False)}\n\n"
+            # 2단계: 다이어그램 (40-70%) - Section 3: Visual Design
+            yield f"data: {json.dumps({'progress': 40, 'stage': '3. 워크플로우 다이어그램 생성 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
                 self.diagram_agent.generate_diagrams, design_result
             ))
@@ -386,12 +386,12 @@ class MultiStageSpecAgent:
                 await asyncio.sleep(3)
                 if not task.done():
                     progress = min(progress + 5, 65)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '다이어그램 생성 중...'}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'progress': progress, 'stage': '3. 워크플로우 다이어그램 생성 중...'}, ensure_ascii=False)}\n\n"
             diagram_result = await task
-            yield f"data: {json.dumps({'progress': 70, 'stage': '다이어그램 생성 완료'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'progress': 70, 'stage': '3. 워크플로우 다이어그램 완료'}, ensure_ascii=False)}\n\n"
 
-            # 3단계: 상세 설계 (70-95%)
-            yield f"data: {json.dumps({'progress': 70, 'stage': '상세 설계 시작'}, ensure_ascii=False)}\n\n"
+            # 3단계: 상세 설계 (70-95%) - Section 4-5: Prompts & Tools
+            yield f"data: {json.dumps({'progress': 70, 'stage': '4-5. 프롬프트 및 도구 정의 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
                 self.detail_agent.generate_details, design_result
             ))
@@ -400,12 +400,12 @@ class MultiStageSpecAgent:
                 await asyncio.sleep(3)
                 if not task.done():
                     progress = min(progress + 5, 90)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '상세 설계 중...'}, ensure_ascii=False)}\n\n"
+                    yield f"data: {json.dumps({'progress': progress, 'stage': '4-5. 프롬프트 및 도구 정의 중...'}, ensure_ascii=False)}\n\n"
             detail_result = await task
-            yield f"data: {json.dumps({'progress': 95, 'stage': '상세 설계 완료'}, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps({'progress': 95, 'stage': '4-5. 프롬프트 및 도구 정의 완료'}, ensure_ascii=False)}\n\n"
 
-            # 4단계: 최종 조합 (95-100%, 스트리밍)
-            yield f"data: {json.dumps({'progress': 95, 'stage': '명세서 조합 시작'}, ensure_ascii=False)}\n\n"
+            # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
+            yield f"data: {json.dumps({'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}, ensure_ascii=False)}\n\n"
             async for chunk_data in self.assembler_agent.assemble_stream(
                 analysis, design_result, diagram_result, detail_result
             ):

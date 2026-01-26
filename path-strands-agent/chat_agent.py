@@ -8,7 +8,15 @@ from strands import Agent
 from typing import Dict, List, Any, AsyncIterator
 import json
 import re
-from prompts import SYSTEM_PROMPT, get_initial_analysis_prompt
+from prompts import (
+    SYSTEM_PROMPT,
+    get_initial_analysis_prompt,
+    FEASIBILITY_SYSTEM_PROMPT,
+    get_feasibility_evaluation_prompt,
+    get_feasibility_reevaluation_prompt,
+    PATTERN_ANALYSIS_SYSTEM_PROMPT,
+    get_pattern_analysis_prompt
+)
 
 
 class AnalyzerAgent:
@@ -203,10 +211,182 @@ JSON만 출력하세요.
             raise ValueError("Failed to extract JSON from evaluation response")
 
 
+class FeasibilityAgent:
+    """Step2: Feasibility 평가 전용 Agent"""
+
+    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
+        self.agent = Agent(
+            model=model_id,
+            system_prompt=FEASIBILITY_SYSTEM_PROMPT
+        )
+
+    def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+        """초기 Feasibility 평가 수행"""
+        prompt = get_feasibility_evaluation_prompt(form_data)
+        result = self.agent(prompt)
+        response_text = result.message['content'][0]['text']
+
+        # JSON 추출
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
+
+        if json_start != -1 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            return json.loads(json_str)
+        else:
+            raise ValueError("Failed to extract JSON from feasibility evaluation")
+
+    def reevaluate(self, form_data: Dict[str, Any], previous_evaluation: Dict[str, Any], improvement_plans: Dict[str, str]) -> Dict[str, Any]:
+        """개선안 반영 재평가 수행"""
+        prompt = get_feasibility_reevaluation_prompt(form_data, previous_evaluation, improvement_plans)
+        result = self.agent(prompt)
+        response_text = result.message['content'][0]['text']
+
+        # JSON 추출
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
+
+        if json_start != -1 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            return json.loads(json_str)
+        else:
+            raise ValueError("Failed to extract JSON from feasibility re-evaluation")
+
+
+class PatternAnalyzerAgent:
+    """Step3: Feasibility 결과를 바탕으로 패턴 분석하는 Agent"""
+
+    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
+        self.agent = Agent(
+            model=model_id,
+            system_prompt=PATTERN_ANALYSIS_SYSTEM_PROMPT
+        )
+        self.conversation_history: List[Dict[str, str]] = []
+
+    def add_message(self, role: str, content: str):
+        """대화 히스토리에 메시지 추가"""
+        self.conversation_history.append({"role": role, "content": content})
+
+    def get_history(self) -> List[Dict[str, str]]:
+        """대화 히스토리 반환"""
+        return self.conversation_history
+
+    def clear_history(self):
+        """대화 히스토리 초기화"""
+        self.conversation_history = []
+
+    def analyze(self, form_data: Dict[str, Any], feasibility: Dict[str, Any]) -> str:
+        """Feasibility 기반 초기 패턴 분석 - 동기 버전"""
+        prompt = get_pattern_analysis_prompt(form_data, feasibility)
+        result = self.agent(prompt)
+        response = result.message['content'][0]['text']
+        self.add_message("assistant", response)
+        return response
+
+    async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any]) -> AsyncIterator[str]:
+        """Feasibility 기반 초기 패턴 분석 - 스트리밍 버전"""
+        prompt = get_pattern_analysis_prompt(form_data, feasibility)
+
+        full_response = ""
+        async for event in self.agent.stream_async(prompt):
+            if "data" in event:
+                chunk = event["data"]
+                full_response += chunk
+                yield chunk
+
+        self.add_message("assistant", full_response)
+
+    async def chat_stream(self, user_message: str) -> AsyncIterator[str]:
+        """패턴 관련 대화 - 스트리밍 버전"""
+        self.add_message("user", user_message)
+
+        history_text = "\n\n".join([
+            f"{msg['role'].upper()}: {msg['content']}"
+            for msg in self.conversation_history
+        ])
+
+        prompt = f"""{history_text}
+
+사용자의 답변을 반영하여 패턴 분석을 계속하세요.
+추가 정보가 필요하면 구체적으로 질문하세요.
+충분하면 "패턴을 확정할 수 있습니다. '패턴 확정'을 입력하세요." 안내하세요."""
+
+        full_response = ""
+        async for event in self.agent.stream_async(prompt):
+            if "data" in event:
+                chunk = event["data"]
+                full_response += chunk
+                yield chunk
+
+        self.add_message("assistant", full_response)
+
+    def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any]) -> Dict[str, Any]:
+        """패턴 확정 및 최종 분석 결과 생성"""
+        conversation_text = "\n".join([
+            f"{msg['role'].upper()}: {msg['content']}"
+            for msg in self.conversation_history
+        ])
+
+        # Feasibility breakdown을 단순화
+        breakdown = feasibility.get('feasibility_breakdown', {})
+        simple_breakdown = {}
+        for key, value in breakdown.items():
+            if isinstance(value, dict):
+                simple_breakdown[key] = value.get('score', 0)
+            else:
+                simple_breakdown[key] = value
+
+        prompt = f"""다음은 지금까지의 패턴 분석 대화입니다:
+
+{conversation_text}
+
+**Feasibility 정보**:
+- 총점: {feasibility.get('feasibility_score', 0)}/50
+- 판정: {feasibility.get('judgment', '')}
+
+이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
+
+{{
+  "pain_point": "사용자 Pain Point",
+  "input_type": "INPUT 타입",
+  "input_detail": "INPUT 상세",
+  "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
+  "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
+  "output_detail": "OUTPUT 상세",
+  "human_loop": "None/Review/Exception/Collaborate",
+  "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
+  "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
+  "feasibility_breakdown": {json.dumps(simple_breakdown)},
+  "feasibility_score": {feasibility.get('feasibility_score', 0)},
+  "recommendation": "추천 사항",
+  "risks": ["리스크1", "리스크2"],
+  "next_steps": [
+    "Phase 1: 핵심 기능 프로토타입 - 설명",
+    "Phase 2: 검증 및 테스트 - 설명",
+    "Phase 3: (선택적) 개선 및 확장 - 설명"
+  ]
+}}
+
+JSON만 출력하세요."""
+
+        result = self.agent(prompt)
+        response_text = result.message['content'][0]['text']
+
+        # JSON 추출
+        json_start = response_text.find("{")
+        json_end = response_text.rfind("}") + 1
+
+        if json_start != -1 and json_end > json_start:
+            json_str = response_text[json_start:json_end]
+            return json.loads(json_str)
+        else:
+            raise ValueError("Failed to extract JSON from pattern finalization")
+
+
 # 테스트용 메인 함수
 if __name__ == "__main__":
     import asyncio
-    
+
     async def test():
         # 스트리밍 테스트
         print("🔍 스트리밍 분석 테스트")
@@ -215,5 +395,5 @@ if __name__ == "__main__":
         async for chunk in analyzer.analyze_stream(form_data):
             print(chunk, end="", flush=True)
         print("\n\n✅ 완료!")
-    
+
     asyncio.run(test())

@@ -17,7 +17,7 @@ from typing import Dict, Any, List, Optional
 import json
 import asyncio
 
-from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent
+from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent, FeasibilityAgent, PatternAnalyzerAgent
 from multi_stage_spec_agent import MultiStageSpecAgent
 
 app = FastAPI(title="PATH Strands Agent API")
@@ -54,10 +54,49 @@ class SpecRequest(BaseModel):
     analysis: Dict[str, Any]
 
 
+# Step2: Feasibility 관련 Request Models
+class FeasibilityRequest(BaseModel):
+    painPoint: str
+    inputType: str
+    processSteps: List[str]
+    outputTypes: List[str]
+    humanLoop: str
+    errorTolerance: str
+    additionalContext: Optional[str] = None
+    additionalSources: Optional[str] = None
+
+
+class FeasibilityReevaluateRequest(BaseModel):
+    formData: Dict[str, Any]
+    previousEvaluation: Dict[str, Any]
+    improvementPlans: Dict[str, str]
+
+
+# Step3: Pattern Analysis 관련 Request Models
+class PatternAnalyzeRequest(BaseModel):
+    formData: Dict[str, Any]
+    feasibility: Dict[str, Any]
+
+
+class PatternChatRequest(BaseModel):
+    conversation: List[Dict[str, str]]
+    userMessage: str
+    formData: Dict[str, Any]
+    feasibility: Dict[str, Any]
+
+
+class PatternFinalizeRequest(BaseModel):
+    formData: Dict[str, Any]
+    feasibility: Dict[str, Any]
+    conversation: List[Dict[str, str]]
+
+
 # Global agents (재사용)
 analyzer_agent = AnalyzerAgent()
 multi_stage_spec_agent = MultiStageSpecAgent()
+feasibility_agent = FeasibilityAgent()
 chat_sessions: Dict[str, ChatAgent] = {}  # 세션별 ChatAgent 관리
+pattern_sessions: Dict[str, PatternAnalyzerAgent] = {}  # 세션별 PatternAnalyzerAgent 관리
 
 
 @app.post("/analyze")
@@ -146,6 +185,119 @@ async def spec(request: SpecRequest):
                 "X-Accel-Buffering": "no",
             }
         )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Step 2: Feasibility 평가 엔드포인트
+# ============================================
+
+@app.post("/feasibility")
+async def feasibility(request: FeasibilityRequest):
+    """Step2: 초기 Feasibility 평가"""
+    try:
+        form_data = request.dict()
+        evaluation = feasibility_agent.evaluate(form_data)
+        return evaluation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/feasibility/update")
+async def feasibility_update(request: FeasibilityReevaluateRequest):
+    """Step2: 개선안 반영 재평가"""
+    try:
+        evaluation = feasibility_agent.reevaluate(
+            request.formData,
+            request.previousEvaluation,
+            request.improvementPlans
+        )
+        return evaluation
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Step 3: Pattern Analysis 엔드포인트
+# ============================================
+
+@app.post("/pattern/analyze")
+async def pattern_analyze(request: PatternAnalyzeRequest):
+    """Step3: Feasibility 기반 패턴 분석 - 스트리밍"""
+    try:
+        # 새로운 PatternAnalyzerAgent 생성 (세션별)
+        session_id = f"pattern_{id(request)}"
+        pattern_agent = PatternAnalyzerAgent()
+        pattern_sessions[session_id] = pattern_agent
+
+        async def generate():
+            try:
+                async for chunk in pattern_agent.analyze_stream(request.formData, request.feasibility):
+                    yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/pattern/chat")
+async def pattern_chat(request: PatternChatRequest):
+    """Step3: 패턴 관련 대화 - 스트리밍"""
+    try:
+        # 세션 ID 생성
+        session_id = f"pattern_{len(request.conversation)}"
+
+        # PatternAnalyzerAgent 가져오기 또는 생성
+        if session_id not in pattern_sessions:
+            pattern_sessions[session_id] = PatternAnalyzerAgent()
+            # 기존 대화 히스토리 복원
+            for msg in request.conversation:
+                pattern_sessions[session_id].add_message(msg["role"], msg["content"])
+
+        pattern_agent = pattern_sessions[session_id]
+
+        async def generate():
+            try:
+                async for chunk in pattern_agent.chat_stream(request.userMessage):
+                    yield f"data: {json.dumps({'text': chunk})}\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/pattern/finalize")
+async def pattern_finalize(request: PatternFinalizeRequest):
+    """Step3: 패턴 확정 및 최종 분석"""
+    try:
+        # PatternAnalyzerAgent 생성 및 히스토리 복원
+        pattern_agent = PatternAnalyzerAgent()
+        for msg in request.conversation:
+            pattern_agent.add_message(msg["role"], msg["content"])
+
+        analysis = pattern_agent.finalize(request.formData, request.feasibility)
+        return analysis
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
