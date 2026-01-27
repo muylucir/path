@@ -21,11 +21,12 @@ from prompts import (
 
 class AnalyzerAgent:
     """사용자 입력(pain point, input, process, output 등)을 분석하는 Agent"""
-    
+
     def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
-            system_prompt=SYSTEM_PROMPT
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None  # 콘솔 출력 비활성화
         )
     
     def analyze(self, form_data: Dict[str, Any]) -> str:
@@ -45,11 +46,12 @@ class AnalyzerAgent:
 
 class ChatAgent:
     """대화형 분석 Agent - 채팅 지원"""
-    
+
     def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
-            system_prompt=SYSTEM_PROMPT
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None  # 콘솔 출력 비활성화
         )
         self.conversation_history: List[Dict[str, str]] = []
     
@@ -125,11 +127,12 @@ class ChatAgent:
 
 class EvaluatorAgent:
     """답변 수집 후 Feasibility 점수를 계산하는 Agent"""
-    
+
     def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
-            system_prompt=SYSTEM_PROMPT
+            system_prompt=SYSTEM_PROMPT,
+            callback_handler=None  # 콘솔 출력 비활성화
         )
     
     def evaluate(self, form_data: Dict[str, Any], conversation: List[Dict]) -> Dict[str, Any]:
@@ -194,7 +197,8 @@ JSON만 출력하세요.
         # Agent 재생성 (JSON 전용 시스템 프롬프트)
         json_agent = Agent(
             model=self.agent.model.config['model_id'],
-            system_prompt=system_prompt_for_json
+            system_prompt=system_prompt_for_json,
+            callback_handler=None  # 콘솔 출력 비활성화
         )
         
         result = json_agent(prompt)
@@ -217,7 +221,8 @@ class FeasibilityAgent:
     def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
-            system_prompt=FEASIBILITY_SYSTEM_PROMPT
+            system_prompt=FEASIBILITY_SYSTEM_PROMPT,
+            callback_handler=None  # 콘솔 출력 비활성화
         )
 
     def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -259,7 +264,8 @@ class PatternAnalyzerAgent:
     def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
         self.agent = Agent(
             model=model_id,
-            system_prompt=PATTERN_ANALYSIS_SYSTEM_PROMPT
+            system_prompt=PATTERN_ANALYSIS_SYSTEM_PROMPT,
+            callback_handler=None  # 콘솔 출력 비활성화
         )
         self.conversation_history: List[Dict[str, str]] = []
 

@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 
 const STRANDS_API_URL = process.env.STRANDS_API_URL || "http://localhost:8001";
+const PATH_API_KEY = process.env.PATH_API_KEY || "";
 
 export const maxDuration = 600; // 10분 타임아웃
 
@@ -11,7 +12,10 @@ export async function POST(req: NextRequest) {
     // Strands Agent API 호출 (스트리밍)
     const response = await fetch(`${STRANDS_API_URL}/spec`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": PATH_API_KEY,
+      },
       body: JSON.stringify({ analysis, useAgentCore, integrationDetails }),
     });
 
@@ -30,9 +34,9 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error("Error in spec API:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: "명세서 생성 중 오류가 발생했습니다",
-        details: error.message 
+        details: error.message
       }),
       {
         status: 500,

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { RefreshCw, ArrowLeft } from "lucide-react";
 import { STEPS } from "@/lib/constants";
-import type { Analysis, ChatMessage, FeasibilityEvaluation } from "@/lib/types";
+import type { Analysis, ChatMessage, FeasibilityEvaluation, ImprovementPlans } from "@/lib/types";
 
 export default function ResultsPage() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function ResultsPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [formData, setFormData] = useState<any>(null);
   const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
+  const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>({});
   const [specification, setSpecification] = useState<string>("");
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function ResultsPage() {
     const chatData = sessionStorage.getItem("chatHistory");
     const formDataStr = sessionStorage.getItem("formData");
     const feasibilityStr = sessionStorage.getItem("feasibility");
+    const improvementPlansStr = sessionStorage.getItem("improvementPlans");
     const specData = sessionStorage.getItem("specification");
 
     if (!analysisData || !formDataStr) {
@@ -34,6 +36,7 @@ export default function ResultsPage() {
     setChatHistory(chatData ? JSON.parse(chatData) : []);
     setFormData(JSON.parse(formDataStr));
     setFeasibility(feasibilityStr ? JSON.parse(feasibilityStr) : null);
+    setImprovementPlans(improvementPlansStr ? JSON.parse(improvementPlansStr) : {});
     setSpecification(specData || "");
   }, [router]);
 
@@ -95,6 +98,8 @@ export default function ResultsPage() {
           integration_details: integrationDetails,
           // Step 2 상세 준비도 점검 결과
           feasibility_evaluation: feasibility,
+          // Step 2 사용자 개선 방안
+          improvement_plans: improvementPlans,
         };
 
         const response = await fetch("/api/sessions", {
@@ -156,6 +161,7 @@ export default function ResultsPage() {
             chatHistory={chatHistory}
             formData={formData}
             feasibility={feasibility}
+            improvementPlans={improvementPlans}
             initialSpecification={specification}
             onSave={handleSave}
           />

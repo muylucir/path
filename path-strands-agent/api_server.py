@@ -2,17 +2,24 @@
 FastAPI 서버 - Strands Agent 호스팅
 
 PATH 웹앱의 2-3단계 API를 Strands Agent로 제공
+
+보안 강화:
+- API Key 인증
+- Rate Limiting
+- 입력 검증 및 새니타이징
+- 보안 세션 관리
 """
 
 # LLM 및 라이브러리 로그 출력 억제
 import logging
 import sys
 import os
+from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Any, List, Optional
 import json
 import asyncio
@@ -20,7 +27,48 @@ import asyncio
 from chat_agent import AnalyzerAgent, ChatAgent, EvaluatorAgent, FeasibilityAgent, PatternAnalyzerAgent
 from multi_stage_spec_agent import MultiStageSpecAgent
 
-app = FastAPI(title="PATH Strands Agent API")
+# 보안 모듈 import
+from validators import (
+    sanitize_input,
+    validate_conversation,
+    MAX_PAIN_POINT_LENGTH,
+    MAX_CONTEXT_LENGTH,
+    MAX_SOURCES_LENGTH,
+    MAX_MESSAGE_LENGTH,
+)
+from session_manager import SecureSessionManager
+from session_cleanup import get_cleanup_scheduler, session_cleanup_lifespan
+from auth import setup_auth_middleware, PUBLIC_ENDPOINTS
+from rate_limiter import (
+    limiter,
+    setup_rate_limiter,
+    RATE_LIMITS,
+)
+
+
+# Lifespan 이벤트 핸들러
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """앱 시작/종료 시 실행되는 lifespan 이벤트"""
+    # 시작 시
+    scheduler = get_cleanup_scheduler()
+    scheduler.register_manager(chat_sessions)
+    scheduler.register_manager(pattern_sessions)
+    await scheduler.start()
+
+    yield
+
+    # 종료 시
+    await scheduler.stop()
+
+
+app = FastAPI(
+    title="PATH Strands Agent API",
+    lifespan=lifespan
+)
+
+# Rate Limiter 설정 (가장 먼저)
+setup_rate_limiter(app)
 
 # CORS 설정 (Next.js 웹앱과 통신)
 app.add_middleware(
@@ -31,24 +79,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Request Models
+# API Key 인증 미들웨어 설정 (CORS 다음에)
+setup_auth_middleware(app, PUBLIC_ENDPOINTS)
+
+
+# Request Models with Validation
 class AnalyzeRequest(BaseModel):
-    painPoint: str
-    inputType: str
-    processSteps: List[str]
-    outputTypes: List[str]
-    humanLoop: str
-    errorTolerance: str
-    additionalContext: Optional[str] = None
-    additionalSources: Optional[str] = None
+    painPoint: str = Field(..., min_length=10, max_length=MAX_PAIN_POINT_LENGTH)
+    inputType: str = Field(..., min_length=1, max_length=50)
+    processSteps: List[str] = Field(..., min_length=1, max_length=10)
+    outputTypes: List[str] = Field(..., min_length=1, max_length=10)
+    humanLoop: str = Field(..., min_length=1, max_length=50)
+    errorTolerance: str = Field(..., min_length=1, max_length=50)
+    additionalContext: Optional[str] = Field(None, max_length=MAX_CONTEXT_LENGTH)
+    additionalSources: Optional[str] = Field(None, max_length=MAX_SOURCES_LENGTH)
+
+    @field_validator('painPoint', 'additionalContext', 'additionalSources', mode='before')
+    @classmethod
+    def sanitize_text_fields(cls, v):
+        if v is None:
+            return v
+        return sanitize_input(v, MAX_PAIN_POINT_LENGTH)
+
+    @field_validator('processSteps', 'outputTypes', mode='before')
+    @classmethod
+    def validate_list_length(cls, v):
+        if v and len(v) > 10:
+            raise ValueError('최대 10개까지 선택 가능합니다')
+        return v
+
 
 class ChatRequest(BaseModel):
-    conversation: List[Dict[str, str]]
-    userMessage: str
+    conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
+    userMessage: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
+    sessionId: Optional[str] = Field(None, max_length=100)
+
+    @field_validator('userMessage', mode='before')
+    @classmethod
+    def sanitize_message(cls, v):
+        return sanitize_input(v, MAX_MESSAGE_LENGTH)
+
+    @field_validator('conversation', mode='before')
+    @classmethod
+    def validate_conv(cls, v):
+        return validate_conversation(v)
+
 
 class FinalizeRequest(BaseModel):
     formData: Dict[str, Any]
-    conversation: List[Dict[str, str]]
+    conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
+
+    @field_validator('conversation', mode='before')
+    @classmethod
+    def validate_conv(cls, v):
+        return validate_conversation(v)
+
 
 class SpecRequest(BaseModel):
     analysis: Dict[str, Any]
@@ -56,14 +141,21 @@ class SpecRequest(BaseModel):
 
 # Step2: Feasibility 관련 Request Models
 class FeasibilityRequest(BaseModel):
-    painPoint: str
-    inputType: str
-    processSteps: List[str]
-    outputTypes: List[str]
-    humanLoop: str
-    errorTolerance: str
-    additionalContext: Optional[str] = None
-    additionalSources: Optional[str] = None
+    painPoint: str = Field(..., min_length=10, max_length=MAX_PAIN_POINT_LENGTH)
+    inputType: str = Field(..., min_length=1, max_length=50)
+    processSteps: List[str] = Field(..., min_length=1, max_length=10)
+    outputTypes: List[str] = Field(..., min_length=1, max_length=10)
+    humanLoop: str = Field(..., min_length=1, max_length=50)
+    errorTolerance: str = Field(..., min_length=1, max_length=50)
+    additionalContext: Optional[str] = Field(None, max_length=MAX_CONTEXT_LENGTH)
+    additionalSources: Optional[str] = Field(None, max_length=MAX_SOURCES_LENGTH)
+
+    @field_validator('painPoint', 'additionalContext', 'additionalSources', mode='before')
+    @classmethod
+    def sanitize_text_fields(cls, v):
+        if v is None:
+            return v
+        return sanitize_input(v, MAX_PAIN_POINT_LENGTH)
 
 
 class FeasibilityReevaluateRequest(BaseModel):
@@ -79,31 +171,50 @@ class PatternAnalyzeRequest(BaseModel):
 
 
 class PatternChatRequest(BaseModel):
-    conversation: List[Dict[str, str]]
-    userMessage: str
+    conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
+    userMessage: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
+    sessionId: Optional[str] = Field(None, max_length=100)
+
+    @field_validator('userMessage', mode='before')
+    @classmethod
+    def sanitize_message(cls, v):
+        return sanitize_input(v, MAX_MESSAGE_LENGTH)
+
+    @field_validator('conversation', mode='before')
+    @classmethod
+    def validate_conv(cls, v):
+        return validate_conversation(v)
 
 
 class PatternFinalizeRequest(BaseModel):
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
-    conversation: List[Dict[str, str]]
+    conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
+
+    @field_validator('conversation', mode='before')
+    @classmethod
+    def validate_conv(cls, v):
+        return validate_conversation(v)
 
 
 # Global agents (재사용)
 analyzer_agent = AnalyzerAgent()
 multi_stage_spec_agent = MultiStageSpecAgent()
 feasibility_agent = FeasibilityAgent()
-chat_sessions: Dict[str, ChatAgent] = {}  # 세션별 ChatAgent 관리
-pattern_sessions: Dict[str, PatternAnalyzerAgent] = {}  # 세션별 PatternAnalyzerAgent 관리
+
+# 보안 세션 관리자로 교체
+chat_sessions: SecureSessionManager[ChatAgent] = SecureSessionManager()
+pattern_sessions: SecureSessionManager[PatternAnalyzerAgent] = SecureSessionManager()
 
 
 @app.post("/analyze")
-async def analyze(request: AnalyzeRequest):
+@limiter.limit(RATE_LIMITS["analyze"])
+async def analyze(request: Request, data: AnalyzeRequest):
     """2단계 초기 분석 - 스트리밍"""
     try:
-        form_data = request.dict()
+        form_data = data.model_dump()
 
         async def generate():
             try:
@@ -126,25 +237,31 @@ async def analyze(request: AnalyzeRequest):
 
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
+@limiter.limit(RATE_LIMITS["chat"])
+async def chat(request: Request, data: ChatRequest):
     """2단계 대화 - 스트리밍"""
     try:
-        # 세션 ID 생성 (간단하게 conversation 길이 기반)
-        session_id = f"session_{len(request.conversation)}"
+        # 세션 ID 처리
+        session_id = data.sessionId
 
-        # ChatAgent 가져오기 또는 생성
-        if session_id not in chat_sessions:
-            chat_sessions[session_id] = ChatAgent()
+        # 기존 세션 조회 또는 새 세션 생성
+        chat_agent = None
+        if session_id:
+            chat_agent = chat_sessions.get_session(session_id)
+
+        if chat_agent is None:
+            # 새 ChatAgent 생성
+            chat_agent = ChatAgent()
             # 기존 대화 히스토리 복원
-            for msg in request.conversation:
-                chat_sessions[session_id].add_message(msg["role"], msg["content"])
-
-        chat_agent = chat_sessions[session_id]
+            for msg in data.conversation:
+                chat_agent.add_message(msg["role"], msg["content"])
+            # 새 세션 생성
+            session_id = chat_sessions.create_session(chat_agent)
 
         async def generate():
             try:
-                async for chunk in chat_agent.chat_stream(request.userMessage):
-                    yield f"data: {json.dumps({'text': chunk})}\n\n"
+                async for chunk in chat_agent.chat_stream(data.userMessage):
+                    yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -162,22 +279,24 @@ async def chat(request: ChatRequest):
 
 
 @app.post("/finalize")
-async def finalize(request: FinalizeRequest):
+@limiter.limit(RATE_LIMITS["finalize"])
+async def finalize(request: Request, data: FinalizeRequest):
     """2단계 최종 평가"""
     try:
         evaluator = EvaluatorAgent()
-        evaluation = evaluator.evaluate(request.formData, request.conversation)
+        evaluation = evaluator.evaluate(data.formData, data.conversation)
         return evaluation
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/spec")
-async def spec(request: SpecRequest):
+@limiter.limit(RATE_LIMITS["spec"])
+async def spec(request: Request, data: SpecRequest):
     """3단계 명세서 생성 - MultiStage 스트리밍 (프레임워크 독립적)"""
     try:
         return StreamingResponse(
-            multi_stage_spec_agent.generate_spec_stream(request.analysis),
+            multi_stage_spec_agent.generate_spec_stream(data.analysis),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -194,10 +313,11 @@ async def spec(request: SpecRequest):
 # ============================================
 
 @app.post("/feasibility")
-async def feasibility(request: FeasibilityRequest):
+@limiter.limit(RATE_LIMITS["feasibility"])
+async def feasibility(request: Request, data: FeasibilityRequest):
     """Step2: 초기 Feasibility 평가"""
     try:
-        form_data = request.dict()
+        form_data = data.model_dump()
         evaluation = feasibility_agent.evaluate(form_data)
         return evaluation
     except Exception as e:
@@ -205,13 +325,14 @@ async def feasibility(request: FeasibilityRequest):
 
 
 @app.post("/feasibility/update")
-async def feasibility_update(request: FeasibilityReevaluateRequest):
+@limiter.limit(RATE_LIMITS["feasibility_update"])
+async def feasibility_update(request: Request, data: FeasibilityReevaluateRequest):
     """Step2: 개선안 반영 재평가"""
     try:
         evaluation = feasibility_agent.reevaluate(
-            request.formData,
-            request.previousEvaluation,
-            request.improvementPlans
+            data.formData,
+            data.previousEvaluation,
+            data.improvementPlans
         )
         return evaluation
     except Exception as e:
@@ -223,17 +344,17 @@ async def feasibility_update(request: FeasibilityReevaluateRequest):
 # ============================================
 
 @app.post("/pattern/analyze")
-async def pattern_analyze(request: PatternAnalyzeRequest):
+@limiter.limit(RATE_LIMITS["pattern_analyze"])
+async def pattern_analyze(request: Request, data: PatternAnalyzeRequest):
     """Step3: Feasibility 기반 패턴 분석 - 스트리밍"""
     try:
-        # 새로운 PatternAnalyzerAgent 생성 (세션별)
-        session_id = f"pattern_{id(request)}"
+        # 새로운 PatternAnalyzerAgent 생성
         pattern_agent = PatternAnalyzerAgent()
-        pattern_sessions[session_id] = pattern_agent
+        session_id = pattern_sessions.create_session(pattern_agent)
 
         async def generate():
             try:
-                async for chunk in pattern_agent.analyze_stream(request.formData, request.feasibility):
+                async for chunk in pattern_agent.analyze_stream(data.formData, data.feasibility):
                     yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
@@ -252,25 +373,31 @@ async def pattern_analyze(request: PatternAnalyzeRequest):
 
 
 @app.post("/pattern/chat")
-async def pattern_chat(request: PatternChatRequest):
+@limiter.limit(RATE_LIMITS["pattern_chat"])
+async def pattern_chat(request: Request, data: PatternChatRequest):
     """Step3: 패턴 관련 대화 - 스트리밍"""
     try:
-        # 세션 ID 생성
-        session_id = f"pattern_{len(request.conversation)}"
+        # 세션 ID 처리
+        session_id = data.sessionId
 
-        # PatternAnalyzerAgent 가져오기 또는 생성
-        if session_id not in pattern_sessions:
-            pattern_sessions[session_id] = PatternAnalyzerAgent()
+        # 기존 세션 조회 또는 새 세션 생성
+        pattern_agent = None
+        if session_id:
+            pattern_agent = pattern_sessions.get_session(session_id)
+
+        if pattern_agent is None:
+            # 새 PatternAnalyzerAgent 생성
+            pattern_agent = PatternAnalyzerAgent()
             # 기존 대화 히스토리 복원
-            for msg in request.conversation:
-                pattern_sessions[session_id].add_message(msg["role"], msg["content"])
-
-        pattern_agent = pattern_sessions[session_id]
+            for msg in data.conversation:
+                pattern_agent.add_message(msg["role"], msg["content"])
+            # 새 세션 생성
+            session_id = pattern_sessions.create_session(pattern_agent)
 
         async def generate():
             try:
-                async for chunk in pattern_agent.chat_stream(request.userMessage):
-                    yield f"data: {json.dumps({'text': chunk})}\n\n"
+                async for chunk in pattern_agent.chat_stream(data.userMessage):
+                    yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -288,15 +415,16 @@ async def pattern_chat(request: PatternChatRequest):
 
 
 @app.post("/pattern/finalize")
-async def pattern_finalize(request: PatternFinalizeRequest):
+@limiter.limit(RATE_LIMITS["pattern_finalize"])
+async def pattern_finalize(request: Request, data: PatternFinalizeRequest):
     """Step3: 패턴 확정 및 최종 분석"""
     try:
         # PatternAnalyzerAgent 생성 및 히스토리 복원
         pattern_agent = PatternAnalyzerAgent()
-        for msg in request.conversation:
+        for msg in data.conversation:
             pattern_agent.add_message(msg["role"], msg["content"])
 
-        analysis = pattern_agent.finalize(request.formData, request.feasibility)
+        analysis = pattern_agent.finalize(data.formData, data.feasibility)
         return analysis
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -304,8 +432,15 @@ async def pattern_finalize(request: PatternFinalizeRequest):
 
 @app.get("/health")
 async def health():
-    """헬스체크"""
-    return {"status": "healthy", "service": "PATH Strands Agent API"}
+    """헬스체크 (인증 불필요)"""
+    return {
+        "status": "healthy",
+        "service": "PATH Strands Agent API",
+        "sessions": {
+            "chat": chat_sessions.get_stats(),
+            "pattern": pattern_sessions.get_stats()
+        }
+    }
 
 
 if __name__ == "__main__":

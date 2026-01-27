@@ -203,22 +203,21 @@ Agent의 System Prompt와 Tool 스키마를 정의합니다."""
 
 ## 5. Tool Definitions
 
+**중요: Compact Signature 형식 사용 (JSON Schema 금지)**
+
 필요한 각 Tool에 대해 아래 형식으로 작성:
 
-### 5.1 [Tool Name]
-- **Description**: [도구 설명]
-- **Input Schema**:
-```json
-{{
-  "param1": {{ "type": "string", "description": "..." }}
-}}
-```
-- **Output Schema**:
-```json
-{{
-  "result": {{ "type": "string", "description": "..." }}
-}}
-```
+### 5.1 [tool_name]
+- **Purpose**: [도구의 목적 1문장]
+- **Signature**: `tool_name(param1: type, param2?: type = default) -> ReturnType`
+- **When to use**: [Agent가 이 도구를 사용해야 하는 상황]
+
+**Signature 규칙:**
+- 필수 파라미터: `param: type`
+- 선택 파라미터: `param?: type = default`
+- 반환 타입: `-> type` 또는 `-> {{field1: type, field2: type}}`
+- 기본 타입: str, int, float, bool, list[T], dict, None
+- 복합 타입: `list[Document]`, `{{success: bool, id?: str}}`
 """
         result = self.agent(prompt)
         return result.message['content'][0]['text']

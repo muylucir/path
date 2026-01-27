@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { Step2Readiness } from "@/components/steps/Step2Readiness";
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { STEPS } from "@/lib/constants";
-import type { FeasibilityEvaluation } from "@/lib/types";
+import type { FeasibilityEvaluation, ImprovementPlans } from "@/lib/types";
 
 export default function FeasibilityPage() {
   const router = useRouter();
   const [formData, setFormData] = useState<any>(null);
   const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
+  const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>({});
 
   useEffect(() => {
     const data = sessionStorage.getItem("formData");
@@ -25,10 +26,17 @@ export default function FeasibilityPage() {
     if (existingFeasibility) {
       setFeasibility(JSON.parse(existingFeasibility));
     }
+
+    // 기존 improvementPlans가 있으면 로드
+    const existingImprovementPlans = sessionStorage.getItem("improvementPlans");
+    if (existingImprovementPlans) {
+      setImprovementPlans(JSON.parse(existingImprovementPlans));
+    }
   }, [router]);
 
-  const handleComplete = (feasibilityResult: FeasibilityEvaluation) => {
+  const handleComplete = (feasibilityResult: FeasibilityEvaluation, userImprovementPlans: ImprovementPlans) => {
     sessionStorage.setItem("feasibility", JSON.stringify(feasibilityResult));
+    sessionStorage.setItem("improvementPlans", JSON.stringify(userImprovementPlans));
     // 패턴 분석 단계로 진행 시 새로운 LLM 대화 시작
     sessionStorage.removeItem("chatHistory");
     sessionStorage.removeItem("analysis");
@@ -56,6 +64,7 @@ export default function FeasibilityPage() {
           <Step2Readiness
             formData={formData}
             initialFeasibility={feasibility}
+            initialImprovementPlans={improvementPlans}
             onComplete={handleComplete}
             onFormDataUpdate={handleFormDataUpdate}
           />

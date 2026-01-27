@@ -11,7 +11,8 @@ export default function Home() {
   const router = useRouter();
 
   const handleSubmit = (data: FormValues) => {
-    // 새로운 분석 시작 - LLM 대화 데이터만 클리어 (formData는 새로 저장)
+    // 새로운 분석 시작 - 이전 분석 결과 클리어 후 새로 시작
+    sessionStorage.removeItem("feasibility");
     sessionStorage.removeItem("chatHistory");
     sessionStorage.removeItem("analysis");
     sessionStorage.setItem("formData", JSON.stringify(data));

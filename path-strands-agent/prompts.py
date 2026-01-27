@@ -363,46 +363,51 @@ def get_feasibility_evaluation_prompt(form_data: dict) -> str:
 <instructions>
 위 AI Agent 아이디어에 대해 Feasibility 평가를 수행하세요.
 
+**중요: 각 항목에 대해 상세하고 풍성한 설명을 제공하세요.**
+- reason: 왜 이 점수를 주었는지 구체적인 근거 (2-3문장)
+- current_state: 현재 상태에 대한 상세 분석 (어떤 점이 좋고, 어떤 점이 부족한지)
+- improvement_suggestion: 실행 가능한 구체적인 개선 방안 (어떻게 준비하면 점수가 올라갈지)
+
 다음 JSON 형식으로 출력:
 {{
   "feasibility_breakdown": {{
     "data_access": {{
       "score": 0-10,
-      "reason": "점수 근거",
-      "current_state": "현재 상태 설명"
+      "reason": "이 점수를 준 구체적 근거. 언급된 데이터소스의 접근 방식, API 존재 여부, 인증 복잡도 등을 분석하여 2-3문장으로 설명",
+      "current_state": "현재 데이터 접근 상황에 대한 상세 분석. 어떤 데이터에 어떻게 접근 가능한지, 제약사항은 무엇인지"
     }},
     "decision_clarity": {{
       "score": 0-10,
-      "reason": "점수 근거",
-      "current_state": "현재 상태 설명"
+      "reason": "판단 기준의 명확성에 대한 구체적 근거. 규칙화 가능 여부, 예시 데이터 존재 여부, 전문가 지식 문서화 정도 등",
+      "current_state": "현재 판단 기준 상태. 어떤 판단을 내려야 하는지, 그 기준이 얼마나 명확한지 상세히 분석"
     }},
     "error_tolerance": {{
       "score": 0-10,
-      "reason": "점수 근거",
-      "current_state": "현재 상태 설명"
+      "reason": "오류 허용도에 대한 구체적 근거. 사용자가 선택한 오류 허용 수준과 실제 비즈니스 영향도 분석",
+      "current_state": "현재 오류 허용 상황. 오류 발생 시 영향, 복구 가능성, 검토 프로세스 존재 여부 등"
     }},
     "latency": {{
       "score": 0-10,
-      "reason": "점수 근거",
-      "current_state": "현재 상태 설명"
+      "reason": "지연 요구사항에 대한 구체적 근거. 입력 트리거 유형에 따른 응답 시간 요구 분석",
+      "current_state": "현재 지연 요구 상황. 실시간 필요 여부, 배치 처리 가능 여부, 예상 처리 시간 등"
     }},
     "integration": {{
       "score": 0-10,
-      "reason": "점수 근거",
-      "current_state": "현재 상태 설명"
+      "reason": "통합 복잡도에 대한 구체적 근거. 연동해야 할 시스템 수, 각 시스템의 API 표준화 정도 분석",
+      "current_state": "현재 통합 상황. 어떤 시스템들과 연동이 필요한지, 각각의 연동 복잡도는 어떤지"
     }}
   }},
   "feasibility_score": 0-50,
   "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
   "weak_items": [
     {{
-      "item": "항목명",
+      "item": "항목명 (예: 데이터 접근성)",
       "score": 점수,
-      "improvement_suggestion": "구체적 개선 제안"
+      "improvement_suggestion": "구체적이고 실행 가능한 개선 제안. 무엇을 어떻게 준비하면 점수가 올라갈 수 있는지 단계별로 설명 (3-4문장)"
     }}
   ],
-  "risks": ["주요 리스크1", "주요 리스크2"],
-  "summary": "전체 평가 요약 (2-3문장)"
+  "risks": ["주요 리스크에 대한 상세 설명", "또 다른 리스크와 그 영향"],
+  "summary": "전체 평가 요약. 강점과 약점을 균형있게 설명하고, 다음 단계를 위한 조언 포함 (3-4문장)"
 }}
 
 JSON만 출력하세요.
@@ -426,12 +431,12 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
 **이전 총점**: {previous_evaluation.get('feasibility_score', 0)}/50
 **이전 판정**: {previous_evaluation.get('judgment', '')}
 
-**이전 항목별 점수**:
-- 데이터 접근성: {prev_breakdown.get('data_access', {}).get('score', 0)}/10
-- 판단 명확성: {prev_breakdown.get('decision_clarity', {}).get('score', 0)}/10
-- 오류 허용도: {prev_breakdown.get('error_tolerance', {}).get('score', 0)}/10
-- 지연 요구사항: {prev_breakdown.get('latency', {}).get('score', 0)}/10
-- 통합 복잡도: {prev_breakdown.get('integration', {}).get('score', 0)}/10
+**이전 항목별 점수 및 상태**:
+- 데이터 접근성: {prev_breakdown.get('data_access', {}).get('score', 0)}/10 - {prev_breakdown.get('data_access', {}).get('current_state', '')}
+- 판단 명확성: {prev_breakdown.get('decision_clarity', {}).get('score', 0)}/10 - {prev_breakdown.get('decision_clarity', {}).get('current_state', '')}
+- 오류 허용도: {prev_breakdown.get('error_tolerance', {}).get('score', 0)}/10 - {prev_breakdown.get('error_tolerance', {}).get('current_state', '')}
+- 지연 요구사항: {prev_breakdown.get('latency', {}).get('score', 0)}/10 - {prev_breakdown.get('latency', {}).get('current_state', '')}
+- 통합 복잡도: {prev_breakdown.get('integration', {}).get('score', 0)}/10 - {prev_breakdown.get('integration', {}).get('current_state', '')}
 </previous_evaluation>
 
 <improvement_plans>
@@ -445,40 +450,46 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
 **중요**:
 - 개선 계획이 실현 가능하고 구체적인 경우에만 점수를 올려주세요
 - 막연한 계획은 점수에 반영하지 마세요
-- 변경된 항목과 변경 근거를 명시하세요
+- 변경된 항목과 변경 근거를 상세히 명시하세요
+- 각 항목의 reason과 current_state는 상세하게 작성하세요 (2-3문장)
 
 다음 JSON 형식으로 출력:
 {{
   "feasibility_breakdown": {{
     "data_access": {{
       "score": 0-10,
-      "reason": "점수 근거",
+      "reason": "이 점수를 준 구체적 근거 (2-3문장)",
+      "current_state": "현재 데이터 접근 상황에 대한 상세 분석",
       "changed": true/false,
-      "change_reason": "변경 이유 (변경된 경우)"
+      "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
     "decision_clarity": {{
       "score": 0-10,
-      "reason": "점수 근거",
+      "reason": "판단 기준 명확성에 대한 구체적 근거 (2-3문장)",
+      "current_state": "현재 판단 기준 상태에 대한 상세 분석",
       "changed": true/false,
-      "change_reason": "변경 이유 (변경된 경우)"
+      "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
     "error_tolerance": {{
       "score": 0-10,
-      "reason": "점수 근거",
+      "reason": "오류 허용도에 대한 구체적 근거 (2-3문장)",
+      "current_state": "현재 오류 허용 상황에 대한 상세 분석",
       "changed": true/false,
-      "change_reason": "변경 이유 (변경된 경우)"
+      "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
     "latency": {{
       "score": 0-10,
-      "reason": "점수 근거",
+      "reason": "지연 요구사항에 대한 구체적 근거 (2-3문장)",
+      "current_state": "현재 지연 요구 상황에 대한 상세 분석",
       "changed": true/false,
-      "change_reason": "변경 이유 (변경된 경우)"
+      "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
     "integration": {{
       "score": 0-10,
-      "reason": "점수 근거",
+      "reason": "통합 복잡도에 대한 구체적 근거 (2-3문장)",
+      "current_state": "현재 통합 상황에 대한 상세 분석",
       "changed": true/false,
-      "change_reason": "변경 이유 (변경된 경우)"
+      "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }}
   }},
   "feasibility_score": 0-50,
@@ -487,13 +498,13 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
   "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
   "weak_items": [
     {{
-      "item": "항목명",
+      "item": "항목명 (예: 데이터 접근성)",
       "score": 점수,
-      "improvement_suggestion": "추가 개선 제안"
+      "improvement_suggestion": "추가로 필요한 개선 제안. 무엇을 어떻게 준비하면 점수가 더 올라갈 수 있는지 (3-4문장)"
     }}
   ],
-  "risks": ["남은 리스크1", "남은 리스크2"],
-  "summary": "재평가 요약 (개선 반영 결과)"
+  "risks": ["남은 주요 리스크에 대한 상세 설명", "또 다른 리스크와 그 영향"],
+  "summary": "재평가 요약. 개선 계획 반영 결과와 남은 과제를 균형있게 설명 (3-4문장)"
 }}
 
 JSON만 출력하세요.

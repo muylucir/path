@@ -7,3 +7,4 @@ pyyaml
 strictyaml
 httpx
 aiohttp
+slowapi
