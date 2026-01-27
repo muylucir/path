@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
-import type { Analysis, ChatMessage, FeasibilityEvaluation, FeasibilityItemDetail } from "@/lib/types";
+import type { Analysis, ChatMessage, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
 import { PROCESS_STEPS, READINESS_LEVELS, FEASIBILITY_ITEM_NAMES, READINESS_ITEM_DETAILS } from "@/lib/constants";
 
 interface Step3ResultsProps {
@@ -17,6 +17,7 @@ interface Step3ResultsProps {
   chatHistory: ChatMessage[];
   formData: any;
   feasibility?: FeasibilityEvaluation | null;
+  improvementPlans?: ImprovementPlans;
   initialSpecification?: string;
   onSave: (specification: string) => Promise<void>;
 }
@@ -52,6 +53,7 @@ export function Step3Results({
   chatHistory,
   formData,
   feasibility,
+  improvementPlans,
   initialSpecification,
   onSave,
 }: Step3ResultsProps) {
@@ -427,6 +429,32 @@ export function Step3Results({
                             <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">{weak.improvement_suggestion}</p>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* User Improvement Plans */}
+                {improvementPlans && Object.keys(improvementPlans).filter(k => improvementPlans[k]?.trim()).length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <h4 className="font-semibold mb-3 flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        사용자 개선 방안
+                      </h4>
+                      <div className="space-y-2">
+                        {Object.entries(improvementPlans)
+                          .filter(([, value]) => value?.trim())
+                          .map(([key, value]) => {
+                            const itemName = FEASIBILITY_ITEM_NAMES[key as keyof typeof FEASIBILITY_ITEM_NAMES] || key;
+                            return (
+                              <div key={key} className="bg-green-50 dark:bg-green-950 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                                <p className="text-sm font-medium text-green-800 dark:text-green-200">{itemName}</p>
+                                <p className="text-sm text-green-700 dark:text-green-300 mt-1">{value}</p>
+                              </div>
+                            );
+                          })}
                       </div>
                     </div>
                   </>

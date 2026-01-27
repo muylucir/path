@@ -1,16 +1,20 @@
 import { NextRequest } from "next/server";
 
 const STRANDS_API_URL = process.env.STRANDS_API_URL || "http://localhost:8001";
+const PATH_API_KEY = process.env.PATH_API_KEY || "";
 
 export async function POST(req: NextRequest) {
   try {
-    const { conversation, userMessage } = await req.json();
+    const { conversation, userMessage, sessionId } = await req.json();
 
     // Strands Agent API 호출
     const response = await fetch(`${STRANDS_API_URL}/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ conversation, userMessage }),
+      headers: {
+        "Content-Type": "application/json",
+        "X-API-Key": PATH_API_KEY,
+      },
+      body: JSON.stringify({ conversation, userMessage, sessionId }),
     });
 
     if (!response.ok) {

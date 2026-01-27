@@ -39,12 +39,13 @@ import {
   READINESS_LEVELS,
   READINESS_ITEM_DETAILS,
 } from "@/lib/constants";
-import type { FeasibilityEvaluation, FeasibilityItemDetail } from "@/lib/types";
+import type { FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
 
 interface Step2ReadinessProps {
   formData: any;
   initialFeasibility: FeasibilityEvaluation | null;
-  onComplete: (feasibility: FeasibilityEvaluation) => void;
+  initialImprovementPlans?: ImprovementPlans;
+  onComplete: (feasibility: FeasibilityEvaluation, improvementPlans: ImprovementPlans) => void;
   onFormDataUpdate?: (updatedFormData: any) => void;
 }
 
@@ -77,6 +78,7 @@ function getLevelBadgeClass(color: string) {
 export function Step2Readiness({
   formData,
   initialFeasibility,
+  initialImprovementPlans,
   onComplete,
   onFormDataUpdate,
 }: Step2ReadinessProps) {
@@ -85,9 +87,9 @@ export function Step2Readiness({
     useState<FeasibilityEvaluation | null>(initialFeasibility);
   const [isLoading, setIsLoading] = useState(false);
   const [isReevaluating, setIsReevaluating] = useState(false);
-  const [improvementPlans, setImprovementPlans] = useState<
-    Record<string, string>
-  >({});
+  const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>(
+    initialImprovementPlans || {}
+  );
   const [error, setError] = useState<string | null>(null);
 
   // 추가 정보 입력
@@ -171,12 +173,17 @@ export function Step2Readiness({
     }
   };
 
-  // 준비된 항목 수 계산
-  const getReadyItemsCount = () => {
-    if (!feasibility) return { ready: 0, total: 5 };
+  // 레벨별 항목 수 계산
+  const getLevelCounts = () => {
+    if (!feasibility) return { ready: 0, good: 0, needsWork: 0, prepare: 0, total: 5 };
     const items = Object.values(feasibility.feasibility_breakdown);
-    const ready = items.filter((item) => item.score >= 6).length;
-    return { ready, total: items.length };
+    return {
+      ready: items.filter((item) => item.score >= 8).length,
+      good: items.filter((item) => item.score >= 6 && item.score < 8).length,
+      needsWork: items.filter((item) => item.score >= 4 && item.score < 6).length,
+      prepare: items.filter((item) => item.score < 4).length,
+      total: items.length,
+    };
   };
 
   // 보완이 필요한 항목인지 확인
@@ -208,8 +215,10 @@ export function Step2Readiness({
     );
   }
 
-  const { ready, total } = getReadyItemsCount();
-  const readyPercentage = (ready / total) * 100;
+  const levelCounts = getLevelCounts();
+  // 진행 가능 = 준비됨 + 양호 (score >= 6)
+  const proceedableCount = levelCounts.ready + levelCounts.good;
+  const proceedablePercentage = (proceedableCount / levelCounts.total) * 100;
 
   return (
     <div className="space-y-6">
@@ -230,28 +239,43 @@ export function Step2Readiness({
           전체 준비도
         </h3>
 
-        {/* Level Legend */}
-        <div className="flex flex-wrap gap-2 text-sm">
-          {Object.values(READINESS_LEVELS).map((level) => (
-            <span
-              key={level.label}
-              className="flex items-center gap-1 px-2 py-1 rounded bg-background"
-            >
-              <span>{level.icon}</span>
-              <span className="text-muted-foreground">{level.label}</span>
+        {/* Level Breakdown */}
+        <div className="flex flex-wrap gap-3 text-sm">
+          {levelCounts.ready > 0 && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-800">
+              <span>{READINESS_LEVELS.READY.icon}</span>
+              <span>준비됨 {levelCounts.ready}개</span>
             </span>
-          ))}
+          )}
+          {levelCounts.good > 0 && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded bg-blue-100 text-blue-800">
+              <span>{READINESS_LEVELS.GOOD.icon}</span>
+              <span>양호 {levelCounts.good}개</span>
+            </span>
+          )}
+          {levelCounts.needsWork > 0 && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded bg-yellow-100 text-yellow-800">
+              <span>{READINESS_LEVELS.NEEDS_WORK.icon}</span>
+              <span>보완 필요 {levelCounts.needsWork}개</span>
+            </span>
+          )}
+          {levelCounts.prepare > 0 && (
+            <span className="flex items-center gap-1 px-2 py-1 rounded bg-orange-100 text-orange-800">
+              <span>{READINESS_LEVELS.PREPARE.icon}</span>
+              <span>준비 필요 {levelCounts.prepare}개</span>
+            </span>
+          )}
         </div>
 
         {/* Progress Bar */}
         <div className="space-y-2">
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
-              {ready}/{total} 항목 준비됨
+              {proceedableCount}/{levelCounts.total} 항목 진행 가능
             </span>
-            <span className="font-medium">{Math.round(readyPercentage)}%</span>
+            <span className="font-medium">{Math.round(proceedablePercentage)}%</span>
           </div>
-          <Progress value={readyPercentage} className="h-3" />
+          <Progress value={proceedablePercentage} className="h-3" />
         </div>
 
         {/* Score Change Indicator */}
@@ -531,7 +555,7 @@ export function Step2Readiness({
         </Button>
 
         <Button
-          onClick={() => onComplete(feasibility)}
+          onClick={() => onComplete(feasibility, improvementPlans)}
           className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
         >
           패턴 분석으로

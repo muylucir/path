@@ -35,13 +35,14 @@ class StrandsUtils:
             temperature=temperature
         )
         
-        # Agent 생성
+        # Agent 생성 (콘솔 출력 비활성화)
         agent = Agent(
             model=model,
             system_prompt=system_prompts,
-            tools=tools
+            tools=tools,
+            callback_handler=None
         )
-        
+
         return agent
 
 

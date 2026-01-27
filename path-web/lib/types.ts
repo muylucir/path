@@ -76,6 +76,9 @@ export interface FeasibilityEvaluation {
   score_change?: number;
 }
 
+// Step2: 사용자 개선 방안 입력
+export type ImprovementPlans = Record<string, string>;
+
 export interface Analysis {
   pain_point: string;
   input_type: string;
@@ -122,6 +125,8 @@ export interface Session {
   integration_details?: IntegrationDetail[];
   // Step 2 상세 준비도 점검 결과 (새 플로우)
   feasibility_evaluation?: FeasibilityEvaluation;
+  // Step 2 사용자 개선 방안
+  improvement_plans?: ImprovementPlans;
 }
 
 export interface SessionListItem {
