@@ -572,10 +572,20 @@ Feasibility 결과의 강점과 약점을 고려하여,
 </style>"""
 
 
-def get_pattern_analysis_prompt(form_data: dict, feasibility: dict) -> str:
+def get_pattern_analysis_prompt(form_data: dict, feasibility: dict, improvement_plans: dict = None) -> str:
     """Step3: Feasibility 기반 패턴 분석 프롬프트"""
 
     breakdown = feasibility.get('feasibility_breakdown', {})
+
+    # 사용자 개선 방안 포맷팅
+    improvement_section = ""
+    if improvement_plans:
+        plans_with_content = {k: v for k, v in improvement_plans.items() if v and v.strip()}
+        if plans_with_content:
+            improvement_section = "\n<user_improvement_plans>\n**사용자가 제출한 개선 방안:**\n"
+            for item, plan in plans_with_content.items():
+                improvement_section += f"- **{item}**: {plan}\n"
+            improvement_section += "</user_improvement_plans>\n"
 
     return f"""<feasibility_summary>
 **총점**: {feasibility.get('feasibility_score', 0)}/50
@@ -591,7 +601,7 @@ def get_pattern_analysis_prompt(form_data: dict, feasibility: dict) -> str:
 **취약 항목**: {', '.join([item.get('item', '') for item in feasibility.get('weak_items', [])])}
 **주요 리스크**: {', '.join(feasibility.get('risks', []))}
 </feasibility_summary>
-
+{improvement_section}
 <input_data>
 **Pain Point**: {form_data.get('painPoint', '')}
 **INPUT Type**: {form_data.get('inputType', '')}
@@ -601,7 +611,8 @@ def get_pattern_analysis_prompt(form_data: dict, feasibility: dict) -> str:
 </input_data>
 
 <instructions>
-Feasibility 결과를 바탕으로 최적의 Agent Design Pattern을 분석하세요.
+Feasibility 결과와 사용자가 제출한 개선 방안을 바탕으로 최적의 Agent Design Pattern을 분석하세요.
+사용자의 개선 방안이 있다면, 이를 반영하여 패턴 추천에 고려하세요.
 
 출력 형식:
 ## 📊 초기 패턴 분석

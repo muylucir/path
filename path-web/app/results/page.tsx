@@ -75,12 +75,12 @@ export default function ResultsPage() {
           pain_point: analysis.pain_point,
           input_type: analysis.input_type,
           process_steps: analysis.process_steps,
-          output_type: analysis.output_types[0] || "",
+          output_types: analysis.output_types,
           human_loop: analysis.human_loop,
           data_source: dataSourceStr || "",
           error_tolerance: formData.errorTolerance || "",
+          additional_sources: formData.additionalSources || "",
           additional_context: formData.additionalContext || "",
-          use_agentcore: formData.useAgentCore ?? true,  // AgentCore 항상 사용
           pattern: analysis.pattern,
           pattern_reason: analysis.pattern_reason,
           feasibility_breakdown: analysis.feasibility_breakdown,
@@ -100,6 +100,8 @@ export default function ResultsPage() {
           feasibility_evaluation: feasibility,
           // Step 2 사용자 개선 방안
           improvement_plans: improvementPlans,
+          // Step 3 향상된 점수
+          improved_feasibility: analysis.improved_feasibility,
         };
 
         const response = await fetch("/api/sessions", {

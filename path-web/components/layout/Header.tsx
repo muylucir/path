@@ -1,31 +1,41 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bot } from "lucide-react";
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <Link href="/" className="flex items-center gap-2 hover:opacity-80">
+            <button
+              onClick={() => {
+                sessionStorage.clear();
+                router.push("/");
+              }}
+              className="flex items-center gap-2 hover:opacity-80"
+            >
               <Bot className="h-7 w-7" />
               <h1 className="text-xl font-bold">P.A.T.H Agent Designer</h1>
-            </Link>
+            </button>
 
             <nav className="flex items-center gap-4">
-              <Link
-                href="/"
+              <button
+                onClick={() => {
+                  sessionStorage.clear();
+                  router.push("/");
+                }}
                 className={`text-sm font-medium transition-colors hover:text-primary ${
                   pathname === "/" ? "text-primary" : "text-muted-foreground"
                 }`}
               >
                 새 분석
-              </Link>
+              </button>
               <Link
                 href="/sessions"
                 className={`text-sm font-medium transition-colors hover:text-primary ${

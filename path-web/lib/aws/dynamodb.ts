@@ -10,7 +10,7 @@ import {
 import type { Session, SessionListItem } from "@/lib/types";
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || "us-east-1",
+  region: process.env.AWS_REGION || "ap-northeast-2",
 });
 
 const docClient = DynamoDBDocumentClient.from(client);
@@ -52,7 +52,7 @@ export async function listSessions(limit: number = 15, lastEvaluatedKey?: any): 
     new ScanCommand({
       TableName: TABLE_NAME,
       Limit: limit,
-      ProjectionExpression: "session_id, #ts, pain_point, feasibility_score",
+      ProjectionExpression: "session_id, #ts, pain_point, feasibility_score, improved_feasibility, next_steps",
       ExpressionAttributeNames: { "#ts": "timestamp" },
       ...(lastEvaluatedKey && { ExclusiveStartKey: lastEvaluatedKey }),
     })

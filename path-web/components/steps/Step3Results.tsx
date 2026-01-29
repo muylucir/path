@@ -9,7 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, Sparkles, Save, Settings, CheckCircle, RefreshCw, ClipboardList } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
-import type { Analysis, ChatMessage, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
+import type { Analysis, ChatMessage, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, ImprovedFeasibility, ImprovedFeasibilityItem } from "@/lib/types";
 import { PROCESS_STEPS, READINESS_LEVELS, FEASIBILITY_ITEM_NAMES, READINESS_ITEM_DETAILS } from "@/lib/constants";
 
 interface Step3ResultsProps {
@@ -57,7 +57,9 @@ export function Step3Results({
   initialSpecification,
   onSave,
 }: Step3ResultsProps) {
-  const { feasibility_score, pattern, feasibility_breakdown, risks } = analysis;
+  const { feasibility_score, pattern, feasibility_breakdown, risks, improved_feasibility } = analysis;
+  // 최종 점수: improved_feasibility가 있으면 그 점수 사용
+  const finalScore = improved_feasibility?.score ?? feasibility_score;
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -176,18 +178,30 @@ export function Step3Results({
                 <p className="text-base font-medium text-muted-foreground">준비도</p>
               </div>
               <div className="flex items-center justify-center gap-2">
-                <p className="text-xl font-bold">{feasibility_score}/50</p>
-                {(() => {
-                  // 50점 기준 준비도 레벨 (평균 점수 기준)
-                  const avgScore = feasibility_score / 5;
-                  const level = getReadinessLevel(avgScore);
-                  return (
-                    <Badge variant="outline" className={`${getLevelBadgeClass(level.color)} gap-1`}>
-                      <span>{level.icon}</span>
-                      <span className="text-xs">{level.label}</span>
+                {analysis.improved_feasibility ? (
+                  <>
+                    <p className="text-lg text-muted-foreground line-through">{feasibility_score}</p>
+                    <span className="text-muted-foreground">→</span>
+                    <p className="text-xl font-bold text-green-600">{analysis.improved_feasibility.score}/50</p>
+                    <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100">
+                      +{analysis.improved_feasibility.score_change}점
                     </Badge>
-                  );
-                })()}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xl font-bold">{feasibility_score}/50</p>
+                    {(() => {
+                      const avgScore = feasibility_score / 5;
+                      const level = getReadinessLevel(avgScore);
+                      return (
+                        <Badge variant="outline" className={`${getLevelBadgeClass(level.color)} gap-1`}>
+                          <span>{level.icon}</span>
+                          <span className="text-xs">{level.label}</span>
+                        </Badge>
+                      );
+                    })()}
+                  </>
+                )}
               </div>
             </div>
           </CardContent>
@@ -201,17 +215,17 @@ export function Step3Results({
                 <p className="text-base font-medium text-muted-foreground">다음 단계</p>
               </div>
               <div className="flex items-center justify-center gap-2">
-                {feasibility_score >= 40 ? (
+                {finalScore >= 40 ? (
                   <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 gap-1 text-base py-1 px-3">
                     <span>✅</span>
                     <span>바로 진행</span>
                   </Badge>
-                ) : feasibility_score >= 30 ? (
+                ) : finalScore >= 30 ? (
                   <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100 gap-1 text-base py-1 px-3">
                     <span>🔵</span>
                     <span>보완 후 진행</span>
                   </Badge>
-                ) : feasibility_score >= 20 ? (
+                ) : finalScore >= 20 ? (
                   <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 gap-1 text-base py-1 px-3">
                     <span>🟡</span>
                     <span>재검토 권장</span>
@@ -377,12 +391,26 @@ export function Step3Results({
                     준비도 점검 결과
                   </h3>
 
-                  {/* Summary */}
+                  {/* Summary with Improved Score */}
                   <div className="bg-muted/50 rounded-lg p-4 mb-4">
-                    <p className="text-sm text-muted-foreground">{feasibility.summary}</p>
+                    {analysis.improved_feasibility ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg font-bold">{feasibility.feasibility_score}점</span>
+                          <span className="text-muted-foreground">→</span>
+                          <span className="text-lg font-bold text-green-600">{analysis.improved_feasibility.score}점</span>
+                          <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 text-xs">
+                            예상 +{analysis.improved_feasibility.score_change}점
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{analysis.improved_feasibility.summary}</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{feasibility.summary}</p>
+                    )}
                   </div>
 
-                  {/* Item Breakdown */}
+                  {/* Item Breakdown - Integrated View */}
                   <div className="space-y-3">
                     {(
                       Object.entries(feasibility.feasibility_breakdown) as [
@@ -392,10 +420,16 @@ export function Step3Results({
                     ).map(([key, item]) => {
                       const level = getReadinessLevel(item.score);
                       const details = READINESS_ITEM_DETAILS[key];
+                      const weakItem = feasibility.weak_items?.find(w =>
+                        w.item === details.name || w.item.toLowerCase().includes(key.replace('_', ' '))
+                      );
+                      const userPlan = improvementPlans?.[key];
+                      const improvedItem = analysis.improved_feasibility?.breakdown?.[key];
 
                       return (
-                        <div key={key} className="border rounded-lg p-3">
-                          <div className="flex items-center gap-2 mb-2">
+                        <div key={key} className="border rounded-lg p-4 space-y-3">
+                          {/* Header with Score */}
+                          <div className="flex items-center gap-2">
                             <Badge
                               variant="outline"
                               className={`${getLevelBadgeClass(level.color)} gap-1`}
@@ -404,61 +438,68 @@ export function Step3Results({
                               <span>{level.label}</span>
                             </Badge>
                             <span className="font-medium text-sm">{details.name}</span>
-                            <span className="text-xs text-muted-foreground ml-auto">{item.score}/10</span>
+                            <div className="ml-auto flex items-center gap-2">
+                              {improvedItem && improvedItem.improved_score > improvedItem.original_score ? (
+                                <>
+                                  <span className="text-xs text-muted-foreground line-through">{item.score}</span>
+                                  <span className="text-xs text-muted-foreground">→</span>
+                                  <span className="text-sm font-semibold text-green-600">{improvedItem.improved_score}/10</span>
+                                  <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 text-xs px-1.5">
+                                    +{improvedItem.improved_score - improvedItem.original_score}
+                                  </Badge>
+                                </>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">{item.score}/10</span>
+                              )}
+                            </div>
                           </div>
+
+                          {/* Reason */}
                           <p className="text-sm text-muted-foreground">{item.reason}</p>
+
+                          {/* AI Suggestion (if weak item) */}
+                          {weakItem && (
+                            <div className="bg-amber-50 dark:bg-amber-950 p-2.5 rounded-md border border-amber-200 dark:border-amber-800">
+                              <div className="flex items-start gap-2">
+                                <span className="text-amber-600 text-sm">💡</span>
+                                <div>
+                                  <p className="text-xs font-medium text-amber-800 dark:text-amber-200 mb-0.5">AI 개선 제안</p>
+                                  <p className="text-xs text-amber-700 dark:text-amber-300">{weakItem.improvement_suggestion}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* User Plan */}
+                          {userPlan && userPlan.trim() && (
+                            <div className="bg-green-50 dark:bg-green-950 p-2.5 rounded-md border border-green-200 dark:border-green-800">
+                              <div className="flex items-start gap-2">
+                                <span className="text-green-600 text-sm">✏️</span>
+                                <div>
+                                  <p className="text-xs font-medium text-green-800 dark:text-green-200 mb-0.5">내 개선 계획</p>
+                                  <p className="text-xs text-green-700 dark:text-green-300">{userPlan}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Improvement Reason */}
+                          {improvedItem && improvedItem.improvement_reason && (
+                            <div className="bg-blue-50 dark:bg-blue-950 p-2.5 rounded-md border border-blue-200 dark:border-blue-800">
+                              <div className="flex items-start gap-2">
+                                <span className="text-blue-600 text-sm">📈</span>
+                                <div>
+                                  <p className="text-xs font-medium text-blue-800 dark:text-blue-200 mb-0.5">점수 상향 근거</p>
+                                  <p className="text-xs text-blue-700 dark:text-blue-300">{improvedItem.improvement_reason}</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                 </div>
-
-                {/* Weak Items with Improvement Suggestions */}
-                {feasibility.weak_items && feasibility.weak_items.length > 0 && (
-                  <>
-                    <Separator />
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
-                        개선 제안
-                      </h4>
-                      <div className="space-y-2">
-                        {feasibility.weak_items.map((weak, idx) => (
-                          <div key={idx} className="bg-amber-50 dark:bg-amber-950 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
-                            <p className="text-sm font-medium text-amber-800 dark:text-amber-200">{weak.item}</p>
-                            <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">{weak.improvement_suggestion}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* User Improvement Plans */}
-                {improvementPlans && Object.keys(improvementPlans).filter(k => improvementPlans[k]?.trim()).length > 0 && (
-                  <>
-                    <Separator />
-                    <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        사용자 개선 방안
-                      </h4>
-                      <div className="space-y-2">
-                        {Object.entries(improvementPlans)
-                          .filter(([, value]) => value?.trim())
-                          .map(([key, value]) => {
-                            const itemName = FEASIBILITY_ITEM_NAMES[key as keyof typeof FEASIBILITY_ITEM_NAMES] || key;
-                            return (
-                              <div key={key} className="bg-green-50 dark:bg-green-950 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                                <p className="text-sm font-medium text-green-800 dark:text-green-200">{itemName}</p>
-                                <p className="text-sm text-green-700 dark:text-green-300 mt-1">{value}</p>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  </>
-                )}
 
                 {/* Risks from Feasibility */}
                 {feasibility.risks && feasibility.risks.length > 0 && (
@@ -486,32 +527,6 @@ export function Step3Results({
 
           <Card>
             <CardContent className="pt-6 space-y-6">
-              {/* Feasibility Breakdown */}
-              <div>
-                <h3 className="font-semibold mb-4">Feasibility 점수</h3>
-                <div className="space-y-3">
-                  {feasibility_breakdown && Object.entries(feasibility_breakdown).map(([key, value]) => {
-                    const score = typeof value === 'object' && value !== null ? value.score : value;
-                    const reason = typeof value === 'object' && value !== null ? value.reason : '';
-
-                    return (
-                      <div key={key}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span>{key}</span>
-                          <span className="font-semibold">{score}/10</span>
-                        </div>
-                        <Progress value={(score / 10) * 100} />
-                        {reason && (
-                          <p className="text-xs text-muted-foreground mt-1">{reason}</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Separator />
-
               {/* Claude 분석 PROCESS */}
               <div>
                 <h4 className="font-semibold mb-2 flex items-center gap-2">
@@ -525,26 +540,27 @@ export function Step3Results({
                 </ul>
               </div>
 
-              <Separator />
-
               {/* Risks */}
               {risks && risks.length > 0 && (
-                <div>
-                  <h3 className="font-semibold mb-3 flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
-                    리스크 및 고려사항
-                  </h3>
-                  <div className="space-y-2">
-                    {risks.map((risk, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 text-sm"
-                      >
-                        {risk}
-                      </div>
-                    ))}
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-semibold mb-3 flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                      리스크 및 고려사항
+                    </h3>
+                    <div className="space-y-2">
+                      {risks.map((risk, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-yellow-50 dark:bg-yellow-950 p-3 rounded-lg border border-yellow-200 dark:border-yellow-800 text-sm"
+                        >
+                          {risk}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -554,7 +570,7 @@ export function Step3Results({
         <TabsContent value="chat" className="mt-6">
           <Card>
             <CardContent className="pt-6">
-              <div className="space-y-4 max-h-[600px] overflow-y-auto">
+              <div className="space-y-4 max-h-[calc(100vh-300px)] min-h-[400px] overflow-y-auto">
                 {chatHistory.map((msg, idx) => (
                   <div
                     key={idx}
@@ -645,7 +661,7 @@ export function Step3Results({
                     )}
                   </div>
 
-                  <div className="border rounded-lg p-6 max-h-[600px] overflow-y-auto">
+                  <div className="border rounded-lg p-6 max-h-[calc(100vh-350px)] min-h-[400px] overflow-y-auto">
                     {isGenerating ? (
                       <>
                         <pre className="text-sm whitespace-pre-wrap font-mono">{specification}</pre>

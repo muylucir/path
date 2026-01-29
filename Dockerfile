@@ -14,10 +14,10 @@ WORKDIR /app/frontend
 COPY path-web/package.json path-web/package-lock.json* ./
 
 # Install dependencies
-RUN npm ci --only=production=false
+RUN npm ci
 
 # -----------------------------------------------------------------------------
-# Stage 2: Next.js build
+# Stage 2: Next.js build (standalone output)
 # -----------------------------------------------------------------------------
 FROM node:22-slim AS node-builder
 
@@ -29,7 +29,7 @@ COPY --from=node-deps /app/frontend/node_modules ./node_modules
 # Copy source code
 COPY path-web/ ./
 
-# Build Next.js application
+# Build Next.js application (standalone mode)
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
@@ -55,11 +55,10 @@ COPY path-strands-agent/requirements.txt ./backend/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy Next.js build artifacts
-COPY --from=node-builder /app/frontend/.next ./frontend/.next
+# Copy Next.js standalone build (much smaller than full node_modules)
+COPY --from=node-builder /app/frontend/.next/standalone ./frontend/
+COPY --from=node-builder /app/frontend/.next/static ./frontend/.next/static
 COPY --from=node-builder /app/frontend/public ./frontend/public
-COPY --from=node-builder /app/frontend/package.json ./frontend/
-COPY --from=node-builder /app/frontend/node_modules ./frontend/node_modules
 
 # Copy backend source code
 COPY path-strands-agent/ ./backend/

@@ -289,9 +289,9 @@ class PatternAnalyzerAgent:
         self.add_message("assistant", response)
         return response
 
-    async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any]) -> AsyncIterator[str]:
+    async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> AsyncIterator[str]:
         """Feasibility 기반 초기 패턴 분석 - 스트리밍 버전"""
-        prompt = get_pattern_analysis_prompt(form_data, feasibility)
+        prompt = get_pattern_analysis_prompt(form_data, feasibility, improvement_plans)
 
         full_response = ""
         async for event in self.agent.stream_async(prompt):
@@ -326,8 +326,8 @@ class PatternAnalyzerAgent:
 
         self.add_message("assistant", full_response)
 
-    def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any]) -> Dict[str, Any]:
-        """패턴 확정 및 최종 분석 결과 생성"""
+    def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> Dict[str, Any]:
+        """패턴 확정 및 최종 분석 결과 생성 (개선된 점수 포함)"""
         conversation_text = "\n".join([
             f"{msg['role'].upper()}: {msg['content']}"
             for msg in self.conversation_history
@@ -342,6 +342,46 @@ class PatternAnalyzerAgent:
             else:
                 simple_breakdown[key] = value
 
+        # 개선 방안 텍스트 구성
+        improvement_section = ""
+        if improvement_plans:
+            plans_with_content = {k: v for k, v in improvement_plans.items() if v and v.strip()}
+            if plans_with_content:
+                improvement_section = "\n**사용자 개선 방안**:\n"
+                for item, plan in plans_with_content.items():
+                    improvement_section += f"- {item}: {plan}\n"
+
+        # 개선된 점수 계산 프롬프트 추가
+        improved_feasibility_prompt = ""
+        if improvement_plans and any(v and v.strip() for v in improvement_plans.values()):
+            improved_feasibility_prompt = """
+**개선된 Feasibility 점수 계산 (improved_feasibility)**:
+사용자의 개선 방안과 대화 내용을 분석하여 예상되는 개선 점수를 계산하세요.
+
+계산 기준:
+1. 구체적이고 실행 가능한 개선 계획만 점수에 반영
+2. 항목당 최대 +3점 상향 가능
+3. 막연한 계획은 반영하지 않음
+4. 점수는 상향만 가능 (하향 불가)
+
+improved_feasibility 필드에 다음 형식으로 포함:
+"improved_feasibility": {
+  "score": 개선후총점,
+  "score_change": 점수변화량,
+  "breakdown": {
+    "data_access": {
+      "original_score": 원본점수,
+      "improved_score": 개선후점수,
+      "improvement_reason": "왜 점수가 올랐는지 구체적 설명 (개선 방안이 없으면 빈 문자열)"
+    },
+    "decision_clarity": {...},
+    "error_tolerance": {...},
+    "latency": {...},
+    "integration": {...}
+  },
+  "summary": "전체 개선 점수 요약 (1-2문장)"
+}"""
+
         prompt = f"""다음은 지금까지의 패턴 분석 대화입니다:
 
 {conversation_text}
@@ -349,9 +389,9 @@ class PatternAnalyzerAgent:
 **Feasibility 정보**:
 - 총점: {feasibility.get('feasibility_score', 0)}/50
 - 판정: {feasibility.get('judgment', '')}
-
+{improvement_section}
 이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
-
+{improved_feasibility_prompt}
 {{
   "pain_point": "사용자 Pain Point",
   "input_type": "INPUT 타입",
@@ -364,6 +404,7 @@ class PatternAnalyzerAgent:
   "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
   "feasibility_breakdown": {json.dumps(simple_breakdown)},
   "feasibility_score": {feasibility.get('feasibility_score', 0)},
+  "improved_feasibility": null,
   "recommendation": "추천 사항",
   "risks": ["리스크1", "리스크2"],
   "next_steps": [
@@ -373,7 +414,10 @@ class PatternAnalyzerAgent:
   ]
 }}
 
-JSON만 출력하세요."""
+중요:
+- 사용자 개선 방안이 있으면 improved_feasibility를 계산하여 포함하세요.
+- 개선 방안이 없거나 반영할 내용이 없으면 improved_feasibility는 null로 유지하세요.
+- JSON만 출력하세요."""
 
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
