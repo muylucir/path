@@ -17,7 +17,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 from typing import Dict, Any, List, Optional
@@ -73,7 +73,7 @@ setup_rate_limiter(app)
 # CORS 설정 (Next.js 웹앱과 통신)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3009"],
+    allow_origins=["http://localhost:3009","https://d21k0iabhuk0yx.cloudfront.net"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -168,6 +168,7 @@ class FeasibilityReevaluateRequest(BaseModel):
 class PatternAnalyzeRequest(BaseModel):
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
+    improvementPlans: Optional[Dict[str, str]] = None
 
 
 class PatternChatRequest(BaseModel):
@@ -192,6 +193,7 @@ class PatternFinalizeRequest(BaseModel):
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
+    improvementPlans: Optional[Dict[str, str]] = None
 
     @field_validator('conversation', mode='before')
     @classmethod
@@ -285,7 +287,7 @@ async def finalize(request: Request, data: FinalizeRequest):
     try:
         evaluator = EvaluatorAgent()
         evaluation = evaluator.evaluate(data.formData, data.conversation)
-        return evaluation
+        return JSONResponse(content=evaluation)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -319,7 +321,7 @@ async def feasibility(request: Request, data: FeasibilityRequest):
     try:
         form_data = data.model_dump()
         evaluation = feasibility_agent.evaluate(form_data)
-        return evaluation
+        return JSONResponse(content=evaluation)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -334,7 +336,7 @@ async def feasibility_update(request: Request, data: FeasibilityReevaluateReques
             data.previousEvaluation,
             data.improvementPlans
         )
-        return evaluation
+        return JSONResponse(content=evaluation)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -354,7 +356,11 @@ async def pattern_analyze(request: Request, data: PatternAnalyzeRequest):
 
         async def generate():
             try:
-                async for chunk in pattern_agent.analyze_stream(data.formData, data.feasibility):
+                async for chunk in pattern_agent.analyze_stream(
+                    data.formData,
+                    data.feasibility,
+                    data.improvementPlans
+                ):
                     yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
@@ -424,8 +430,12 @@ async def pattern_finalize(request: Request, data: PatternFinalizeRequest):
         for msg in data.conversation:
             pattern_agent.add_message(msg["role"], msg["content"])
 
-        analysis = pattern_agent.finalize(data.formData, data.feasibility)
-        return analysis
+        analysis = pattern_agent.finalize(
+            data.formData,
+            data.feasibility,
+            data.improvementPlans
+        )
+        return JSONResponse(content=analysis)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

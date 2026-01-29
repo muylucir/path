@@ -79,6 +79,21 @@ export interface FeasibilityEvaluation {
 // Step2: 사용자 개선 방안 입력
 export type ImprovementPlans = Record<string, string>;
 
+// Step4: 개선된 Feasibility 항목
+export interface ImprovedFeasibilityItem {
+  original_score: number;
+  improved_score: number;
+  improvement_reason: string;
+}
+
+// Step4: 개선된 Feasibility 전체
+export interface ImprovedFeasibility {
+  score: number;
+  score_change: number;
+  breakdown: Record<string, ImprovedFeasibilityItem>;
+  summary: string;
+}
+
 export interface Analysis {
   pain_point: string;
   input_type: string;
@@ -91,6 +106,7 @@ export interface Analysis {
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;
   feasibility_score: number;
+  improved_feasibility?: ImprovedFeasibility | null;
   recommendation: string;
   risks: string[];
   next_steps: string[];
@@ -102,7 +118,7 @@ export interface Session {
   pain_point: string;
   input_type: string;
   process_steps: string[];
-  output_type: string;
+  output_types: string[];
   human_loop: string;
   data_source: string;
   error_tolerance: string;
@@ -127,6 +143,8 @@ export interface Session {
   feasibility_evaluation?: FeasibilityEvaluation;
   // Step 2 사용자 개선 방안
   improvement_plans?: ImprovementPlans;
+  // Step 3에서 생성된 향상된 점수
+  improved_feasibility?: ImprovedFeasibility;
 }
 
 export interface SessionListItem {
@@ -134,4 +152,6 @@ export interface SessionListItem {
   timestamp: string;
   pain_point: string;
   feasibility_score: number;
+  improved_feasibility?: ImprovedFeasibility;
+  next_steps?: string[];
 }

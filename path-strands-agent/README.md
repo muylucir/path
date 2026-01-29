@@ -73,6 +73,23 @@ export AWS_SECRET_ACCESS_KEY=your_secret
 export AWS_DEFAULT_REGION=ap-northeast-2
 ```
 
+### 4. DynamoDB 테이블 생성
+
+```bash
+# Sessions 테이블
+aws dynamodb create-table \
+  --table-name path-agent-sessions \
+  --attribute-definitions AttributeName=session_id,AttributeType=S \
+  --key-schema AttributeName=session_id,KeyType=HASH \
+  --billing-mode PAY_PER_REQUEST \
+  --region ap-northeast-2
+```
+
+테이블 생성 확인:
+```bash
+aws dynamodb list-tables --region ap-northeast-2
+```
+
 ## 실행
 
 ### FastAPI 서버 시작

@@ -26,7 +26,6 @@ import {
   Loader2,
   ArrowLeft,
   ArrowRight,
-  RefreshCw,
   AlertTriangle,
   Info,
   TrendingUp,
@@ -86,7 +85,6 @@ export function Step2Readiness({
   const [feasibility, setFeasibility] =
     useState<FeasibilityEvaluation | null>(initialFeasibility);
   const [isLoading, setIsLoading] = useState(false);
-  const [isReevaluating, setIsReevaluating] = useState(false);
   const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>(
     initialImprovementPlans || {}
   );
@@ -126,50 +124,6 @@ export function Step2Readiness({
       setError(err instanceof Error ? err.message : "오류가 발생했습니다");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleReevaluate = async () => {
-    if (!feasibility) return;
-
-    setIsReevaluating(true);
-    setError(null);
-
-    // 추가 정보가 있으면 formData 업데이트
-    const updatedFormData = {
-      ...formData,
-      additionalSources:
-        additionalInfo.additionalSources || formData.additionalSources,
-      additionalContext:
-        additionalInfo.additionalContext || formData.additionalContext,
-    };
-
-    if (onFormDataUpdate) {
-      onFormDataUpdate(updatedFormData);
-    }
-
-    try {
-      const response = await fetch("/api/bedrock/feasibility/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          formData: updatedFormData,
-          previousEvaluation: feasibility,
-          improvementPlans,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("재검토에 실패했습니다");
-      }
-
-      const result = await response.json();
-      setFeasibility(result);
-      setImprovementPlans({});
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다");
-    } finally {
-      setIsReevaluating(false);
     }
   };
 
@@ -481,7 +435,7 @@ export function Step2Readiness({
         <CollapsibleContent className="px-4 pb-4 space-y-4">
           <p className="text-sm text-muted-foreground">
             Step 1에서 미처 입력하지 못한 내용을 여기에 추가할 수 있습니다.
-            입력 후 &quot;재검토&quot; 버튼을 누르면 반영됩니다.
+            입력한 내용은 다음 단계 분석에 자동으로 반영됩니다.
           </p>
 
           <div className="space-y-4">
@@ -539,23 +493,25 @@ export function Step2Readiness({
       )}
 
       {/* Action Buttons */}
-      <div className="flex justify-between gap-4">
+      <div className="flex justify-end gap-4">
         <Button
-          variant="outline"
-          onClick={handleReevaluate}
-          disabled={isReevaluating}
-          className="flex items-center gap-2"
-        >
-          {isReevaluating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-          재검토
-        </Button>
+          onClick={() => {
+            // additionalInfo를 formData에 반영하고 sessionStorage 업데이트
+            if (additionalInfo.additionalSources || additionalInfo.additionalContext) {
+              const updatedFormData = {
+                ...formData,
+                additionalSources: additionalInfo.additionalSources || formData.additionalSources,
+                additionalContext: additionalInfo.additionalContext || formData.additionalContext,
+              };
+              sessionStorage.setItem("formData", JSON.stringify(updatedFormData));
 
-        <Button
-          onClick={() => onComplete(feasibility, improvementPlans)}
+              // onFormDataUpdate가 있으면 호출하여 부모 컴포넌트에도 반영
+              if (onFormDataUpdate) {
+                onFormDataUpdate(updatedFormData);
+              }
+            }
+            onComplete(feasibility, improvementPlans);
+          }}
           className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90"
         >
           패턴 분석으로

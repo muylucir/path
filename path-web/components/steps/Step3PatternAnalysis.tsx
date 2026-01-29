@@ -7,17 +7,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, MessageSquare, Keyboard, Info } from "lucide-react";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
-import type { ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail } from "@/lib/types";
+import type { ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
 
 interface Step3PatternAnalysisProps {
   formData: any;
   feasibility: FeasibilityEvaluation;
+  improvementPlans?: ImprovementPlans;
   onComplete: (chatHistory: ChatMessage[], analysis: Analysis) => void;
 }
 
 type FeasibilityKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
-export function Step3PatternAnalysis({ formData, feasibility, onComplete }: Step3PatternAnalysisProps) {
+export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete }: Step3PatternAnalysisProps) {
   const router = useRouter();
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
@@ -82,7 +83,7 @@ export function Step3PatternAnalysis({ formData, feasibility, onComplete }: Step
       const response = await fetch("/api/bedrock/pattern/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formData, feasibility }),
+        body: JSON.stringify({ formData, feasibility, improvementPlans }),
       });
 
       const reader = response.body?.getReader();
@@ -207,6 +208,7 @@ export function Step3PatternAnalysis({ formData, feasibility, onComplete }: Step
           formData,
           feasibility,
           conversation: history,
+          improvementPlans,
         }),
       });
 

@@ -5,16 +5,18 @@ import { useRouter } from "next/navigation";
 import { Step3PatternAnalysis } from "@/components/steps/Step3PatternAnalysis";
 import { StepIndicator } from "@/components/layout/StepIndicator";
 import { STEPS } from "@/lib/constants";
-import type { ChatMessage, Analysis, FeasibilityEvaluation } from "@/lib/types";
+import type { ChatMessage, Analysis, FeasibilityEvaluation, ImprovementPlans } from "@/lib/types";
 
 export default function AnalyzePage() {
   const router = useRouter();
   const [formData, setFormData] = useState<any>(null);
   const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
+  const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>({});
 
   useEffect(() => {
     const formDataStr = sessionStorage.getItem("formData");
     const feasibilityStr = sessionStorage.getItem("feasibility");
+    const improvementPlansStr = sessionStorage.getItem("improvementPlans");
 
     if (!formDataStr) {
       router.push("/");
@@ -28,6 +30,7 @@ export default function AnalyzePage() {
 
     setFormData(JSON.parse(formDataStr));
     setFeasibility(JSON.parse(feasibilityStr));
+    setImprovementPlans(improvementPlansStr ? JSON.parse(improvementPlansStr) : {});
   }, [router]);
 
   const handleComplete = (chatHistory: ChatMessage[], analysis: Analysis) => {
@@ -52,6 +55,7 @@ export default function AnalyzePage() {
           <Step3PatternAnalysis
             formData={formData}
             feasibility={feasibility}
+            improvementPlans={improvementPlans}
             onComplete={handleComplete}
           />
         </div>

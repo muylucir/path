@@ -32,7 +32,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Trash2, Eye, CheckCircle, AlertTriangle, RefreshCw, Database } from "lucide-react";
+import { Loader2, Trash2, Eye, Database } from "lucide-react";
 import { formatKST } from "@/lib/utils";
 import type { SessionListItem } from "@/lib/types";
 
@@ -84,21 +84,13 @@ export default function SessionsPage() {
       // Store in sessionStorage
       sessionStorage.setItem("formData", JSON.stringify({
         painPoint: session.pain_point,
-        // 사용자 원본 입력 우선, 없으면 Claude 분석 결과 사용 (하위 호환)
-        inputType: session.user_input_type || session.input_type,
-        processSteps: session.user_process_steps || session.process_steps,
-        outputTypes: session.user_output_types || [session.output_type],
+        inputType: session.user_input_type,
+        processSteps: session.user_process_steps,
+        outputTypes: session.user_output_types,
         humanLoop: session.human_loop,
-        // 새 구조: 카테고리별 통합 (레거시 호환을 위해 data_source도 유지)
-        selectedGateways: [],
-        selectedRAGs: [],
-        selectedS3s: [],
-        data_source: session.data_source,  // 레거시 문자열 형태 (하위 호환)
-        additionalSources: "",
+        additionalSources: session.additional_sources || session.data_source,
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
-        useAgentCore: session.use_agentcore ?? true,  // AgentCore 항상 사용
-        // 선택한 통합 정보
         integrationDetails: session.integration_details || [],
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history || []));
@@ -107,7 +99,7 @@ export default function SessionsPage() {
         pain_point: session.pain_point,
         input_type: session.input_type,
         process_steps: session.process_steps,
-        output_types: [session.output_type],
+        output_types: session.output_types,
         human_loop: session.human_loop,
         pattern: session.pattern,
         pattern_reason: session.pattern_reason,
@@ -116,33 +108,17 @@ export default function SessionsPage() {
         recommendation: session.recommendation,
         risks: session.risks,
         next_steps: session.next_steps,
+        improved_feasibility: session.improved_feasibility,
       }));
 
-      // Store feasibility for the new 4-step flow
+      // 사용자 개선 방안 복원
+      if (session.improvement_plans) {
+        sessionStorage.setItem("improvementPlans", JSON.stringify(session.improvement_plans));
+      }
+
+      // Store feasibility evaluation
       if (session.feasibility_evaluation) {
-        // 새 세션: 상세 준비도 점검 결과 사용
         sessionStorage.setItem("feasibility", JSON.stringify(session.feasibility_evaluation));
-      } else if (session.feasibility_breakdown) {
-        // 레거시 세션: 숫자만 있는 데이터를 상세 구조로 변환
-        const convertedBreakdown: Record<string, { score: number; reason: string; current_state: string }> = {};
-        for (const [key, value] of Object.entries(session.feasibility_breakdown)) {
-          const score = typeof value === 'number' ? value : 0;
-          convertedBreakdown[key] = {
-            score,
-            reason: "기존 세션에서 로드됨 (상세 정보 없음)",
-            current_state: score >= 8 ? "준비됨" : score >= 6 ? "양호" : score >= 4 ? "보완 필요" : "준비 필요",
-          };
-        }
-        sessionStorage.setItem("feasibility", JSON.stringify({
-          feasibility_breakdown: convertedBreakdown,
-          feasibility_score: session.feasibility_score,
-          judgment: session.feasibility_score >= 40 ? "즉시 진행" :
-                    session.feasibility_score >= 30 ? "조건부 진행" :
-                    session.feasibility_score >= 20 ? "재평가 필요" : "대안 모색",
-          weak_items: [],
-          risks: session.risks || [],
-          summary: session.recommendation || "",
-        }));
       }
 
       // Store session ID for update capability
@@ -174,31 +150,43 @@ export default function SessionsPage() {
     }
   };
 
+  // 최종 점수 계산 (improved_feasibility가 있으면 그 점수 사용)
+  const getFinalScore = (session: SessionListItem) =>
+    session.improved_feasibility?.score ?? session.feasibility_score;
+
   const sortedSessions = [...sessions].sort((a, b) => {
     if (sortBy === "date") {
       return b.timestamp.localeCompare(a.timestamp);
     } else {
-      return b.feasibility_score - a.feasibility_score;
+      return getFinalScore(b) - getFinalScore(a);
     }
   });
 
-  const getScoreBadge = (score: number) => {
+  // 점수 기반 판정 배지 (Step 4 상단 카드와 동일)
+  const getJudgmentBadge = (session: SessionListItem) => {
+    const score = getFinalScore(session);
     if (score >= 40) return (
-      <Badge variant="success" className="flex items-center gap-1">
-        <CheckCircle className="h-3 w-3" />
-        Go
+      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 gap-1">
+        <span>✅</span>
+        <span>바로 진행</span>
       </Badge>
     );
     if (score >= 30) return (
-      <Badge variant="warning" className="flex items-center gap-1">
-        <AlertTriangle className="h-3 w-3" />
-        조건부
+      <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100 gap-1">
+        <span>🔵</span>
+        <span>보완 후 진행</span>
+      </Badge>
+    );
+    if (score >= 20) return (
+      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 gap-1">
+        <span>🟡</span>
+        <span>재검토 권장</span>
       </Badge>
     );
     return (
-      <Badge variant="error" className="flex items-center gap-1">
-        <RefreshCw className="h-3 w-3" />
-        개선 필요
+      <Badge className="bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100 gap-1">
+        <span>🟠</span>
+        <span>준비 필요</span>
       </Badge>
     );
   };
@@ -238,7 +226,10 @@ export default function SessionsPage() {
           ) : sessions.length === 0 ? (
             <div className="text-center p-12">
               <p className="text-muted-foreground">저장된 세션이 없습니다.</p>
-              <Button onClick={() => router.push("/")} className="mt-4">
+              <Button onClick={() => {
+                sessionStorage.clear();
+                router.push("/");
+              }} className="mt-4">
                 새 분석 시작하기
               </Button>
             </div>
@@ -260,11 +251,11 @@ export default function SessionsPage() {
                           {formatKST(session.timestamp)}
                         </p>
                       </div>
-                      {getScoreBadge(session.feasibility_score)}
+                      {getJudgmentBadge(session)}
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t">
                       <span className="text-sm font-semibold">
-                        Feasibility: {session.feasibility_score}/50
+                        Feasibility: {getFinalScore(session)}/50
                       </span>
                       <div className="flex gap-2">
                         <Button
@@ -296,24 +287,24 @@ export default function SessionsPage() {
                       <TableHead>날짜</TableHead>
                       <TableHead>Pain Point</TableHead>
                       <TableHead className="text-center">Feasibility</TableHead>
-                      <TableHead className="text-center">판정</TableHead>
+                      <TableHead className="text-center">다음 단계</TableHead>
                       <TableHead className="text-right">액션</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {sortedSessions.map((session) => (
                       <TableRow key={session.session_id}>
-                        <TableCell className="text-sm text-muted-foreground">
+                        <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
                           {formatKST(session.timestamp)}
                         </TableCell>
                         <TableCell className="max-w-md">
                           <p className="text-sm truncate">{session.pain_point}</p>
                         </TableCell>
                         <TableCell className="text-center font-semibold">
-                          {session.feasibility_score}/50
+                          {getFinalScore(session)}/50
                         </TableCell>
                         <TableCell className="text-center">
-                          {getScoreBadge(session.feasibility_score)}
+                          {getJudgmentBadge(session)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
