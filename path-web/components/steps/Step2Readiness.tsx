@@ -89,6 +89,8 @@ export function Step2Readiness({
     initialImprovementPlans || {}
   );
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState("");
 
   // 추가 정보 입력
   const [additionalInfo, setAdditionalInfo] = useState({
@@ -106,6 +108,8 @@ export function Step2Readiness({
   const evaluateFeasibility = async () => {
     setIsLoading(true);
     setError(null);
+    setProgress(0);
+    setStage("준비 중...");
 
     try {
       const response = await fetch("/api/bedrock/feasibility", {
@@ -118,8 +122,57 @@ export function Step2Readiness({
         throw new Error("준비도 점검에 실패했습니다");
       }
 
-      const result = await response.json();
-      setFeasibility(result);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                setIsLoading(false);
+                return;
+              }
+              try {
+                const parsed = JSON.parse(data);
+
+                // Progress 업데이트
+                if (parsed.progress !== undefined) {
+                  setProgress(parsed.progress);
+                }
+
+                // Stage 업데이트
+                if (parsed.stage) {
+                  setStage(parsed.stage);
+                }
+
+                // 결과 수신
+                if (parsed.result) {
+                  setFeasibility(parsed.result);
+                }
+
+                // 에러 처리
+                if (parsed.error) {
+                  throw new Error(parsed.error);
+                }
+              } catch (e) {
+                if (e instanceof SyntaxError) {
+                  // JSON 파싱 에러는 무시 (불완전한 청크)
+                } else {
+                  throw e;
+                }
+              }
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "오류가 발생했습니다");
     } finally {
@@ -147,11 +200,13 @@ export function Step2Readiness({
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <p className="text-lg font-medium">준비도 점검 중...</p>
-          <p className="text-sm text-muted-foreground">
-            5개 항목을 분석하고 있습니다
-          </p>
+          <p className="text-sm text-muted-foreground">{stage}</p>
+          <div className="w-64 space-y-1">
+            <Progress value={progress} className="h-2" />
+            <p className="text-xs text-muted-foreground text-right">{progress}%</p>
+          </div>
         </div>
       </div>
     );

@@ -137,6 +137,9 @@ class FinalizeRequest(BaseModel):
 
 class SpecRequest(BaseModel):
     analysis: Dict[str, Any]
+    improvement_plans: Optional[Dict[str, str]] = None
+    chat_history: Optional[List[Dict[str, str]]] = None
+    additional_context: Optional[Dict[str, str]] = None
 
 
 # Step2: Feasibility 관련 Request Models
@@ -298,7 +301,12 @@ async def spec(request: Request, data: SpecRequest):
     """3단계 명세서 생성 - MultiStage 스트리밍 (프레임워크 독립적)"""
     try:
         return StreamingResponse(
-            multi_stage_spec_agent.generate_spec_stream(data.analysis),
+            multi_stage_spec_agent.generate_spec_stream(
+                data.analysis,
+                data.improvement_plans,
+                data.chat_history,
+                data.additional_context
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -317,11 +325,27 @@ async def spec(request: Request, data: SpecRequest):
 @app.post("/feasibility")
 @limiter.limit(RATE_LIMITS["feasibility"])
 async def feasibility(request: Request, data: FeasibilityRequest):
-    """Step2: 초기 Feasibility 평가"""
+    """Step2: 초기 Feasibility 평가 - SSE 스트리밍"""
     try:
         form_data = data.model_dump()
-        evaluation = feasibility_agent.evaluate(form_data)
-        return JSONResponse(content=evaluation)
+
+        async def generate():
+            try:
+                async for chunk in feasibility_agent.evaluate_stream(form_data):
+                    yield f"data: {chunk}\n\n"
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        return StreamingResponse(
+            generate(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            }
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
