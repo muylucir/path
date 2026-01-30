@@ -8,7 +8,7 @@ Multi-Stage Spec Agents - 명세서 생성을 3개 Agent로 분할 (순차 호�
 
 from strands import Agent
 from strands.models import BedrockModel
-from typing import Dict, Any, AsyncIterator
+from typing import Dict, Any, AsyncIterator, Optional, List
 import json
 from strands_tools import file_read
 from agentskills import discover_skills, generate_skills_prompt
@@ -34,12 +34,48 @@ class DesignAgent:
             tools=[file_read]
         )
 
-    def analyze(self, analysis: Dict[str, Any]) -> str:
+    def analyze(
+        self,
+        analysis: Dict[str, Any],
+        improvement_plans: Optional[Dict[str, str]] = None,
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        additional_context: Optional[Dict[str, str]] = None
+    ) -> str:
         """Agent 설계"""
+
+        # 대화 히스토리 요약 (사용자 메시지만 추출)
+        chat_section = ""
+        if chat_history:
+            user_messages = [msg['content'] for msg in chat_history if msg.get('role') == 'user']
+            if user_messages:
+                chat_section = "\n**사용자 추가 요구사항 (대화에서 추출)**:\n"
+                for msg in user_messages[-5:]:  # 최근 5개만
+                    truncated = msg[:200] + "..." if len(msg) > 200 else msg
+                    chat_section += f"- {truncated}\n"
+
+        # 추가 컨텍스트 섹션
+        context_section = ""
+        if additional_context:
+            if additional_context.get('sources'):
+                context_section += f"\n**추가 데이터소스**: {additional_context['sources']}"
+            if additional_context.get('context'):
+                context_section += f"\n**추가 컨텍스트**: {additional_context['context']}"
+
+        # 개선 방안 섹션
+        improvement_section = ""
+        if improvement_plans:
+            non_empty_plans = {k: v for k, v in improvement_plans.items() if v and v.strip()}
+            if non_empty_plans:
+                improvement_section = "\n**사용자 개선 방안**:\n"
+                for key, plan in non_empty_plans.items():
+                    improvement_section += f"- {key}: {plan}\n"
 
         prompt = f"""다음 분석 결과를 바탕으로 프레임워크 독립적인 Agent 설계를 수행하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
+{chat_section}
+{context_section}
+{improvement_section}
 
 **필수 1단계**: file_read로 "universal-agent-patterns" 스킬의 SKILL.md를 읽으세요.
 **필수 2단계**: 스킬을 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
@@ -265,7 +301,10 @@ class AssemblerAgent:
         analysis: Dict[str, Any],
         design_result: str,
         diagram_result: str,
-        detail_result: str
+        detail_result: str,
+        improvement_plans: Optional[Dict[str, str]] = None,
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        additional_context: Optional[Dict[str, str]] = None
     ) -> AsyncIterator[dict]:
         """최종 조합 - LLM 없이 단순 문자열 조합 후 스트리밍"""
 
@@ -280,7 +319,6 @@ class AssemblerAgent:
         pain_point = analysis.get('pain_point', analysis.get('painPoint', 'N/A'))
         pattern = analysis.get('pattern', 'N/A')
         pattern_reason = analysis.get('pattern_reason', '')
-        feasibility_score = analysis.get('feasibility_score', 'N/A')
         recommendation = analysis.get('recommendation', '')
         input_type = analysis.get('input_type', analysis.get('inputType', 'N/A'))
         process_steps = analysis.get('process_steps', analysis.get('processSteps', []))
@@ -288,6 +326,16 @@ class AssemblerAgent:
         human_loop = analysis.get('human_loop', analysis.get('humanLoop', 'N/A'))
         risks = analysis.get('risks', [])
         next_steps = analysis.get('next_steps', [])
+
+        # 개선된 점수 우선 사용
+        improved = analysis.get('improved_feasibility')
+        original_score = analysis.get('feasibility_score', 'N/A')
+        if improved and improved.get('score'):
+            feasibility_score = improved['score']
+            score_display = f"{feasibility_score}/50 (개선됨, 기존: {original_score})"
+        else:
+            feasibility_score = original_score
+            score_display = f"{feasibility_score}/50"
 
         # 명세서 조합
         spec = f"""# AI Agent Design Specification
@@ -297,7 +345,7 @@ class AssemblerAgent:
 - **Problem**: {pain_point}
 - **Solution**: {pattern} 패턴 사용
 - **Reason**: {pattern_reason}
-- **Feasibility**: {feasibility_score}/50
+- **Feasibility**: {score_display}
 - **Recommendation**: {recommendation}
 
 {design_result}
@@ -320,18 +368,51 @@ class AssemblerAgent:
 - **Human-in-Loop**: {human_loop}
 """
 
+        # 동적 섹션 번호 관리
+        section_num = 7
+
         # Risks 섹션 (있는 경우)
         if risks:
-            spec += "\n## 7. Risks\n\n"
+            spec += f"\n## {section_num}. Risks\n\n"
             for risk in risks:
                 spec += f'- {risk}\n'
+            section_num += 1
 
         # Next Steps 섹션 (있는 경우)
         if next_steps:
-            section_num = "8" if risks else "7"
             spec += f"\n## {section_num}. Next Steps\n\n"
             for i, step in enumerate(next_steps):
                 spec += f'{i+1}. {step}\n'
+            section_num += 1
+
+        # 개선 방안 섹션 (신규)
+        if improvement_plans:
+            non_empty_plans = {k: v for k, v in improvement_plans.items() if v and v.strip()}
+            if non_empty_plans:
+                spec += f"\n## {section_num}. Improvement Plans\n\n"
+                for key, plan in non_empty_plans.items():
+                    spec += f"- **{key}**: {plan}\n"
+                section_num += 1
+
+        # 대화 요약 섹션 (신규)
+        if chat_history:
+            user_messages = [msg['content'] for msg in chat_history if msg.get('role') == 'user']
+            if user_messages:
+                spec += f"\n## {section_num}. User Requirements (from Chat)\n\n"
+                for msg in user_messages[-5:]:  # 최근 5개만
+                    truncated = msg[:200] + "..." if len(msg) > 200 else msg
+                    spec += f"- {truncated}\n"
+                section_num += 1
+
+        # 추가 컨텍스트 섹션 (신규)
+        if additional_context:
+            has_content = additional_context.get('sources') or additional_context.get('context')
+            if has_content:
+                spec += f"\n## {section_num}. Additional Context\n\n"
+                if additional_context.get('sources'):
+                    spec += f"- **Data Sources**: {additional_context['sources']}\n"
+                if additional_context.get('context'):
+                    spec += f"- **Context**: {additional_context['context']}\n"
 
         # 스트리밍으로 전송
         chunk_size = 100
@@ -356,7 +437,10 @@ class MultiStageSpecAgent:
 
     async def generate_spec_stream(
         self,
-        analysis: Dict[str, Any]
+        analysis: Dict[str, Any],
+        improvement_plans: Optional[Dict[str, str]] = None,
+        chat_history: Optional[List[Dict[str, str]]] = None,
+        additional_context: Optional[Dict[str, str]] = None
     ) -> AsyncIterator[str]:
         """명세서 생성 - keep-alive 포함"""
 
@@ -365,7 +449,13 @@ class MultiStageSpecAgent:
         try:
             # 1단계: Agent 설계 패턴 (0-40%) - Section 2: Agent Design Pattern
             yield f"data: {json.dumps({'progress': 0, 'stage': '2. 에이전트 설계 패턴 분석 시작'}, ensure_ascii=False)}\n\n"
-            task = asyncio.create_task(asyncio.to_thread(self.design_agent.analyze, analysis))
+            task = asyncio.create_task(asyncio.to_thread(
+                self.design_agent.analyze,
+                analysis,
+                improvement_plans,
+                chat_history,
+                additional_context
+            ))
             progress = 5
             while not task.done():
                 await asyncio.sleep(3)
@@ -406,7 +496,13 @@ class MultiStageSpecAgent:
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
             yield f"data: {json.dumps({'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}, ensure_ascii=False)}\n\n"
             async for chunk_data in self.assembler_agent.assemble_stream(
-                analysis, design_result, diagram_result, detail_result
+                analysis,
+                design_result,
+                diagram_result,
+                detail_result,
+                improvement_plans,
+                chat_history,
+                additional_context
             ):
                 yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
 

@@ -86,7 +86,15 @@ export function Step3Results({
       const response = await fetch("/api/bedrock/spec", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis }),
+        body: JSON.stringify({
+          analysis,
+          improvementPlans: improvementPlans || {},
+          chatHistory: chatHistory || [],
+          additionalContext: {
+            sources: formData?.additionalSources || "",
+            context: formData?.additionalContext || "",
+          },
+        }),
       });
 
       const reader = response.body?.getReader();
