@@ -10,7 +10,7 @@ import { AlertTriangle, Download, Loader2, BarChart3, MessageSquare, FileText, S
 import { Badge } from "@/components/ui/badge";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import type { Analysis, ChatMessage, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, ImprovedFeasibility, ImprovedFeasibilityItem } from "@/lib/types";
-import { PROCESS_STEPS, READINESS_LEVELS, FEASIBILITY_ITEM_NAMES, READINESS_ITEM_DETAILS } from "@/lib/constants";
+import { PROCESS_STEPS, READINESS_LEVELS, FEASIBILITY_ITEM_NAMES, READINESS_ITEM_DETAILS, MULTI_AGENT_PATTERN_LABELS } from "@/lib/constants";
 
 interface Step3ResultsProps {
   analysis: Analysis;
@@ -165,19 +165,52 @@ export function Step3Results({
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid md:grid-cols-3 gap-4">
+      <div className="space-y-4">
+        {/* 첫 번째 행: 에이전트 패턴 (전체 너비) */}
         <Card>
           <CardContent className="pt-6">
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Sparkles className="h-5 w-5 text-muted-foreground" />
-                <p className="text-base font-medium text-muted-foreground">추천 패턴</p>
+            <div className="flex flex-col md:flex-row md:items-center gap-4">
+              {/* 좌측: 패턴 정보 (가운데 정렬) */}
+              <div className="space-y-1 text-center flex-1">
+                <div className="flex items-center justify-center gap-2">
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">추천 패턴</p>
+                </div>
+                <p className="text-xl font-bold">{pattern}</p>
+                {analysis.recommended_architecture && (
+                  <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                    <Badge className={`text-xs ${
+                      analysis.recommended_architecture === 'multi-agent'
+                        ? "bg-purple-100 text-purple-800 border-purple-200 hover:bg-purple-100"
+                        : "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100"
+                    }`}>
+                      {analysis.recommended_architecture === 'multi-agent'
+                        ? '🟣 멀티 에이전트'
+                        : '🔵 싱글 에이전트'}
+                    </Badge>
+                    {analysis.multi_agent_pattern && (
+                      <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300">
+                        {MULTI_AGENT_PATTERN_LABELS[analysis.multi_agent_pattern]}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="text-xl font-bold">{pattern}</p>
+
+              {/* 우측: 권장 이유 */}
+              {analysis.architecture_reason && (
+                <div className="flex-1 md:border-l md:pl-6">
+                  <p className="text-sm text-muted-foreground">
+                    {analysis.architecture_reason}
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
+        {/* 두 번째 행: 준비도 + 다음 단계 */}
+        <div className="grid md:grid-cols-2 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
@@ -248,6 +281,7 @@ export function Step3Results({
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
 
       {/* Tabs */}

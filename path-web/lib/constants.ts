@@ -55,6 +55,22 @@ export const FEASIBILITY_ITEM_NAMES = {
   integration: "통합 복잡도",
 } as const;
 
+// 멀티 에이전트 협업 패턴 라벨 (Strands Agents 기반)
+export const MULTI_AGENT_PATTERN_LABELS = {
+  'agents-as-tools': 'Agents as Tools',
+  'swarm': 'Swarm',
+  'graph': 'Graph',
+  'workflow': 'Workflow',
+} as const;
+
+// 멀티 에이전트 협업 패턴 설명
+export const MULTI_AGENT_PATTERN_DESCRIPTIONS = {
+  'agents-as-tools': 'Orchestrator가 전문 Agent를 도구처럼 호출',
+  'swarm': '동등한 Agent들이 handoff로 협업',
+  'graph': '방향성 그래프로 정보 흐름 정의',
+  'workflow': '미리 정의된 순서로 태스크 실행',
+} as const;
+
 // 준비도 항목별 상세 정보 (툴팁용)
 export const READINESS_ITEM_DETAILS = {
   data_access: {

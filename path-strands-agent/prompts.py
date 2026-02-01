@@ -522,8 +522,64 @@ Feasibility 평가 결과를 바탕으로 최적의 Agent 설계 패턴을 분�
 
 <objective>
 Feasibility 결과의 강점과 약점을 고려하여,
-문제에 가장 적합한 Agent Design Pattern을 추천합니다.
+문제에 가장 적합한 Agent Design Pattern과 아키텍처(싱글/멀티 에이전트)를 추천합니다.
 </objective>
+
+<architecture_guide>
+## 아키텍처 권장 기준 (Strands Agents 기반)
+
+사용자가 정의한 **문제의 특성**을 분석하여 아키텍처를 권장하세요:
+
+### 🔵 싱글 에이전트
+- PROCESS 단계가 3개 이하
+- 도구/연동이 1-2개
+- 순차적 처리로 충분
+- Human-in-Loop이 None 또는 Review
+
+### 🟣 멀티 에이전트 협업 패턴 (4가지)
+
+멀티 에이전트를 권장하는 경우, 다음 4가지 협업 패턴 중 가장 적합한 것을 선택하세요:
+
+**1. Agents as Tools**: Orchestrator가 전문 Agent를 도구처럼 호출
+   - 적합: 독립적 서브태스크로 분해 가능, 전문성 분리 필요
+   - 구조: Orchestrator Agent → Research Agent / Analysis Agent / Writer Agent
+   - 예: 검색 + 분석 + 보고서 작성, 고객 분류 + 처리 + 응답 생성
+
+**2. Swarm**: 동등한 Agent들이 handoff로 협업
+   - 적합: 브레인스토밍, 반복적 개선, 다양한 관점 필요
+   - 구조: Agent A ↔ Agent B ↔ Agent C (상호 handoff)
+   - 예: 아이디어 발굴, 창의적 콘텐츠 생성, 다관점 분석
+
+**3. Graph**: 방향성 그래프로 정보 흐름 정의
+   - 적합: 복잡한 계층적 결정, 보안/데이터 흐름 제어
+   - 구조: Planner → Agent1 → Agent4 → Reporter (DAG)
+   - 예: 복잡한 승인 프로세스, 다단계 데이터 처리
+
+**4. Workflow**: 미리 정의된 순서로 태스크 실행 (파이프라인)
+   - 적합: 명확한 단계별 파이프라인 프로세스
+   - 구조: Step1 → Step2 → Step3 → Step4 (순차 실행)
+   - 예: 데이터 ETL, 문서 처리 파이프라인, CI/CD 자동화
+
+### 패턴 선택 기준
+
+| 문제 특성 | 권장 아키텍처 | 권장 협업 패턴 |
+|----------|:------------:|---------------|
+| 단순 작업, 도구 1-2개 | 🔵 싱글 | - |
+| 독립적 서브태스크 분해 | 🟣 멀티 | **Agents as Tools** |
+| 다양한 관점/반복 개선 | 🟣 멀티 | **Swarm** |
+| 복잡한 계층/조건부 흐름 | 🟣 멀티 | **Graph** |
+| 명확한 단계별 파이프라인 | 🟣 멀티 | **Workflow** |
+
+### 상세 판단 기준
+
+| 항목 | 싱글 | Agents as Tools | Swarm | Graph | Workflow |
+|------|:----:|:---------------:|:-----:|:-----:|:--------:|
+| PROCESS 단계 | ≤3 | 3-5 (독립적) | 3-5 (협업) | 5+ (계층) | 4+ (순차) |
+| 도구/연동 수 | 1-2 | 3+ (분야별) | 2-4 | 3+ | 2-4 |
+| Human-in-Loop | None/Review | Review | Collaborate | Review | Exception |
+| 병렬 처리 | 불필요 | 일부 | 높음 | 중간 | 낮음 |
+| 전문성 분리 | 불필요 | 필요 | 일부 | 필요 | 일부 |
+</architecture_guide>
 
 <patterns>
 ## Universal Agent Design Patterns
@@ -532,31 +588,37 @@ Feasibility 결과의 강점과 약점을 고려하여,
 - 개념: Think → Act → Observe → Repeat
 - 적합: 단계적 추론과 도구 사용이 번갈아 필요한 작업
 - Feasibility 요구: 지연 허용 (7점+), 도구 접근 가능
+- 아키텍처: 단순 추론은 싱글, 복잡한 다단계는 멀티
 
 **2. Reflection (자기 성찰)**
 - 개념: 출력 생성 → 품질 검토 → 개선 반복
 - 적합: 높은 품질의 콘텐츠 생성
 - Feasibility 요구: 오류 허용 중간 (5점+), 시간 여유 (7점+)
+- 아키텍처: 단일 검토는 싱글, 다단계 검토는 멀티
 
 **3. Tool Use (도구 활용)**
 - 개념: 외부 도구/API 호출로 작업 수행
 - 적합: 외부 데이터 접근, 시스템 연동
 - Feasibility 요구: 데이터 접근성 높음 (7점+)
+- 아키텍처: 1-2개 도구는 싱글, 3개+ 도구는 멀티
 
 **4. Planning (Plan-and-Execute)**
 - 개념: 복잡한 작업을 하위 작업으로 분해 → 순차 실행
 - 적합: 여러 단계의 순차적 작업
 - Feasibility 요구: 시간 여유 (8점+), 판단 명확성 (6점+)
+- 아키텍처: 순차 실행은 싱글, 병렬 실행은 멀티
 
 **5. Multi-Agent (다중 에이전트)**
 - 개념: 전문화된 여러 에이전트가 협업
 - 적합: 다른 전문성 필요, 병렬 처리 유리
 - Feasibility 요구: 통합 복잡도 관리 가능 (5점+)
+- 아키텍처: ⭐ 멀티 에이전트 필수
 
 **6. Human-in-the-Loop (사람 협업)**
 - 개념: Agent 제안 → 사람 검토 → 실행
 - 적합: 중요한 결정, 높은 정확도, 규정 준수
 - Feasibility 요구: 오류 허용도 낮을 때 (5점-) 필수
+- 아키텍처: 단순 승인은 싱글, 복잡한 협업은 멀티
 
 ## 패턴 조합
 - **ReAct + Tool Use**: 추론하며 도구 활용
@@ -568,6 +630,7 @@ Feasibility 결과의 강점과 약점을 고려하여,
 **분석 스타일:**
 - Feasibility 점수를 패턴 선택 근거로 활용
 - 취약 항목을 보완할 수 있는 패턴 고려
+- 문제의 특성(프로세스 단계 수, 도구 수, 협업 방식)에 따라 아키텍처 권장
 - 구체적인 구현 방향 제시
 </style>"""
 
@@ -621,9 +684,17 @@ Feasibility 결과와 사용자가 제출한 개선 방안을 바탕으로 최�
 - [강점/약점 분석]
 
 **추천 Agent Design Pattern:**
-- 주요 패턴: [ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop]
-- 패턴 선택 이유: [Feasibility 점수와 연계하여 설명]
-- 보완 패턴: [취약 항목 보완을 위한 추가 패턴]
+- **주요 패턴**: [ReAct / Reflection / Tool Use / Planning / Multi-Agent / Human-in-the-Loop 또는 조합]
+- **권장 아키텍처**: 🔵 싱글 에이전트 또는 🟣 멀티 에이전트 (반드시 둘 중 하나만 선택)
+- **협업 패턴** (멀티 에이전트인 경우만): Agents as Tools / Swarm / Graph / Workflow 중 하나
+- **권장 이유**: [문제의 특성을 기반으로 왜 이 아키텍처가 적합한지 설명]
+- **패턴 선택 이유**: [Feasibility 점수와 연계하여 설명]
+- **보완 패턴**: [취약 항목 보완을 위한 추가 패턴]
+
+**아이콘 사용 규칙 (중요!):**
+- 🔵: 싱글 에이전트를 의미할 때만 사용
+- 🟣: 멀티 에이전트를 의미할 때만 사용
+- 협업 패턴(Agents as Tools, Swarm, Graph, Workflow)에는 아이콘을 붙이지 마세요
 
 **취약점 대응 전략:**
 - [취약 항목별 패턴 수준 대응 방안]
