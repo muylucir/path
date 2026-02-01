@@ -385,35 +385,6 @@ class AssemblerAgent:
                 spec += f'{i+1}. {step}\n'
             section_num += 1
 
-        # 개선 방안 섹션 (신규)
-        if improvement_plans:
-            non_empty_plans = {k: v for k, v in improvement_plans.items() if v and v.strip()}
-            if non_empty_plans:
-                spec += f"\n## {section_num}. Improvement Plans\n\n"
-                for key, plan in non_empty_plans.items():
-                    spec += f"- **{key}**: {plan}\n"
-                section_num += 1
-
-        # 대화 요약 섹션 (신규)
-        if chat_history:
-            user_messages = [msg['content'] for msg in chat_history if msg.get('role') == 'user']
-            if user_messages:
-                spec += f"\n## {section_num}. User Requirements (from Chat)\n\n"
-                for msg in user_messages[-5:]:  # 최근 5개만
-                    truncated = msg[:200] + "..." if len(msg) > 200 else msg
-                    spec += f"- {truncated}\n"
-                section_num += 1
-
-        # 추가 컨텍스트 섹션 (신규)
-        if additional_context:
-            has_content = additional_context.get('sources') or additional_context.get('context')
-            if has_content:
-                spec += f"\n## {section_num}. Additional Context\n\n"
-                if additional_context.get('sources'):
-                    spec += f"- **Data Sources**: {additional_context['sources']}\n"
-                if additional_context.get('context'):
-                    spec += f"- **Context**: {additional_context['context']}\n"
-
         # 스트리밍으로 전송
         chunk_size = 100
         total_chunks = (len(spec) + chunk_size - 1) // chunk_size

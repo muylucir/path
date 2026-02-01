@@ -94,6 +94,9 @@ export interface ImprovedFeasibility {
   summary: string;
 }
 
+// 멀티 에이전트 협업 패턴 (Strands Agents 기반)
+export type MultiAgentPattern = 'agents-as-tools' | 'swarm' | 'graph' | 'workflow';
+
 export interface Analysis {
   pain_point: string;
   input_type: string;
@@ -103,6 +106,9 @@ export interface Analysis {
   output_detail?: string;
   human_loop: string;
   pattern: string;
+  recommended_architecture?: 'single-agent' | 'multi-agent';  // 권장 아키텍처
+  multi_agent_pattern?: MultiAgentPattern | null;  // 멀티 에이전트 협업 패턴
+  architecture_reason?: string;  // 권장 이유
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;
   feasibility_score: number;

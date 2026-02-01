@@ -162,7 +162,7 @@ class EvaluatorAgent:
 **패턴 조합도 가능**: 예) "ReAct + Tool Use", "Planning + Multi-Agent"
 
 {{
-  "pain_point": "사용자 Pain Point",
+  "pain_point": "{form_data.get('painPoint', '')}",
   "input_type": "INPUT 타입",
   "input_detail": "INPUT 상세",
   "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
@@ -188,7 +188,9 @@ class EvaluatorAgent:
   ]
 }}
 
-중요: next_steps는 주 단위 기간이 아닌 Phase/단계 중심으로 작성하세요.
+중요:
+- pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
+- next_steps는 주 단위 기간이 아닌 Phase/단계 중심으로 작성하세요.
 JSON만 출력하세요.
 """
         
@@ -450,6 +452,10 @@ improved_feasibility 필드에 다음 형식으로 포함:
   "summary": "전체 개선 점수 요약 (1-2문장)"
 }"""
 
+        # 아키텍처 판단을 위한 추가 정보
+        process_count = len(form_data.get('processSteps', []))
+        human_loop = form_data.get('humanLoop', '')
+
         prompt = f"""다음은 지금까지의 패턴 분석 대화입니다:
 
 {conversation_text}
@@ -458,10 +464,25 @@ improved_feasibility 필드에 다음 형식으로 포함:
 - 총점: {feasibility.get('feasibility_score', 0)}/50
 - 판정: {feasibility.get('judgment', '')}
 {improvement_section}
+
+**아키텍처 권장 판단 정보**:
+- PROCESS 단계 수: {process_count}개
+- Human-in-Loop: {human_loop}
+- 아키텍처 권장 기준:
+  - 🔵 싱글 에이전트: PROCESS 3개 이하, 도구 1-2개, Human-in-Loop None/Review, 순차 처리
+  - 🟣 멀티 에이전트: PROCESS 4개 이상, 도구 3개 이상, Human-in-Loop Collaborate, 병렬 처리 필요
+
+**멀티 에이전트 협업 패턴 (Strands Agents 기반)**:
+멀티 에이전트를 권장하는 경우, 다음 4가지 협업 패턴 중 가장 적합한 것을 선택하세요:
+- **agents-as-tools**: Orchestrator가 전문 Agent를 도구처럼 호출 (독립적 서브태스크 분해)
+- **swarm**: 동등한 Agent들이 handoff로 협업 (브레인스토밍, 반복 개선)
+- **graph**: 방향성 그래프로 정보 흐름 정의 (복잡한 계층적 결정)
+- **workflow**: 미리 정의된 순서로 태스크 실행 (단계별 파이프라인)
+
 이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
 {improved_feasibility_prompt}
 {{
-  "pain_point": "사용자 Pain Point",
+  "pain_point": "{form_data.get('painPoint', '')}",
   "input_type": "INPUT 타입",
   "input_detail": "INPUT 상세",
   "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
@@ -469,6 +490,9 @@ improved_feasibility 필드에 다음 형식으로 포함:
   "output_detail": "OUTPUT 상세",
   "human_loop": "None/Review/Exception/Collaborate",
   "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
+  "recommended_architecture": "single-agent 또는 multi-agent (위 기준에 따라 판단)",
+  "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",
+  "architecture_reason": "권장 아키텍처 이유 (문제의 특성 - 프로세스 단계 수, 도구 수, 협업 방식 기반으로 설명. 멀티 에이전트인 경우 선택한 협업 패턴의 적합성도 설명)",
   "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
   "feasibility_breakdown": {json.dumps(simple_breakdown)},
   "feasibility_score": {feasibility.get('feasibility_score', 0)},
@@ -483,6 +507,10 @@ improved_feasibility 필드에 다음 형식으로 포함:
 }}
 
 중요:
+- pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
+- recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나로 출력하세요.
+- multi_agent_pattern은 멀티 에이전트인 경우 반드시 "agents-as-tools", "swarm", "graph", "workflow" 중 하나로 출력하세요. 싱글 에이전트인 경우 null.
+- architecture_reason은 왜 해당 아키텍처를 권장하는지 문제 특성을 기반으로 설명하세요. 멀티 에이전트인 경우 협업 패턴 선택 이유도 포함하세요.
 - 사용자 개선 방안이 있으면 improved_feasibility를 계산하여 포함하세요.
 - 개선 방안이 없거나 반영할 내용이 없으면 improved_feasibility는 null로 유지하세요.
 - JSON만 출력하세요."""
