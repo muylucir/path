@@ -22,17 +22,17 @@ export const OUTPUT_TYPES = [
 ] as const;
 
 export const HUMAN_LOOP_OPTIONS = [
-  "완전 자동 (None)",
-  "실행 전 승인 필요 (Review)",
-  "불확실할 때만 개입 (Exception)",
-  "AI와 함께 작업 (Collaborate)",
+  { label: "완전 자동 (None)", example: "예: 로그 요약, 알림 발송 등 검토 없이 바로 실행" },
+  { label: "실행 전 승인 필요 (Review)", example: "예: 이메일 발송 전 초안 확인, 결제 처리 전 승인" },
+  { label: "불확실할 때만 개입 (Exception)", example: "예: AI 확신도 낮거나 예외 케이스일 때만 사람에게 전달" },
+  { label: "AI와 함께 작업 (Collaborate)", example: "예: AI가 초안 작성 → 사람이 수정 → 함께 완성" },
 ] as const;
 
 export const ERROR_TOLERANCE_OPTIONS = [
-  "틀려도 괜찮음 (낮은 리스크)",
-  "사람이 검토 후 실행",
-  "높은 정확도 필요 (90%+)",
-  "매우 높은 정확도 필요 (99%+)",
+  { label: "틀려도 괜찮음 (낮은 리스크)", example: "예: 내부 참고용 요약, 아이디어 브레인스토밍" },
+  { label: "사람이 검토 후 실행", example: "예: 고객 응대 초안, 보고서 작성 후 검토" },
+  { label: "높은 정확도 필요 (90%+)", example: "예: 고객 문의 분류, 일정 조율, 데이터 추출" },
+  { label: "매우 높은 정확도 필요 (99%+)", example: "예: 재무 데이터 처리, 법률 문서 검토, 의료 정보" },
 ] as const;
 
 // P.A.T.H 4단계 - 기본 정보(P) → 준비도 점검(T) → 패턴 분석(A) → 명세서(H)
