@@ -44,6 +44,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
     handleSubmit,
     formState: { errors },
     setValue,
+    watch,
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -58,6 +59,10 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       additionalSources: "",
     },
   });
+
+  // Watch humanLoop and errorTolerance for styling
+  const selectedHumanLoop = watch("humanLoop");
+  const selectedErrorTolerance = watch("errorTolerance");
 
   // Sync local state to form for validation (without using watch to avoid infinite loop)
   useEffect(() => {
@@ -273,43 +278,75 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
         <CardContent className="space-y-6">
           {/* Human-in-Loop & Error Tolerance */}
           <div className="grid md:grid-cols-2 gap-6">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-base font-semibold flex items-center gap-2">
                 <Users className="h-5 w-5" />
                 Human-in-Loop
               </Label>
-              <select
-                {...register("humanLoop")}
-                className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="">사람 개입 시점</option>
+              <p className="text-sm text-muted-foreground">사람이 언제 개입하나요?</p>
+              <div className="space-y-2">
                 {HUMAN_LOOP_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <Tooltip key={option.label}>
+                    <TooltipTrigger asChild>
+                      <label
+                        className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
+                          selectedHumanLoop === option.label
+                            ? "bg-primary/10 border border-primary/30"
+                            : "hover:bg-accent/50 border border-transparent"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          {...register("humanLoop")}
+                          value={option.label}
+                          className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm flex-1">{option.label}</span>
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p>{option.example}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
-              </select>
+              </div>
               {errors.humanLoop && (
                 <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
               )}
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label className="text-base font-semibold flex items-center gap-2">
                 <AlertCircle className="h-5 w-5" />
                 오류 허용도
               </Label>
-              <select
-                {...register("errorTolerance")}
-                className="h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <option value="">오류 허용도</option>
+              <p className="text-sm text-muted-foreground">AI 실수의 허용 범위는?</p>
+              <div className="space-y-2">
                 {ERROR_TOLERANCE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
-                  </option>
+                  <Tooltip key={option.label}>
+                    <TooltipTrigger asChild>
+                      <label
+                        className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
+                          selectedErrorTolerance === option.label
+                            ? "bg-primary/10 border border-primary/30"
+                            : "hover:bg-accent/50 border border-transparent"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          {...register("errorTolerance")}
+                          value={option.label}
+                          className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm flex-1">{option.label}</span>
+                      </label>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p>{option.example}</p>
+                    </TooltipContent>
+                  </Tooltip>
                 ))}
-              </select>
+              </div>
               {errors.errorTolerance && (
                 <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>
               )}
