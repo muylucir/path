@@ -85,5 +85,4 @@ CLAUDE.md
 .gitignore
 spec/
 .mcp.json
-docker/
 img/
