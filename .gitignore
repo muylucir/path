@@ -39,10 +39,6 @@ path/env/
 *~
 .DS_Store
 
-# Streamlit
-path/.streamlit/secrets.toml
-path/.streamlit/config.toml
-
 # AWS
 .aws/
 *.pem

@@ -26,9 +26,6 @@ API_KEY_ENV_VAR = "PATH_API_KEY"
 # 공개 엔드포인트 (인증 불필요)
 PUBLIC_ENDPOINTS: Set[str] = {
     "/health",
-    "/docs",
-    "/openapi.json",
-    "/redoc",
 }
 
 # API Key 헤더 정의
@@ -46,7 +43,7 @@ def get_api_key() -> Optional[str]:
 
 def is_development_mode() -> bool:
     """개발 모드 여부 확인"""
-    env = os.environ.get("ENV", "development").lower()
+    env = os.environ.get("ENV", "production").lower()
     return env in ("development", "dev", "local")
 
 

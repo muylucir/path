@@ -38,7 +38,7 @@ from validators import (
 )
 from session_manager import SecureSessionManager
 from session_cleanup import get_cleanup_scheduler, session_cleanup_lifespan
-from auth import setup_auth_middleware, PUBLIC_ENDPOINTS
+from auth import setup_auth_middleware, PUBLIC_ENDPOINTS, is_development_mode
 from rate_limiter import (
     limiter,
     setup_rate_limiter,
@@ -62,9 +62,13 @@ async def lifespan(app: FastAPI):
     await scheduler.stop()
 
 
+_is_dev = is_development_mode()
 app = FastAPI(
     title="PATH Strands Agent API",
-    lifespan=lifespan
+    lifespan=lifespan,
+    docs_url="/docs" if _is_dev else None,
+    redoc_url="/redoc" if _is_dev else None,
+    openapi_url="/openapi.json" if _is_dev else None,
 )
 
 # Rate Limiter 설정 (가장 먼저)
@@ -73,14 +77,27 @@ setup_rate_limiter(app)
 # CORS 설정 (Next.js 웹앱과 통신)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3009","https://d21k0iabhuk0yx.cloudfront.net"],
+    allow_origins=["http://localhost:3009","https://d21k0iabhuk0yx.cloudfront.net","https://path.workloom.net"],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-API-Key", "Accept"],
 )
 
 # API Key 인증 미들웨어 설정 (CORS 다음에)
 setup_auth_middleware(app, PUBLIC_ENDPOINTS)
+
+
+def _deep_sanitize(obj, max_depth=5):
+    """Dict/List의 모든 문자열 값을 재귀적으로 sanitize"""
+    if max_depth <= 0:
+        return obj
+    if isinstance(obj, str):
+        return sanitize_input(obj, max_length=5000)
+    if isinstance(obj, dict):
+        return {k: _deep_sanitize(v, max_depth-1) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_deep_sanitize(item, max_depth-1) for item in obj[:100]]
+    return obj
 
 
 # Request Models with Validation
@@ -129,6 +146,13 @@ class FinalizeRequest(BaseModel):
     formData: Dict[str, Any]
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
 
+    @field_validator('formData', mode='before')
+    @classmethod
+    def sanitize_dicts(cls, v):
+        if v is not None:
+            return _deep_sanitize(v)
+        return v
+
     @field_validator('conversation', mode='before')
     @classmethod
     def validate_conv(cls, v):
@@ -140,6 +164,20 @@ class SpecRequest(BaseModel):
     improvement_plans: Optional[Dict[str, str]] = None
     chat_history: Optional[List[Dict[str, str]]] = None
     additional_context: Optional[Dict[str, str]] = None
+
+    @field_validator('analysis', 'improvement_plans', 'additional_context', mode='before')
+    @classmethod
+    def sanitize_dicts(cls, v):
+        if v is not None:
+            return _deep_sanitize(v)
+        return v
+
+    @field_validator('chat_history', mode='before')
+    @classmethod
+    def sanitize_chat(cls, v):
+        if v:
+            return validate_conversation(v)
+        return v
 
 
 # Step2: Feasibility 관련 Request Models
@@ -166,12 +204,26 @@ class FeasibilityReevaluateRequest(BaseModel):
     previousEvaluation: Dict[str, Any]
     improvementPlans: Dict[str, str]
 
+    @field_validator('formData', 'previousEvaluation', 'improvementPlans', mode='before')
+    @classmethod
+    def sanitize_dicts(cls, v):
+        if v is not None:
+            return _deep_sanitize(v)
+        return v
+
 
 # Step3: Pattern Analysis 관련 Request Models
 class PatternAnalyzeRequest(BaseModel):
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
     improvementPlans: Optional[Dict[str, str]] = None
+
+    @field_validator('formData', 'feasibility', 'improvementPlans', mode='before')
+    @classmethod
+    def sanitize_dicts(cls, v):
+        if v is not None:
+            return _deep_sanitize(v)
+        return v
 
 
 class PatternChatRequest(BaseModel):
@@ -180,6 +232,13 @@ class PatternChatRequest(BaseModel):
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
     sessionId: Optional[str] = Field(None, max_length=100)
+
+    @field_validator('formData', 'feasibility', mode='before')
+    @classmethod
+    def sanitize_dicts(cls, v):
+        if v is not None:
+            return _deep_sanitize(v)
+        return v
 
     @field_validator('userMessage', mode='before')
     @classmethod
@@ -197,6 +256,13 @@ class PatternFinalizeRequest(BaseModel):
     feasibility: Dict[str, Any]
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
     improvementPlans: Optional[Dict[str, str]] = None
+
+    @field_validator('formData', 'feasibility', 'improvementPlans', mode='before')
+    @classmethod
+    def sanitize_dicts(cls, v):
+        if v is not None:
+            return _deep_sanitize(v)
+        return v
 
     @field_validator('conversation', mode='before')
     @classmethod
@@ -227,7 +293,8 @@ async def analyze(request: Request, data: AnalyzeRequest):
                     yield f"data: {json.dumps({'text': chunk})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"스트리밍 오류: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
 
         return StreamingResponse(
             generate(),
@@ -238,7 +305,8 @@ async def analyze(request: Request, data: AnalyzeRequest):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.post("/chat")
@@ -269,7 +337,8 @@ async def chat(request: Request, data: ChatRequest):
                     yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"스트리밍 오류: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
 
         return StreamingResponse(
             generate(),
@@ -280,7 +349,8 @@ async def chat(request: Request, data: ChatRequest):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.post("/finalize")
@@ -292,7 +362,8 @@ async def finalize(request: Request, data: FinalizeRequest):
         evaluation = evaluator.evaluate(data.formData, data.conversation)
         return JSONResponse(content=evaluation)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.post("/spec")
@@ -315,7 +386,8 @@ async def spec(request: Request, data: SpecRequest):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 # ============================================
@@ -335,7 +407,8 @@ async def feasibility(request: Request, data: FeasibilityRequest):
                     yield f"data: {chunk}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"스트리밍 오류: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
 
         return StreamingResponse(
             generate(),
@@ -347,7 +420,8 @@ async def feasibility(request: Request, data: FeasibilityRequest):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.post("/feasibility/update")
@@ -362,7 +436,8 @@ async def feasibility_update(request: Request, data: FeasibilityReevaluateReques
         )
         return JSONResponse(content=evaluation)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 # ============================================
@@ -388,7 +463,8 @@ async def pattern_analyze(request: Request, data: PatternAnalyzeRequest):
                     yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"스트리밍 오류: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
 
         return StreamingResponse(
             generate(),
@@ -399,7 +475,8 @@ async def pattern_analyze(request: Request, data: PatternAnalyzeRequest):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.post("/pattern/chat")
@@ -430,7 +507,8 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
                     yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
                 yield "data: [DONE]\n\n"
             except Exception as e:
-                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                logger.error(f"스트리밍 오류: {e}", exc_info=True)
+                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
 
         return StreamingResponse(
             generate(),
@@ -441,7 +519,8 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
             }
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.post("/pattern/finalize")
@@ -461,20 +540,14 @@ async def pattern_finalize(request: Request, data: PatternFinalizeRequest):
         )
         return JSONResponse(content=analysis)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"엔드포인트 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
 
 
 @app.get("/health")
 async def health():
     """헬스체크 (인증 불필요)"""
-    return {
-        "status": "healthy",
-        "service": "PATH Strands Agent API",
-        "sessions": {
-            "chat": chat_sessions.get_stats(),
-            "pattern": pattern_sessions.get_stats()
-        }
-    }
+    return {"status": "healthy", "service": "PATH Strands Agent API"}
 
 
 if __name__ == "__main__":

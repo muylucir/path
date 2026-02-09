@@ -29,7 +29,8 @@ const DANGEROUS_PATTERNS = [
 function filterDangerousPatterns(text: string): string {
   let filtered = text;
   for (const pattern of DANGEROUS_PATTERNS) {
-    filtered = filtered.replace(pattern, "[FILTERED]");
+    const globalPattern = new RegExp(pattern.source, pattern.flags + "g");
+    filtered = filtered.replace(globalPattern, "[FILTERED]");
   }
   return filtered;
 }
@@ -81,7 +82,7 @@ export type FormValues = z.infer<typeof formSchema>;
 
 // 대화 메시지 스키마
 export const messageSchema = z.object({
-  role: z.enum(["user", "assistant", "system"]),
+  role: z.enum(["user", "assistant"]),
   content: sanitizedString(4000),
 });
 

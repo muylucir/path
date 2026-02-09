@@ -49,22 +49,19 @@ def custom_key_func(request: Request) -> str:
     """
     Rate Limit 키 생성 함수
 
-    IP 주소 기반으로 제한을 적용합니다.
-    프록시 뒤에 있는 경우 X-Forwarded-For 헤더를 확인합니다.
+    직접 연결 IP를 기본으로 사용합니다.
+    신뢰할 수 있는 프록시(TRUSTED_PROXY_IPS)에서의 요청만 X-Forwarded-For를 참조합니다.
     """
-    # X-Forwarded-For 헤더 확인 (프록시/로드밸런서 뒤에 있는 경우)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # 첫 번째 IP가 실제 클라이언트 IP
-        return forwarded_for.split(",")[0].strip()
+    client_ip = request.client.host if request.client else "unknown"
+    trusted_proxies = os.environ.get("TRUSTED_PROXY_IPS", "").split(",")
+    trusted_proxies = [ip.strip() for ip in trusted_proxies if ip.strip()]
 
-    # X-Real-IP 헤더 확인
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        return real_ip
+    if trusted_proxies and client_ip in trusted_proxies:
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
 
-    # 직접 연결된 클라이언트 IP
-    return get_remote_address(request)
+    return client_ip
 
 
 # Limiter 인스턴스 생성

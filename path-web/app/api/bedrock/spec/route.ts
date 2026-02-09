@@ -41,7 +41,6 @@ export async function POST(req: NextRequest) {
     return new Response(
       JSON.stringify({
         error: "명세서 생성 중 오류가 발생했습니다",
-        details: error.message
       }),
       {
         status: 500,

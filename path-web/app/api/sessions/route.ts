@@ -23,8 +23,18 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const lastKey = searchParams.get('lastKey');
-    const parsedLastKey = lastKey ? JSON.parse(decodeURIComponent(lastKey)) : undefined;
-    
+    let parsedLastKey: Record<string, any> | undefined;
+    if (lastKey) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(lastKey));
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          parsedLastKey = parsed;
+        }
+      } catch {
+        // 잘못된 형식 무시, 처음부터 조회
+      }
+    }
+
     const result = await listSessions(15, parsedLastKey);
     return Response.json(result);
   } catch (error) {
