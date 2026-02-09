@@ -8,22 +8,238 @@ Multi-Stage Spec Agents - 명세서 생성을 3개 Agent로 분할 (순차 호�
 
 from strands import Agent
 from strands.models import BedrockModel
-from typing import Dict, Any, AsyncIterator, Optional, List
+from typing import Dict, Any, AsyncIterator, Optional, List, Tuple
 import json
-from strands_tools import file_read
+import re
+import logging
+from safe_tools import safe_file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
+
+logger = logging.getLogger(__name__)
+
+
+class MermaidValidator:
+    """Mermaid 다이어그램 문법 검증기 (Python only, Node.js 의존 없음)"""
+
+    # 지원하는 다이어그램 타입 선언 키워드
+    DIAGRAM_TYPES = [
+        'graph', 'flowchart', 'sequenceDiagram', 'classDiagram',
+        'stateDiagram', 'stateDiagram-v2', 'erDiagram', 'gantt',
+        'pie', 'journey', 'gitGraph', 'mindmap', 'timeline',
+        'quadrantChart', 'sankey-beta', 'xychart-beta',
+    ]
+
+    def validate(self, content: str) -> Tuple[bool, List[str]]:
+        """Mermaid 다이어그램 검증.
+
+        Args:
+            content: Mermaid 코드 블록을 포함한 전체 텍스트
+
+        Returns:
+            (is_valid, errors) 튜플. is_valid=True이면 errors는 빈 리스트.
+        """
+        errors: List[str] = []
+        mermaid_blocks = self._extract_mermaid_blocks(content)
+
+        if not mermaid_blocks:
+            return (True, [])  # Mermaid 블록이 없으면 검증 스킵
+
+        for i, block in enumerate(mermaid_blocks, 1):
+            block_errors = []
+            block_errors.extend(self._check_diagram_type(block))
+            block_errors.extend(self._check_bracket_pairs(block))
+            block_errors.extend(self._check_special_chars(block))
+            block_errors.extend(self._check_activate_deactivate(block))
+
+            for err in block_errors:
+                errors.append(f"[블록 {i}] {err}")
+
+        return (len(errors) == 0, errors)
+
+    def _extract_mermaid_blocks(self, content: str) -> List[str]:
+        """```mermaid ... ``` 코드 블록 추출"""
+        pattern = r'```mermaid\s*\n(.*?)```'
+        return re.findall(pattern, content, re.DOTALL)
+
+    def _check_diagram_type(self, block: str) -> List[str]:
+        """다이어그램 타입 선언 확인"""
+        first_line = block.strip().split('\n')[0].strip()
+        has_type = any(first_line.startswith(dt) for dt in self.DIAGRAM_TYPES)
+        if not has_type:
+            return [f"다이어그램 타입 선언 누락. 첫 줄: '{first_line[:50]}'. "
+                    f"graph/flowchart/sequenceDiagram 등으로 시작해야 합니다."]
+        return []
+
+    def _strip_comments(self, block: str) -> str:
+        """Mermaid %% 주석 제거"""
+        return re.sub(r'%%.*$', '', block, flags=re.MULTILINE)
+
+    def _check_bracket_pairs(self, block: str) -> List[str]:
+        """괄호 짝 확인 ({}, [], ())"""
+        errors = []
+        pairs = {'{': '}', '[': ']', '(': ')'}
+
+        # 주석, 따옴표 안의 내용 제거
+        cleaned = self._strip_comments(block)
+        cleaned = re.sub(r'"[^"]*"', '', cleaned)
+        cleaned = re.sub(r"'[^']*'", '', cleaned)
+
+        for open_char, close_char in pairs.items():
+            open_count = cleaned.count(open_char)
+            close_count = cleaned.count(close_char)
+            if open_count != close_count:
+                errors.append(
+                    f"'{open_char}{close_char}' 짝 불일치: "
+                    f"열기 {open_count}개, 닫기 {close_count}개"
+                )
+        return errors
+
+    def _check_special_chars(self, block: str) -> List[str]:
+        """노드 텍스트 내 특수문자 따옴표 미사용 감지"""
+        errors = []
+        cleaned = self._strip_comments(block)
+
+        # 노드 정의 패턴: 대괄호/중괄호/소괄호 안의 텍스트 (따옴표 없는 경우만)
+        node_patterns = [
+            r'\[([^\]"]+)\]',   # [text]
+            r'\{([^}"]+)\}',    # {text}
+            r'\(([^)"]+)\)',    # (text)
+        ]
+        # 2글자 특수문자를 먼저 검사하여 >=/<=를 >/<보다 우선 감지
+        special_chars_multi = ['>=', '<=']
+        special_chars_single = ['&', '?']
+
+        for pattern in node_patterns:
+            matches = re.finditer(pattern, cleaned)
+            for match in matches:
+                text = match.group(1)
+                found = None
+                # 2글자 특수문자 먼저
+                for sc in special_chars_multi:
+                    if sc in text:
+                        found = sc
+                        break
+                # 단독 > < 는 >=/<= 이 없을 때만 검사
+                if not found:
+                    for sc in ('>', '<'):
+                        if sc in text and '>=' not in text and '<=' not in text:
+                            found = sc
+                            break
+                # 나머지 단일문자
+                if not found:
+                    for sc in special_chars_single:
+                        if sc in text:
+                            found = sc
+                            break
+                if found:
+                    errors.append(
+                        f"노드 텍스트에 특수문자 '{found}' 발견 (따옴표 필요): "
+                        f"'{text[:60]}'"
+                    )
+        return errors
+
+    def _check_activate_deactivate(self, block: str) -> List[str]:
+        """Sequence Diagram activate/deactivate 쌍 확인 (명시적 + 인라인 +/- 문법)
+
+        인라인 문법 의미:
+        - A->>+B: msg → B(타겟)를 activate
+        - B-->>-A: msg → B(소스)를 deactivate
+        """
+        if not block.strip().startswith('sequenceDiagram'):
+            return []
+
+        errors = []
+        activate_counts: Dict[str, int] = {}
+        deactivate_counts: Dict[str, int] = {}
+
+        # 인라인 메시지 파싱: SOURCE ARROW MODIFIER TARGET: MESSAGE
+        # ARROW: ->> / -->> / -x / --x / -> / -->
+        # MODIFIER: + (activate target) / - (deactivate source) / 없음
+        inline_msg_re = re.compile(
+            r'^(\S+?)\s*'          # SOURCE
+            r'(?:--?>>?|--?x)'     # ARROW (non-capturing)
+            r'([+-]?)'             # MODIFIER
+            r'(\S+?)'             # TARGET
+            r'\s*:'                # colon
+        )
+
+        for line in block.split('\n'):
+            line = line.strip()
+
+            # 명시적 activate/deactivate
+            activate_match = re.match(r'activate\s+(\S+)', line)
+            deactivate_match = re.match(r'deactivate\s+(\S+)', line)
+
+            if activate_match:
+                p = activate_match.group(1)
+                activate_counts[p] = activate_counts.get(p, 0) + 1
+            elif deactivate_match:
+                p = deactivate_match.group(1)
+                deactivate_counts[p] = deactivate_counts.get(p, 0) + 1
+            else:
+                # 인라인 +/- 문법
+                m = inline_msg_re.match(line)
+                if m:
+                    source, modifier, target = m.group(1), m.group(2), m.group(3)
+                    if modifier == '+':
+                        # + → activate TARGET
+                        activate_counts[target] = activate_counts.get(target, 0) + 1
+                    elif modifier == '-':
+                        # - → deactivate SOURCE
+                        deactivate_counts[source] = deactivate_counts.get(source, 0) + 1
+
+        all_participants = set(activate_counts.keys()) | set(deactivate_counts.keys())
+        for participant in all_participants:
+            act = activate_counts.get(participant, 0)
+            deact = deactivate_counts.get(participant, 0)
+            if act != deact:
+                errors.append(
+                    f"Sequence Diagram '{participant}': "
+                    f"activate {act}회, deactivate {deact}회 (불일치)"
+                )
+
+        return errors
 
 
 class DesignAgent:
     """1단계: Agent 설계 (프레임워크 독립적)"""
 
+    # 패턴명 → reference 파일 매핑
+    PATTERN_REFERENCE_MAP = {
+        'ReAct': 'react-pattern.md',
+        'Reflection': 'reflection-pattern.md',
+        'Tool Use': 'tool-use-pattern.md',
+        'Planning': 'planning-pattern.md',
+        'Human-in-the-Loop': 'human-in-loop-pattern.md',
+    }
+
     def __init__(self):
         skills = discover_skills("./skills")
         skill_prompt = generate_skills_prompt(skills)
 
-        system_prompt = """당신은 AI Agent 설계 전문가입니다.
-프레임워크에 독립적인 Agent 아키텍처를 설계합니다."""
+        system_prompt = """당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
+
+## 전문 영역
+- Agent 역할 분리 및 협업 구조 설계
+- 상태 관리(Shared/Session/Persistent) 전략 수립
+- 단일 Agent vs 멀티 Agent 아키텍처 판단
+- 오류 복구 및 fallback 전략
+
+## 설계 원칙
+1. **단순함 우선**: 단일 Agent로 충분하면 멀티 Agent를 사용하지 않습니다
+2. **역할 명확화**: 각 Agent는 하나의 명확한 책임을 가집니다
+3. **확장성**: 향후 Agent 추가/교체가 용이한 구조를 설계합니다
+
+## 품질 기준
+- 각 Agent는 단일 책임 원칙(SRP)을 준수합니다
+- Agent 간 상호작용은 최소화합니다
+- 실패 시 복구 경로를 명시합니다
+
+## 금지 사항
+- 특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지
+- 구현 코드 포함 금지 — 설계 수준의 기술만 작성
+- 근거 없는 Agent 수 증가 금지"""
         enhanced_prompt = system_prompt + "\n" + skill_prompt
 
         self.agent = strands_utils.get_agent(
@@ -31,7 +247,7 @@ class DesignAgent:
             model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=16000,
             temperature=0.3,
-            tools=[file_read]
+            tools=[safe_file_read]
         )
 
     def analyze(
@@ -70,6 +286,24 @@ class DesignAgent:
                 for key, plan in non_empty_plans.items():
                     improvement_section += f"- {key}: {plan}\n"
 
+        # 패턴별 reference 파일 읽기 지시 생성
+        pattern = analysis.get('pattern', '')
+        ref_instructions = ""
+        ref_file = self.PATTERN_REFERENCE_MAP.get(pattern)
+        if ref_file:
+            ref_instructions += (
+                f'\n**필수 2단계**: file_read로 '
+                f'"./skills/universal-agent-patterns/references/{ref_file}"를 읽으세요.'
+            )
+        # 멀티 에이전트 아키텍처인 경우 추가 reference
+        recommended_arch = analysis.get('recommended_architecture', '')
+        if recommended_arch == 'multi-agent':
+            ref_instructions += (
+                '\n**필수 추가**: file_read로 '
+                '"./skills/universal-agent-patterns/references/multi-agent-pattern.md"와 '
+                '"./skills/universal-agent-patterns/references/state-management.md"를 읽으세요.'
+            )
+
         prompt = f"""다음 분석 결과를 바탕으로 프레임워크 독립적인 Agent 설계를 수행하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
@@ -78,7 +312,8 @@ class DesignAgent:
 {improvement_section}
 
 **필수 1단계**: file_read로 "universal-agent-patterns" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: 스킬을 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
+{ref_instructions}
+**필수 최종단계**: 스킬과 reference를 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
@@ -116,8 +351,27 @@ class DiagramAgent:
         skills = discover_skills("./skills")
         skill_prompt = generate_skills_prompt(skills)
 
-        system_prompt = """당신은 아키텍처 시각화 전문가입니다.
-프레임워크 독립적인 Agent 워크플로우를 Mermaid 다이어그램으로 표현합니다."""
+        system_prompt = """당신은 AI Agent 아키텍처 시각화 전문가입니다.
+
+## 전문 영역
+- Agent 워크플로우를 Mermaid 다이어그램으로 표현
+- Flowchart, Sequence Diagram, Architecture Overview 설계
+- 복잡한 멀티 Agent 상호작용의 명확한 시각화
+
+## 다이어그램 원칙
+1. **명확성**: 각 노드와 엣지의 의미가 한눈에 파악 가능해야 합니다
+2. **일관성**: 동일 개념은 동일 형태(모양, 색상)로 표현합니다
+3. **적정 복잡도**: 다이어그램당 5-15 노드를 유지합니다. 초과 시 분할합니다
+
+## 품질 기준
+- Sequence Diagram의 activate/deactivate는 반드시 쌍으로 사용합니다
+- 노드 텍스트의 특수문자(>=, <=, >, <, &, ?)는 반드시 따옴표로 감쌉니다
+- 모든 화살표에 라벨을 붙여 데이터 흐름을 명시합니다
+
+## 금지 사항
+- 특정 프레임워크 컴포넌트(AgentCore Runtime, Gateway, GraphBuilder 등) 금지
+- HTML 태그 사용 금지
+- 실행 불가능한 Mermaid 문법 금지"""
         enhanced_prompt = system_prompt + "\n" + skill_prompt
 
         self.agent = strands_utils.get_agent(
@@ -125,19 +379,27 @@ class DiagramAgent:
             model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=16000,
             temperature=0.3,
-            tools=[file_read]
+            tools=[safe_file_read]
         )
+        self.validator = MermaidValidator()
 
-    def generate_diagrams(self, design_result: str) -> str:
-        """다이어그램 생성"""
+    def _build_prompt(self, design_result: str, analysis: Dict[str, Any]) -> str:
+        """다이어그램 생성 프롬프트 구성"""
 
-        prompt = f"""다음 Agent 설계를 기반으로 Mermaid 다이어그램을 생성하세요:
+        # analysis 컨텍스트 섹션
+        context_section = self._build_analysis_context(analysis)
+
+        return f"""다음 Agent 설계를 기반으로 Mermaid 다이어그램을 생성하세요:
 
 {design_result}
 
+{context_section}
+
 **필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: 로드된 SKILL의 템플릿과 베스트 프랙티스만을 사용하세요.
-**필수 3단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요.
+**필수 2단계**: file_read로 "./skills/mermaid-diagrams/references/pattern-examples.md"를 읽으세요.
+**필수 3단계**: file_read로 "./skills/mermaid-diagrams/references/templates.md"를 읽으세요.
+**필수 4단계**: 로드된 SKILL과 reference의 템플릿, 베스트 프랙티스만을 사용하세요.
+**필수 5단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
@@ -175,19 +437,124 @@ flowchart TB
 
 **중요: 다이어그램에 HTML 태그 금지.**
 """
+
+    def _build_analysis_context(self, analysis: Dict[str, Any]) -> str:
+        """analysis 데이터에서 컨텍스트 섹션 생성"""
+        pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
+        input_type = analysis.get('input_type', analysis.get('inputType', ''))
+        process_steps = analysis.get('process_steps', analysis.get('processSteps', []))
+        output_types = analysis.get('output_types', analysis.get('outputTypes', []))
+        human_loop = analysis.get('human_loop', analysis.get('humanLoop', ''))
+        pattern = analysis.get('pattern', '')
+        recommended_arch = analysis.get('recommended_architecture', '')
+        multi_agent_pattern = analysis.get('multi_agent_pattern', '')
+
+        steps_text = '\n'.join(f'  - {s}' for s in process_steps) if process_steps else 'N/A'
+        outputs_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
+
+        return f"""**원본 분석 컨텍스트**:
+- **Pain Point**: {pain_point}
+- **Input Type**: {input_type}
+- **Process Steps**:
+{steps_text}
+- **Output Types**: {outputs_text}
+- **Human-in-Loop**: {human_loop}
+- **Pattern**: {pattern}
+- **Architecture**: {recommended_arch or 'single-agent'}
+- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}"""
+
+    def generate_diagrams(self, design_result: str, analysis: Dict[str, Any]) -> str:
+        """다이어그램 생성 (검증 + 재시도 1회)"""
+
+        prompt = self._build_prompt(design_result, analysis)
+
+        # 1차 생성
         result = self.agent(prompt)
-        return result.message['content'][0]['text']
+        output = result.message['content'][0]['text']
+
+        # 검증
+        is_valid, errors = self.validator.validate(output)
+        if is_valid:
+            return output
+
+        # 검증 실패 시 재시도 1회
+        logger.warning(f"Mermaid 검증 실패 ({len(errors)}건), 재생성 시도: {errors}")
+        error_feedback = "\n".join(f"- {e}" for e in errors)
+        retry_prompt = f"""이전 출력에서 다음 Mermaid 문법 오류가 발견되었습니다:
+
+{error_feedback}
+
+위 오류를 수정하여 다이어그램을 다시 생성하세요.
+기존 출력:
+
+{output}
+
+수정된 전체 출력만 작성하세요. 설명이나 메타 코멘트 없이 바로 수정 결과만 출력하세요.
+"""
+        retry_result = self.agent(retry_prompt)
+        retry_output = retry_result.message['content'][0]['text']
+
+        # 재시도 결과 검증 (실패해도 반환 — 최선의 결과 사용)
+        is_valid_retry, retry_errors = self.validator.validate(retry_output)
+        if not is_valid_retry:
+            logger.warning(f"Mermaid 재시도 후에도 오류 존재 ({len(retry_errors)}건): {retry_errors}")
+        return retry_output
 
 
 class DetailAgent:
     """3단계: 상세 설계 (프롬프트, 도구)"""
 
+    # output_types 키워드 → tool-schema reference 파일 매핑
+    OUTPUT_TOOL_REFERENCE_MAP = {
+        '검색': 'search-tools.md',
+        '조회': 'search-tools.md',
+        'search': 'search-tools.md',
+        'CRUD': 'crud-tools.md',
+        '생성': 'crud-tools.md',
+        '수정': 'crud-tools.md',
+        '삭제': 'crud-tools.md',
+        '저장': 'crud-tools.md',
+        '알림': 'notification-tools.md',
+        '통보': 'notification-tools.md',
+        '메일': 'notification-tools.md',
+        '이메일': 'notification-tools.md',
+        'notification': 'notification-tools.md',
+        'API': 'external-api-tools.md',
+        '연동': 'external-api-tools.md',
+        '외부': 'external-api-tools.md',
+        '변환': 'transform-tools.md',
+        '포맷': 'transform-tools.md',
+        '가공': 'transform-tools.md',
+        '분석': 'transform-tools.md',
+        '요약': 'transform-tools.md',
+        'transform': 'transform-tools.md',
+    }
+
     def __init__(self):
         skills = discover_skills("./skills")
         skill_prompt = generate_skills_prompt(skills)
 
-        system_prompt = """당신은 AI Agent 상세 설계 전문가입니다.
-Agent의 System Prompt와 Tool 스키마를 정의합니다."""
+        system_prompt = """당신은 AI Agent 프롬프트 엔지니어링 및 도구 설계 전문가입니다.
+
+## 전문 영역
+- Agent System Prompt 설계 (역할, 지시사항, 제약조건)
+- Tool 스키마 정의 (Compact Signature 형식)
+- 입출력 형식 명세 및 예시 작성
+
+## 설계 원칙
+1. **역할 명확화**: System Prompt에서 Agent의 정체성과 경계를 명확히 정의합니다
+2. **구체적 지시**: 모호한 표현 대신 구체적이고 측정 가능한 지시를 사용합니다
+3. **출력 형식 명시**: 예상 출력의 구조와 형식을 명확히 정의합니다
+
+## 품질 기준
+- System Prompt는 최소 200자 이상으로 충분한 컨텍스트를 제공합니다
+- Tool은 Compact Signature 형식을 사용합니다 (JSON Schema 금지)
+- 각 Agent에 실제 사용 예시(Example User Prompt + Expected Output)를 포함합니다
+
+## 금지 사항
+- JSON Schema 형식의 Tool 정의 금지
+- 구현 코드 포함 금지
+- 플레이스홀더(TODO, TBD 등)만으로 채우기 금지"""
         enhanced_prompt = system_prompt + "\n" + skill_prompt
 
         self.agent = strands_utils.get_agent(
@@ -195,19 +562,71 @@ Agent의 System Prompt와 Tool 스키마를 정의합니다."""
             model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
             max_tokens=16000,
             temperature=0.3,
-            tools=[file_read]
+            tools=[safe_file_read]
         )
 
-    def generate_details(self, design_result: str) -> str:
+    def _get_tool_references(self, analysis: Dict[str, Any]) -> List[str]:
+        """analysis의 output_types 기반으로 읽어야 할 tool-schema reference 파일 결정"""
+        output_types = analysis.get('output_types', analysis.get('outputTypes', []))
+        pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
+        # output_types + pain_point에서 키워드 매칭
+        search_text = ' '.join(output_types) if isinstance(output_types, list) else str(output_types)
+        search_text += ' ' + pain_point
+
+        matched_files = set()
+        for keyword, ref_file in self.OUTPUT_TOOL_REFERENCE_MAP.items():
+            if keyword in search_text:
+                matched_files.add(ref_file)
+
+        return list(matched_files)
+
+    def generate_details(self, design_result: str, analysis: Dict[str, Any]) -> str:
         """프롬프트 및 도구 정의 생성"""
+
+        # analysis 컨텍스트 섹션
+        pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
+        input_type = analysis.get('input_type', analysis.get('inputType', ''))
+        process_steps = analysis.get('process_steps', analysis.get('processSteps', []))
+        output_types = analysis.get('output_types', analysis.get('outputTypes', []))
+        human_loop = analysis.get('human_loop', analysis.get('humanLoop', ''))
+        pattern = analysis.get('pattern', '')
+        recommended_arch = analysis.get('recommended_architecture', '')
+        multi_agent_pattern = analysis.get('multi_agent_pattern', '')
+
+        steps_text = '\n'.join(f'  - {s}' for s in process_steps) if process_steps else 'N/A'
+        outputs_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
+
+        context_section = f"""**원본 분석 컨텍스트**:
+- **Pain Point**: {pain_point}
+- **Input Type**: {input_type}
+- **Process Steps**:
+{steps_text}
+- **Output Types**: {outputs_text}
+- **Human-in-Loop**: {human_loop}
+- **Pattern**: {pattern}
+- **Architecture**: {recommended_arch or 'single-agent'}
+- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}"""
+
+        # tool-schema reference 읽기 지시 생성
+        tool_refs = self._get_tool_references(analysis)
+        tool_ref_instructions = ""
+        for i, ref_file in enumerate(tool_refs, 1):
+            tool_ref_instructions += (
+                f'\n**필수 추가 {i}**: file_read로 '
+                f'"./skills/tool-schema/references/{ref_file}"를 읽으세요.'
+            )
 
         prompt = f"""다음 Agent 설계를 기반으로 프롬프트와 도구를 정의하세요:
 
 {design_result}
 
+{context_section}
+
 **필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "tool-schema" 스킬의 SKILL.md를 읽으세요.
-**필수 3단계**: 두 스킬을 참고하여 상세 설계하세요.
+**필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
+**필수 3단계**: file_read로 "tool-schema" 스킬의 SKILL.md를 읽으세요.
+{tool_ref_instructions}
+**필수 최종단계**: 위 스킬과 reference를 참고하여 상세 설계하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
@@ -439,7 +858,7 @@ class MultiStageSpecAgent:
             # 2단계: 다이어그램 (40-70%) - Section 3: Visual Design
             yield f"data: {json.dumps({'progress': 40, 'stage': '3. 워크플로우 다이어그램 생성 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
-                self.diagram_agent.generate_diagrams, design_result
+                self.diagram_agent.generate_diagrams, design_result, analysis
             ))
             progress = 45
             while not task.done():
@@ -453,7 +872,7 @@ class MultiStageSpecAgent:
             # 3단계: 상세 설계 (70-95%) - Section 4-5: Prompts & Tools
             yield f"data: {json.dumps({'progress': 70, 'stage': '4-5. 프롬프트 및 도구 정의 시작'}, ensure_ascii=False)}\n\n"
             task = asyncio.create_task(asyncio.to_thread(
-                self.detail_agent.generate_details, design_result
+                self.detail_agent.generate_details, design_result, analysis
             ))
             progress = 75
             while not task.done():
@@ -482,4 +901,5 @@ class MultiStageSpecAgent:
             yield "data: [DONE]\n\n"
 
         except Exception as e:
-            yield f"data: {json.dumps({'error': str(e)}, ensure_ascii=False)}\n\n"
+            logger.error(f"명세서 생성 오류: {e}", exc_info=True)
+            yield f"data: {json.dumps({'error': '명세서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}, ensure_ascii=False)}\n\n"

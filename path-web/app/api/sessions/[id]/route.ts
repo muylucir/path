@@ -1,12 +1,24 @@
 import { NextRequest } from "next/server";
 import { loadSession, deleteSession, updateSessionSpecification } from "@/lib/aws/dynamodb";
 
+const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]{10,100}$/;
+
+function isValidSessionId(id: string): boolean {
+  return SESSION_ID_PATTERN.test(id);
+}
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+    if (!isValidSessionId(id)) {
+      return new Response(
+        JSON.stringify({ error: "유효하지 않은 세션 ID입니다" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
     const session = await loadSession(id);
 
     if (!session) {
@@ -35,6 +47,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    if (!isValidSessionId(id)) {
+      return new Response(
+        JSON.stringify({ error: "유효하지 않은 세션 ID입니다" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
     await deleteSession(id);
 
     return Response.json({ success: true });
@@ -56,6 +74,12 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    if (!isValidSessionId(id)) {
+      return new Response(
+        JSON.stringify({ error: "유효하지 않은 세션 ID입니다" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
     const body = await req.json();
     const { specification } = body;
 

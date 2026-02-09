@@ -44,7 +44,7 @@ export function MDXRenderer({ content }: MDXRendererProps) {
       mermaid.initialize({
         startOnLoad: false,
         theme: "default",
-        securityLevel: "loose",
+        securityLevel: "strict",
       });
       mermaidInitialized.current = true;
     }

@@ -8,7 +8,7 @@ from strands import Agent
 from typing import Dict, List, Any, AsyncIterator
 import json
 import re
-from strands_tools import file_read
+from safe_tools import safe_file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
 from prompts import (
@@ -330,7 +330,7 @@ class PatternAnalyzerAgent:
             model_id=model_id,
             max_tokens=16000,
             temperature=0.3,
-            tools=[file_read]
+            tools=[safe_file_read]
         )
         self.conversation_history: List[Dict[str, str]] = []
 

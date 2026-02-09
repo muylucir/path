@@ -1,4 +1,4 @@
-# P.A.T.H Framework
+# P.A.T.H Agent Desiner
 
 > AI Agent 아이디어를 체계적으로 검증하고 구현 명세서를 자동 생성하는 프레임워크
 
@@ -264,20 +264,20 @@ Pain Point를 4가지 요소로 분해합니다.
 
 ```
                     ┌─────────────────────────────┐
-                    │      FeasibilityAgent       │
-                    │   (Step 2 - 준비도 점검)       │
+                    │      FeasibilityAgent                                                                          │
+                    │   (Step 2 - 준비도 점검)                                                                     │
                     └─────────────────────────────┘
                                   │
                                   ▼
                     ┌─────────────────────────────┐
-                    │   PatternAnalyzerAgent      │
-                    │   (Step 3 - 패턴 분석)        │
+                    │   PatternAnalyzerAgent                                                                    │
+                    │   (Step 3 - 패턴 분석)                                                                         │
                     └─────────────────────────────┘
                                   │
                                   ▼
                     ┌─────────────────────────────┐
-                    │   MultiStageSpecAgent       │
-                    │   (Step 4 - 명세서 생성)       │
+                     │   MultiStageSpecAgent       │
+                    │   (Step 4 - 명세서 생성)     │
                     │                             │
                     │  ├── DesignAgent            │
                     │  ├── DiagramAgent           │

@@ -88,12 +88,12 @@ def sanitize_input(text: Optional[str], max_length: int = MAX_PAIN_POINT_LENGTH)
     if len(text) > max_length:
         text = text[:max_length]
 
-    # 2. HTML 이스케이프 (XSS 방지)
-    text = html.escape(text)
-
-    # 3. 위험 패턴 필터링 (LLM 프롬프트 인젝션 방지)
+    # 2. 위험 패턴 필터링 (LLM 프롬프트 인젝션 방지) — HTML escape 이전에 수행
     for pattern in DANGEROUS_PATTERNS:
         text = pattern.sub('[FILTERED]', text)
+
+    # 3. HTML 이스케이프 (XSS 방지)
+    text = html.escape(text)
 
     # 4. 과도한 공백 정리
     text = re.sub(r'\s{3,}', '  ', text)
@@ -175,7 +175,7 @@ def validate_conversation(conversation: List[dict], max_turns: int = MAX_CONVERS
         role = msg.get("role", "")
         content = msg.get("content", "")
 
-        if role not in ["user", "assistant", "system"]:
+        if role not in ["user", "assistant"]:
             continue
 
         # 내용 새니타이징
