@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Step2Readiness } from "@/components/steps/Step2Readiness";
 import { StepIndicator } from "@/components/layout/StepIndicator";
-import { TokenUsageBadge } from "@/components/layout/TokenUsageBadge";
 import { useTokenUsage } from "@/lib/hooks/useTokenUsage";
 import { STEPS } from "@/lib/constants";
 import type { FeasibilityEvaluation, ImprovementPlans } from "@/lib/types";
@@ -14,7 +13,7 @@ export default function FeasibilityPage() {
   const [formData, setFormData] = useState<any>(null);
   const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
   const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>({});
-  const { usage, addUsage } = useTokenUsage();
+  const { addUsage } = useTokenUsage();
 
   useEffect(() => {
     const data = sessionStorage.getItem("formData");
@@ -88,7 +87,6 @@ export default function FeasibilityPage() {
             onUsage={addUsage}
           />
         </div>
-        <TokenUsageBadge usage={usage} />
       </div>
     </div>
   );
