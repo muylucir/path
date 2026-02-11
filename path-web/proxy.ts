@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const ALLOWED_ORIGINS = [
+const DEFAULT_ALLOWED_ORIGINS = [
   "http://localhost:3009",
   "https://d21k0iabhuk0yx.cloudfront.net",
   "https://path.workloom.net",
 ];
+
+const ALLOWED_ORIGINS: string[] = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim()).filter(Boolean)
+  : DEFAULT_ALLOWED_ORIGINS;
 
 export function proxy(request: NextRequest) {
   if (!request.nextUrl.pathname.startsWith("/api")) {

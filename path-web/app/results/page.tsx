@@ -18,6 +18,18 @@ export default function ResultsPage() {
   const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
   const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>({});
   const [specification, setSpecification] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  // Warn user before leaving with unsaved changes
+  useEffect(() => {
+    if (isSaved) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isSaved]);
 
   useEffect(() => {
     const analysisData = sessionStorage.getItem("analysis");
@@ -32,17 +44,60 @@ export default function ResultsPage() {
       return;
     }
 
-    setAnalysis(JSON.parse(analysisData));
-    setChatHistory(chatData ? JSON.parse(chatData) : []);
-    setFormData(JSON.parse(formDataStr));
-    setFeasibility(feasibilityStr ? JSON.parse(feasibilityStr) : null);
-    setImprovementPlans(improvementPlansStr ? JSON.parse(improvementPlansStr) : {});
+    try {
+      setAnalysis(JSON.parse(analysisData));
+    } catch {
+      sessionStorage.removeItem("analysis");
+      router.push("/");
+      return;
+    }
+
+    try {
+      setFormData(JSON.parse(formDataStr));
+    } catch {
+      sessionStorage.removeItem("formData");
+      router.push("/");
+      return;
+    }
+
+    if (chatData) {
+      try {
+        setChatHistory(JSON.parse(chatData));
+      } catch {
+        sessionStorage.removeItem("chatHistory");
+      }
+    }
+
+    if (feasibilityStr) {
+      try {
+        setFeasibility(JSON.parse(feasibilityStr));
+      } catch {
+        sessionStorage.removeItem("feasibility");
+      }
+    }
+
+    if (improvementPlansStr) {
+      try {
+        setImprovementPlans(JSON.parse(improvementPlansStr));
+      } catch {
+        sessionStorage.removeItem("improvementPlans");
+      }
+    }
+
     setSpecification(specData || "");
+
+    // If loaded from an existing session, mark as saved
+    const existingSessionId = sessionStorage.getItem("currentSessionId");
+    if (existingSessionId) {
+      setIsSaved(true);
+    }
   }, [router]);
 
   const handleSave = async (spec: string) => {
     if (!analysis || !formData) return;
+    if (isSaving) return;
 
+    setIsSaving(true);
     try {
       const existingSessionId = sessionStorage.getItem("currentSessionId");
 
@@ -55,8 +110,13 @@ export default function ResultsPage() {
         });
 
         if (response.ok) {
+          setIsSaved(true);
           toast.success("업데이트 완료", {
             description: "명세서가 업데이트되었습니다.",
+          });
+        } else {
+          toast.error("저장 실패", {
+            description: "서버 오류가 발생했습니다.",
           });
         }
       } else {
@@ -114,8 +174,13 @@ export default function ResultsPage() {
           const data = await response.json();
           // Store the new session ID for future updates
           sessionStorage.setItem("currentSessionId", data.session_id);
+          setIsSaved(true);
           toast.success("저장 완료", {
             description: "분석 결과가 저장되었습니다.",
+          });
+        } else {
+          toast.error("저장 실패", {
+            description: "서버 오류가 발생했습니다.",
           });
         }
       }
@@ -124,6 +189,8 @@ export default function ResultsPage() {
       toast.error("저장 실패", {
         description: "오류가 발생했습니다.",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 

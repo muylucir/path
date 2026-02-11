@@ -24,5 +24,7 @@ echo "Starting P.A.T.H Agent Designer..."
 echo "  Frontend: http://localhost:3009"
 echo "  Backend:  http://localhost:8001 (internal)"
 
-# Start supervisord in foreground (recommended for containers)
-exec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf
+# Start supervisord in foreground mode but without exec so trap handlers fire
+/usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf &
+SUPERVISOR_PID=$!
+wait "$SUPERVISOR_PID"

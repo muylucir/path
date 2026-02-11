@@ -33,7 +33,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Loader2, Trash2, Eye, Database } from "lucide-react";
+import { toast } from "sonner";
 import { formatKST } from "@/lib/utils";
+import { getJudgmentBadge as getJudgmentBadgeData } from "@/lib/readiness";
 import type { SessionListItem } from "@/lib/types";
 
 export default function SessionsPage() {
@@ -71,6 +73,7 @@ export default function SessionsPage() {
       }
     } catch (error) {
       console.error("Error loading sessions:", error);
+      toast.error("세션 목록을 불러오는데 실패했습니다");
     } finally {
       setIsLoading(false);
     }
@@ -128,6 +131,7 @@ export default function SessionsPage() {
       router.push("/results");
     } catch (error) {
       console.error("Error loading session:", error);
+      toast.error("세션을 불러오는데 실패했습니다");
     }
   };
 
@@ -142,8 +146,10 @@ export default function SessionsPage() {
     try {
       await fetch(`/api/sessions/${sessionToDelete}`, { method: "DELETE" });
       setSessions((prev) => prev.filter((s) => s.session_id !== sessionToDelete));
+      toast.success("세션이 삭제되었습니다");
     } catch (error) {
       console.error("Error deleting session:", error);
+      toast.error("세션 삭제에 실패했습니다");
     } finally {
       setDeleteDialogOpen(false);
       setSessionToDelete(null);
@@ -162,37 +168,29 @@ export default function SessionsPage() {
     }
   });
 
-  // 점수 기반 판정 배지 (Step 4 상단 카드와 동일)
-  const getJudgmentBadge = (session: SessionListItem) => {
+  // 점수 기반 판정 배지 (shared utility 사용)
+  const renderJudgmentBadge = (session: SessionListItem) => {
     const score = getFinalScore(session);
-    if (score >= 40) return (
-      <Badge className="bg-green-100 text-green-800 border-green-200 hover:bg-green-100 gap-1">
-        <span>✅</span>
-        <span>바로 진행</span>
-      </Badge>
-    );
-    if (score >= 30) return (
-      <Badge className="bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100 gap-1">
-        <span>🔵</span>
-        <span>보완 후 진행</span>
-      </Badge>
-    );
-    if (score >= 20) return (
-      <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100 gap-1">
-        <span>🟡</span>
-        <span>재검토 권장</span>
-      </Badge>
-    );
+    const { label, variant } = getJudgmentBadgeData(score);
+    const variantClasses: Record<string, string> = {
+      green: "bg-green-100 text-green-800 border-green-200 hover:bg-green-100",
+      blue: "bg-blue-100 text-blue-800 border-blue-200 hover:bg-blue-100",
+      yellow: "bg-yellow-100 text-yellow-800 border-yellow-200 hover:bg-yellow-100",
+      orange: "bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100",
+    };
+    const iconMap: Record<string, string> = {
+      green: "✅", blue: "🔵", yellow: "🟡", orange: "🟠",
+    };
     return (
-      <Badge className="bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100 gap-1">
-        <span>🟠</span>
-        <span>준비 필요</span>
+      <Badge className={`${variantClasses[variant] || variantClasses.orange} gap-1`}>
+        <span>{iconMap[variant] || "🟠"}</span>
+        <span>{label}</span>
       </Badge>
     );
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto px-4 py-8">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -251,7 +249,7 @@ export default function SessionsPage() {
                           {formatKST(session.timestamp)}
                         </p>
                       </div>
-                      {getJudgmentBadge(session)}
+                      {renderJudgmentBadge(session)}
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t">
                       <span className="text-sm font-semibold">
@@ -304,7 +302,7 @@ export default function SessionsPage() {
                           {getFinalScore(session)}/50
                         </TableCell>
                         <TableCell className="text-center">
-                          {getJudgmentBadge(session)}
+                          {renderJudgmentBadge(session)}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

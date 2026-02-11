@@ -10,8 +10,13 @@ PATH 웹앱의 2-3단계 API를 Strands Agent로 제공
 - 보안 세션 관리
 """
 
+# .env 파일 로드 (환경 변수 설정)
+from dotenv import load_dotenv
+load_dotenv()
+
 # LLM 및 라이브러리 로그 출력 억제
 import logging
+logger = logging.getLogger(__name__)
 import sys
 import os
 from contextlib import asynccontextmanager
@@ -19,7 +24,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Dict, Any, List, Optional
 import json
 import asyncio
@@ -100,8 +105,74 @@ def _deep_sanitize(obj, max_depth=5):
     return obj
 
 
+
+def _sse_event(data: dict) -> str:
+    """표준화된 SSE 이벤트 포맷"""
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _sse_done() -> str:
+    """SSE 스트림 종료 이벤트"""
+    return "data: [DONE]\n\n"
+
+
+def _sse_error(message: str = "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.") -> str:
+    """표준화된 SSE 에러 이벤트"""
+    return f"data: {json.dumps({'error': message}, ensure_ascii=False)}\n\n"
+
+
+
+
+async def _stream_with_disconnect_check(
+    request: Request,
+    generator,
+    media_type: str = "text/event-stream",
+    extra_headers: dict = None,
+):
+    """클라이언트 연결 끊김 감지가 포함된 스트리밍 응답.
+    
+    클라이언트가 연결을 끊으면 generator를 정리하고 반환합니다.
+    """
+    headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+
+    async def checked_generator():
+        try:
+            async for chunk in generator:
+                if await request.is_disconnected():
+                    logger.info("클라이언트 연결 끊김 감지, 스트리밍 중단")
+                    break
+                yield chunk
+        except asyncio.CancelledError:
+            logger.info("스트리밍 태스크 취소됨")
+        finally:
+            # generator cleanup
+            if hasattr(generator, 'aclose'):
+                await generator.aclose()
+
+    return StreamingResponse(
+        checked_generator(),
+        media_type=media_type,
+        headers=headers,
+    )
+
+
+def _error_response(status_code: int, detail: str = "내부 서버 오류가 발생했습니다.") -> JSONResponse:
+    """표준화된 JSON 에러 응답"""
+    return JSONResponse(
+        status_code=status_code,
+        content={"error": detail, "status": status_code}
+    )
+
+
 # Request Models with Validation
 class AnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     painPoint: str = Field(..., min_length=10, max_length=MAX_PAIN_POINT_LENGTH)
     inputType: str = Field(..., min_length=1, max_length=50)
     processSteps: List[str] = Field(..., min_length=1, max_length=10)
@@ -127,6 +198,8 @@ class AnalyzeRequest(BaseModel):
 
 
 class ChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
     userMessage: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
     sessionId: Optional[str] = Field(None, max_length=100)
@@ -182,6 +255,8 @@ class SpecRequest(BaseModel):
 
 # Step2: Feasibility 관련 Request Models
 class FeasibilityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     painPoint: str = Field(..., min_length=10, max_length=MAX_PAIN_POINT_LENGTH)
     inputType: str = Field(..., min_length=1, max_length=50)
     processSteps: List[str] = Field(..., min_length=1, max_length=10)
@@ -270,11 +345,6 @@ class PatternFinalizeRequest(BaseModel):
         return validate_conversation(v)
 
 
-# Global agents (재사용)
-analyzer_agent = AnalyzerAgent()
-multi_stage_spec_agent = MultiStageSpecAgent()
-feasibility_agent = FeasibilityAgent()
-
 # 보안 세션 관리자로 교체
 chat_sessions: SecureSessionManager[ChatAgent] = SecureSessionManager()
 pattern_sessions: SecureSessionManager[PatternAnalyzerAgent] = SecureSessionManager()
@@ -286,24 +356,18 @@ async def analyze(request: Request, data: AnalyzeRequest):
     """2단계 초기 분석 - 스트리밍"""
     try:
         form_data = data.model_dump()
+        analyzer = AnalyzerAgent()
 
         async def generate():
             try:
-                async for chunk in analyzer_agent.analyze_stream(form_data):
-                    yield f"data: {json.dumps({'text': chunk})}\n\n"
-                yield "data: [DONE]\n\n"
+                async for chunk in analyzer.analyze_stream(form_data):
+                    yield _sse_event({'text': chunk})
+                yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
-                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
+                yield _sse_error()
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+        return await _stream_with_disconnect_check(request, generate())
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
@@ -334,20 +398,13 @@ async def chat(request: Request, data: ChatRequest):
         async def generate():
             try:
                 async for chunk in chat_agent.chat_stream(data.userMessage):
-                    yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
-                yield "data: [DONE]\n\n"
+                    yield _sse_event({'text': chunk, 'sessionId': session_id})
+                yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
-                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
+                yield _sse_error()
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+        return await _stream_with_disconnect_check(request, generate())
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
@@ -359,7 +416,7 @@ async def finalize(request: Request, data: FinalizeRequest):
     """2단계 최종 평가"""
     try:
         evaluator = EvaluatorAgent()
-        evaluation = evaluator.evaluate(data.formData, data.conversation)
+        evaluation = await asyncio.to_thread(evaluator.evaluate, data.formData, data.conversation)
         return JSONResponse(content=evaluation)
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
@@ -371,19 +428,16 @@ async def finalize(request: Request, data: FinalizeRequest):
 async def spec(request: Request, data: SpecRequest):
     """3단계 명세서 생성 - MultiStage 스트리밍 (프레임워크 독립적)"""
     try:
-        return StreamingResponse(
-            multi_stage_spec_agent.generate_spec_stream(
+        spec_agent = MultiStageSpecAgent()
+        return await _stream_with_disconnect_check(
+            request,
+            spec_agent.generate_spec_stream(
                 data.analysis,
                 data.improvement_plans,
                 data.chat_history,
                 data.additional_context
             ),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
-            }
+            extra_headers={"X-Accel-Buffering": "no"},
         )
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
@@ -400,24 +454,21 @@ async def feasibility(request: Request, data: FeasibilityRequest):
     """Step2: 초기 Feasibility 평가 - SSE 스트리밍"""
     try:
         form_data = data.model_dump()
+        feasibility_agent = FeasibilityAgent()
 
         async def generate():
             try:
                 async for chunk in feasibility_agent.evaluate_stream(form_data):
                     yield f"data: {chunk}\n\n"
-                yield "data: [DONE]\n\n"
+                yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
-                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
+                yield _sse_error()
 
-        return StreamingResponse(
+        return await _stream_with_disconnect_check(
+            request,
             generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-                "X-Accel-Buffering": "no",
-            }
+            extra_headers={"X-Accel-Buffering": "no"},
         )
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
@@ -429,7 +480,9 @@ async def feasibility(request: Request, data: FeasibilityRequest):
 async def feasibility_update(request: Request, data: FeasibilityReevaluateRequest):
     """Step2: 개선안 반영 재평가"""
     try:
-        evaluation = feasibility_agent.reevaluate(
+        feasibility_agent = FeasibilityAgent()
+        evaluation = await asyncio.to_thread(
+            feasibility_agent.reevaluate,
             data.formData,
             data.previousEvaluation,
             data.improvementPlans
@@ -460,20 +513,13 @@ async def pattern_analyze(request: Request, data: PatternAnalyzeRequest):
                     data.feasibility,
                     data.improvementPlans
                 ):
-                    yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
-                yield "data: [DONE]\n\n"
+                    yield _sse_event({'text': chunk, 'sessionId': session_id})
+                yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
-                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
+                yield _sse_error()
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+        return await _stream_with_disconnect_check(request, generate())
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
@@ -504,20 +550,13 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
         async def generate():
             try:
                 async for chunk in pattern_agent.chat_stream(data.userMessage):
-                    yield f"data: {json.dumps({'text': chunk, 'sessionId': session_id})}\n\n"
-                yield "data: [DONE]\n\n"
+                    yield _sse_event({'text': chunk, 'sessionId': session_id})
+                yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
-                yield f"data: {json.dumps({'error': '처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'})}\n\n"
+                yield _sse_error()
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache",
-                "Connection": "keep-alive",
-            }
-        )
+        return await _stream_with_disconnect_check(request, generate())
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
@@ -533,7 +572,8 @@ async def pattern_finalize(request: Request, data: PatternFinalizeRequest):
         for msg in data.conversation:
             pattern_agent.add_message(msg["role"], msg["content"])
 
-        analysis = pattern_agent.finalize(
+        analysis = await asyncio.to_thread(
+            pattern_agent.finalize,
             data.formData,
             data.feasibility,
             data.improvementPlans

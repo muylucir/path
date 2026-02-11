@@ -1,16 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef, memo, useLayoutEffect } from "react";
+import { useState, useEffect, useRef, memo, useLayoutEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, MessageSquare, Keyboard, Info } from "lucide-react";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
-import type { ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
+import { useSSEStream } from "@/lib/hooks/useSSEStream";
+import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
+
+interface ChatMessageWithId extends ChatMessage {
+  id: string;
+}
 
 interface Step3PatternAnalysisProps {
-  formData: any;
+  formData: FormData;
   feasibility: FeasibilityEvaluation;
   improvementPlans?: ImprovementPlans;
   onComplete: (chatHistory: ChatMessage[], analysis: Analysis) => void;
@@ -18,9 +23,41 @@ interface Step3PatternAnalysisProps {
 
 type FeasibilityKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
+// MessageComponent defined outside the parent to avoid re-creating on every render
+const MessageComponent = memo(({ message }: { message: ChatMessageWithId }) => (
+  <div
+    className={`flex ${
+      message.role === "user" ? "justify-end" : "justify-start"
+    }`}
+  >
+    <div
+      className={`max-w-[80%] rounded-lg p-3 ${
+        message.role === "user"
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted"
+      }`}
+    >
+      <div className="text-xs font-semibold mb-1">
+        {message.role === "user" ? "You" : "Claude"}
+      </div>
+      <div className="text-sm whitespace-pre-wrap">
+        {message.content}
+      </div>
+    </div>
+  </div>
+), (prev, next) => {
+  return prev.message.content === next.message.content;
+});
+
+MessageComponent.displayName = 'MessageComponent';
+
+function stripIds(messages: ChatMessageWithId[]): ChatMessage[] {
+  return messages.map(({ id: _id, ...rest }) => rest);
+}
+
 export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete }: Step3PatternAnalysisProps) {
   const router = useRouter();
-  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessageWithId[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [userInput, setUserInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -30,14 +67,136 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
   const isUserScrollingRef = useRef(false);
   const isFirstRenderRef = useRef(true);
   const hasStartedRef = useRef(false);
+  const fullMessageRef = useRef("");
+  const abortRef = useRef<(() => void) | null>(null);
+
+  // SSE stream for initial pattern analysis
+  const { start: startAnalysisStream, abort: _abortAnalysis, isStreaming: isAnalysisStreaming } = useSSEStream({
+    url: "/api/bedrock/pattern/analyze",
+    body: { formData, feasibility, improvementPlans },
+    onChunk: useCallback((parsed: any) => {
+      if (parsed.text) {
+        fullMessageRef.current += parsed.text;
+        requestAnimationFrame(() => {
+          setCurrentMessage(fullMessageRef.current);
+        });
+      }
+    }, []),
+    onDone: useCallback(() => {
+      const msg: ChatMessageWithId = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: fullMessageRef.current,
+      };
+      setChatHistory((prev) => [...prev, msg]);
+      setCurrentMessage("");
+      fullMessageRef.current = "";
+    }, []),
+    onError: useCallback((err: string) => {
+      console.error("Pattern analysis error:", err);
+      fullMessageRef.current = "";
+    }, []),
+  });
 
   useEffect(() => {
-    // 중복 실행 방지
     if (hasStartedRef.current) return;
     hasStartedRef.current = true;
 
-    startPatternAnalysis();
+    fullMessageRef.current = "";
+    startAnalysisStream();
   }, []);
+
+  // Chat stream uses manual SSE to correctly capture body at call time
+  const handleUserMessage = async () => {
+    if (!userInput.trim() || isStreaming || isAnalysisStreaming) return;
+
+    const message = userInput.trim();
+    setUserInput("");
+
+    const userMsg: ChatMessageWithId = { id: crypto.randomUUID(), role: "user", content: message };
+    const newHistory = [...chatHistory, userMsg];
+    setChatHistory(newHistory);
+
+    setIsStreaming(true);
+    fullMessageRef.current = "";
+
+    const controller = new AbortController();
+    abortRef.current = () => controller.abort();
+
+    try {
+      const response = await fetch("/api/bedrock/pattern/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation: stripIds(newHistory),
+          userMessage: message,
+          formData,
+          feasibility,
+        }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        console.error(`HTTP ${response.status}: ${response.statusText}`);
+        setIsStreaming(false);
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              const data = line.slice(6);
+              if (data === "[DONE]") {
+                const assistantMsg: ChatMessageWithId = {
+                  id: crypto.randomUUID(),
+                  role: "assistant",
+                  content: fullMessageRef.current,
+                };
+                setChatHistory((prev) => [...prev, assistantMsg]);
+                setCurrentMessage("");
+                setIsStreaming(false);
+                fullMessageRef.current = "";
+                return;
+              }
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.text) {
+                  fullMessageRef.current += parsed.text;
+                  setCurrentMessage(fullMessageRef.current);
+                }
+                if (parsed.error) {
+                  console.error("Chat error:", parsed.error);
+                  setIsStreaming(false);
+                  fullMessageRef.current = "";
+                  return;
+                }
+              } catch (e) {
+                if (!(e instanceof SyntaxError)) throw e;
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      console.error("Error:", err);
+    } finally {
+      setIsStreaming(false);
+      abortRef.current = null;
+    }
+  };
+
+  const streamingAny = isStreaming || isAnalysisStreaming;
 
   // 사용자 스크롤 감지
   useEffect(() => {
@@ -75,129 +234,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
     }
   }, [chatHistory, currentMessage]);
 
-  const startPatternAnalysis = async () => {
-    setIsStreaming(true);
-    let fullMessage = "";
-
-    try {
-      const response = await fetch("/api/bedrock/pattern/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formData, feasibility, improvementPlans }),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") {
-                const msg: ChatMessage = {
-                  role: "assistant",
-                  content: fullMessage,
-                };
-                setChatHistory((prev) => [...prev, msg]);
-                setCurrentMessage("");
-                setIsStreaming(false);
-                return;
-              }
-              try {
-                const parsed = JSON.parse(data);
-                if (parsed.text) {
-                  fullMessage += parsed.text;
-                  requestAnimationFrame(() => {
-                    setCurrentMessage(fullMessage);
-                  });
-                }
-              } catch (e) {
-                // Ignore
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setIsStreaming(false);
-    }
-  };
-
-  const handleUserMessage = async () => {
-    if (!userInput.trim() || isStreaming) return;
-
-    const message = userInput.trim();
-    setUserInput("");
-
-    const userMsg: ChatMessage = { role: "user", content: message };
-    const newHistory = [...chatHistory, userMsg];
-    setChatHistory(newHistory);
-
-    setIsStreaming(true);
-    let fullMessage = "";
-
-    try {
-      const response = await fetch("/api/bedrock/pattern/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          conversation: newHistory,
-          userMessage: message,
-          formData,
-          feasibility,
-        }),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") {
-                const assistantMsg: ChatMessage = {
-                  role: "assistant",
-                  content: fullMessage,
-                };
-                setChatHistory((prev) => [...prev, assistantMsg]);
-                setCurrentMessage("");
-                setIsStreaming(false);
-                return;
-              }
-              try {
-                const parsed = JSON.parse(data);
-                fullMessage += parsed.text;
-                setCurrentMessage(fullMessage);
-              } catch (e) {
-                // Ignore
-              }
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      setIsStreaming(false);
-    }
-  };
-
-  const finalizeAnalysis = async (history: ChatMessage[]) => {
+  const finalizeAnalysis = async (history: ChatMessageWithId[]) => {
     setIsAnalyzing(true);
 
     try {
@@ -207,46 +244,22 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
         body: JSON.stringify({
           formData,
           feasibility,
-          conversation: history,
+          conversation: stripIds(history),
           improvementPlans,
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const analysis = await response.json();
-      onComplete(history, analysis);
+      onComplete(stripIds(history), analysis);
     } catch (error) {
       console.error("Error:", error);
       setIsAnalyzing(false);
     }
   };
-
-  // 메시지 컴포넌트 메모이제이션
-  const MessageComponent = memo(({ message, index }: { message: ChatMessage; index: number }) => (
-    <div
-      className={`flex ${
-        message.role === "user" ? "justify-end" : "justify-start"
-      }`}
-    >
-      <div
-        className={`max-w-[80%] rounded-lg p-3 ${
-          message.role === "user"
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted"
-        }`}
-      >
-        <div className="text-xs font-semibold mb-1">
-          {message.role === "user" ? "You" : "Claude"}
-        </div>
-        <div className="text-sm whitespace-pre-wrap">
-          {message.content}
-        </div>
-      </div>
-    </div>
-  ), (prev, next) => {
-    return prev.message.content === next.message.content;
-  });
-
-  MessageComponent.displayName = 'MessageComponent';
 
   const getScoreColor = (score: number) => {
     if (score >= 8) return "text-green-600 bg-green-100";
@@ -308,11 +321,11 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
               aria-live="polite"
               aria-label="대화 내용"
             >
-              {chatHistory.map((msg, idx) => (
-                <MessageComponent key={idx} message={msg} index={idx} />
+              {chatHistory.map((msg) => (
+                <MessageComponent key={msg.id} message={msg} />
               ))}
 
-              {isStreaming && currentMessage && (
+              {streamingAny && currentMessage && (
                 <div className="flex justify-start">
                   <div className="max-w-[80%] rounded-lg p-3 bg-muted">
                     <div className="text-xs font-semibold mb-1">Claude</div>
@@ -339,15 +352,15 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                     }
                   }}
                   placeholder="답변을 입력하세요..."
-                  disabled={isStreaming || isAnalyzing}
+                  disabled={streamingAny || isAnalyzing}
                   className="min-h-[80px] resize-none"
                   aria-label="답변 입력"
                 />
                 <Button
                   onClick={handleUserMessage}
-                  disabled={isStreaming || isAnalyzing || !userInput.trim()}
+                  disabled={streamingAny || isAnalyzing || !userInput.trim()}
                 >
-                  {isStreaming ? (
+                  {streamingAny ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     "전송"
@@ -362,7 +375,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
 
             <Button
               onClick={() => finalizeAnalysis(chatHistory)}
-              disabled={isStreaming || isAnalyzing || chatHistory.length === 0}
+              disabled={streamingAny || isAnalyzing || chatHistory.length === 0}
               className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:shadow-none disabled:scale-100"
             >
               {isAnalyzing ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, type FormValues } from "@/lib/schema";
@@ -18,6 +18,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sparkles,
   Play,
   Cog,
@@ -32,19 +39,17 @@ import {
 
 interface Step1FormProps {
   onSubmit: (data: FormValues) => void;
+  initialData?: FormValues;
 }
 
-export function Step1Form({ onSubmit }: Step1FormProps) {
-  const [additionalSources, setAdditionalSources] = useState("");
-  const [selectedProcessSteps, setSelectedProcessSteps] = useState<string[]>([]);
-  const [selectedOutputTypes, setSelectedOutputTypes] = useState<string[]>([]);
-
+export function Step1Form({ onSubmit, initialData }: Step1FormProps) {
   const {
     register,
     handleSubmit,
     formState: { errors },
     setValue,
     watch,
+    reset,
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -55,51 +60,42 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
       humanLoop: "",
       errorTolerance: "",
       additionalContext: "",
-      useAgentCore: true,
       additionalSources: "",
     },
   });
 
-  // Watch humanLoop and errorTolerance for styling
+  // Restore form data from sessionStorage on mount
+  useEffect(() => {
+    if (initialData) {
+      reset(initialData);
+    }
+  }, [initialData, reset]);
+
+  // Watch form values directly from react-hook-form
+  const watchedProcessSteps = watch("processSteps") || [];
+  const watchedOutputTypes = watch("outputTypes") || [];
   const selectedHumanLoop = watch("humanLoop");
   const selectedErrorTolerance = watch("errorTolerance");
-
-  // Sync local state to form for validation (without using watch to avoid infinite loop)
-  useEffect(() => {
-    setValue("processSteps", selectedProcessSteps);
-  }, [selectedProcessSteps, setValue]);
-
-  useEffect(() => {
-    setValue("outputTypes", selectedOutputTypes);
-  }, [selectedOutputTypes, setValue]);
+  const selectedInputType = watch("inputType");
 
   const toggleProcessStep = (label: string) => {
-    setSelectedProcessSteps((prev) =>
-      prev.includes(label)
-        ? prev.filter((s) => s !== label)
-        : [...prev, label]
-    );
+    const current = watchedProcessSteps;
+    const next = current.includes(label)
+      ? current.filter((s) => s !== label)
+      : [...current, label];
+    setValue("processSteps", next, { shouldValidate: true });
   };
 
   const toggleOutputType = (label: string) => {
-    setSelectedOutputTypes((prev) =>
-      prev.includes(label)
-        ? prev.filter((t) => t !== label)
-        : [...prev, label]
-    );
-  };
-
-  const handleFormSubmit = (data: FormValues) => {
-    onSubmit({
-      ...data,
-      processSteps: selectedProcessSteps,
-      outputTypes: selectedOutputTypes,
-      additionalSources,
-    });
+    const current = watchedOutputTypes;
+    const next = current.includes(label)
+      ? current.filter((t) => t !== label)
+      : [...current, label];
+    setValue("outputTypes", next, { shouldValidate: true });
   };
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
       {/* Pain Point */}
       <Card>
         <CardHeader>
@@ -133,17 +129,21 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
           <CardDescription>Agent가 언제 실행되나요?</CardDescription>
         </CardHeader>
         <CardContent>
-          <select
-            {...register("inputType")}
-            className="h-11 w-full max-w-md rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          <Select
+            value={selectedInputType}
+            onValueChange={(value) => setValue("inputType", value, { shouldValidate: true })}
           >
-            <option value="">트리거 타입을 선택하세요</option>
-            {INPUT_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-full max-w-md h-11">
+              <SelectValue placeholder="트리거 타입을 선택하세요" />
+            </SelectTrigger>
+            <SelectContent>
+              {INPUT_TYPES.map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.inputType && (
             <p className="text-sm text-red-500 mt-2">{errors.inputType.message}</p>
           )}
@@ -169,30 +169,35 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               </Label>
               <p className="text-sm text-muted-foreground">Agent가 하는 일 (복수 선택)</p>
               <div className="space-y-2">
-                {PROCESS_STEPS.map((step) => (
-                  <Tooltip key={step.label}>
-                    <TooltipTrigger asChild>
-                      <label
-                        className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
-                          selectedProcessSteps.includes(step.label)
-                            ? "bg-primary/10 border border-primary/30"
-                            : "hover:bg-accent/50 border border-transparent"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedProcessSteps.includes(step.label)}
-                          onChange={() => toggleProcessStep(step.label)}
-                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm flex-1">{step.label}</span>
-                      </label>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <p>{step.example}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+                {PROCESS_STEPS.map((step, index) => {
+                  const id = `process-step-${index}`;
+                  return (
+                    <Tooltip key={step.label}>
+                      <TooltipTrigger asChild>
+                        <label
+                          htmlFor={id}
+                          className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            watchedProcessSteps.includes(step.label)
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-accent/50 border border-transparent"
+                          }`}
+                        >
+                          <input
+                            id={id}
+                            type="checkbox"
+                            checked={watchedProcessSteps.includes(step.label)}
+                            onChange={() => toggleProcessStep(step.label)}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm flex-1">{step.label}</span>
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p>{step.example}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
               </div>
               {errors.processSteps && (
                 <p className="text-sm text-red-500">{errors.processSteps.message}</p>
@@ -209,30 +214,35 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               </Label>
               <p className="text-sm text-muted-foreground">최종 결과물 (복수 선택)</p>
               <div className="space-y-2">
-                {OUTPUT_TYPES.map((type) => (
-                  <Tooltip key={type.label}>
-                    <TooltipTrigger asChild>
-                      <label
-                        className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
-                          selectedOutputTypes.includes(type.label)
-                            ? "bg-primary/10 border border-primary/30"
-                            : "hover:bg-accent/50 border border-transparent"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedOutputTypes.includes(type.label)}
-                          onChange={() => toggleOutputType(type.label)}
-                          className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm flex-1">{type.label}</span>
-                      </label>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <p>{type.example}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+                {OUTPUT_TYPES.map((type, index) => {
+                  const id = `output-type-${index}`;
+                  return (
+                    <Tooltip key={type.label}>
+                      <TooltipTrigger asChild>
+                        <label
+                          htmlFor={id}
+                          className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            watchedOutputTypes.includes(type.label)
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-accent/50 border border-transparent"
+                          }`}
+                        >
+                          <input
+                            id={id}
+                            type="checkbox"
+                            checked={watchedOutputTypes.includes(type.label)}
+                            onChange={() => toggleOutputType(type.label)}
+                            className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm flex-1">{type.label}</span>
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p>{type.example}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
               </div>
               {errors.outputTypes && (
                 <p className="text-sm text-red-500">{errors.outputTypes.message}</p>
@@ -257,8 +267,7 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
           <Textarea
             placeholder="예: PostgreSQL 고객 DB, Slack API로 알림 전송, S3 버킷에서 문서 조회, Bedrock Knowledge Base 검색 등"
             className="min-h-[100px]"
-            value={additionalSources}
-            onChange={(e) => setAdditionalSources(e.target.value)}
+            {...register("additionalSources")}
           />
           <p className="text-xs text-muted-foreground mt-2">
             데이터베이스, API, MCP 서버, 클라우드 서비스 등 Agent가 사용할 리소스를 자유롭게 입력하세요
@@ -285,30 +294,35 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               </Label>
               <p className="text-sm text-muted-foreground">사람이 언제 개입하나요?</p>
               <div className="space-y-2">
-                {HUMAN_LOOP_OPTIONS.map((option) => (
-                  <Tooltip key={option.label}>
-                    <TooltipTrigger asChild>
-                      <label
-                        className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
-                          selectedHumanLoop === option.label
-                            ? "bg-primary/10 border border-primary/30"
-                            : "hover:bg-accent/50 border border-transparent"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          {...register("humanLoop")}
-                          value={option.label}
-                          className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm flex-1">{option.label}</span>
-                      </label>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <p>{option.example}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+                {HUMAN_LOOP_OPTIONS.map((option, index) => {
+                  const id = `human-loop-${index}`;
+                  return (
+                    <Tooltip key={option.label}>
+                      <TooltipTrigger asChild>
+                        <label
+                          htmlFor={id}
+                          className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            selectedHumanLoop === option.label
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-accent/50 border border-transparent"
+                          }`}
+                        >
+                          <input
+                            id={id}
+                            type="radio"
+                            {...register("humanLoop")}
+                            value={option.label}
+                            className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm flex-1">{option.label}</span>
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p>{option.example}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
               </div>
               {errors.humanLoop && (
                 <p className="text-sm text-red-500">{errors.humanLoop.message}</p>
@@ -322,30 +336,35 @@ export function Step1Form({ onSubmit }: Step1FormProps) {
               </Label>
               <p className="text-sm text-muted-foreground">AI 실수의 허용 범위는?</p>
               <div className="space-y-2">
-                {ERROR_TOLERANCE_OPTIONS.map((option) => (
-                  <Tooltip key={option.label}>
-                    <TooltipTrigger asChild>
-                      <label
-                        className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
-                          selectedErrorTolerance === option.label
-                            ? "bg-primary/10 border border-primary/30"
-                            : "hover:bg-accent/50 border border-transparent"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          {...register("errorTolerance")}
-                          value={option.label}
-                          className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                        />
-                        <span className="text-sm flex-1">{option.label}</span>
-                      </label>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <p>{option.example}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
+                {ERROR_TOLERANCE_OPTIONS.map((option, index) => {
+                  const id = `error-tolerance-${index}`;
+                  return (
+                    <Tooltip key={option.label}>
+                      <TooltipTrigger asChild>
+                        <label
+                          htmlFor={id}
+                          className={`flex items-start space-x-3 p-3 rounded-lg cursor-pointer transition-all ${
+                            selectedErrorTolerance === option.label
+                              ? "bg-primary/10 border border-primary/30"
+                              : "hover:bg-accent/50 border border-transparent"
+                          }`}
+                        >
+                          <input
+                            id={id}
+                            type="radio"
+                            {...register("errorTolerance")}
+                            value={option.label}
+                            className="mt-1 h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <span className="text-sm flex-1">{option.label}</span>
+                        </label>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <p>{option.example}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
               </div>
               {errors.errorTolerance && (
                 <p className="text-sm text-red-500">{errors.errorTolerance.message}</p>

@@ -137,3 +137,10 @@ PATH_API_KEY=your-api-key  # API 인증 (선택)
 | [PATH.md](PATH.md) | P.A.T.H 프레임워크 상세 문서 |
 | [path-web/README.md](path-web/README.md) | Frontend 상세 문서 |
 | [path-strands-agent/README.md](path-strands-agent/README.md) | Backend 상세 문서 |
+
+### 고객용 문서 (`docs/`)
+
+| 문서 | 앱 경로 | 설명 |
+|------|---------|------|
+| [소개 (내러티브)](docs/PATH-customer-narrative.html) | `/intro` | P.A.T.H가 무엇이고 왜 필요한지를 이야기 형식으로 설명 |
+| [가이드 (구조화)](docs/PATH-customer-guide.html) | `/guide` | 각 단계별 입력 항목, 점수 기준, 활용 시나리오를 체계적으로 정리 |

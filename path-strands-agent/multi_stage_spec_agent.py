@@ -1,7 +1,7 @@
 """
-Multi-Stage Spec Agents - 명세서 생성을 3개 Agent로 분할 (순차 호출)
+Multi-Stage Spec Agents - 명세서 생성을 3개 Agent로 분할 (DiagramAgent + DetailAgent 병렬)
 
-순서: DesignAgent → DiagramAgent → DetailAgent → AssemblerAgent
+순서: DesignAgent → (DiagramAgent || DetailAgent) → AssemblerAgent
 
 프레임워크 독립적 Agent 설계 명세서 생성
 """
@@ -15,8 +15,20 @@ import logging
 from safe_tools import safe_file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
+from chat_agent import DEFAULT_MODEL_ID
 
 logger = logging.getLogger(__name__)
+
+# Cache skill discovery results (static content, no need to re-read)
+_cached_skills = None
+_cached_skill_prompt = None
+
+def _get_skill_prompt():
+    global _cached_skills, _cached_skill_prompt
+    if _cached_skill_prompt is None:
+        _cached_skills = discover_skills("./skills")
+        _cached_skill_prompt = generate_skills_prompt(_cached_skills)
+    return _cached_skill_prompt
 
 
 class MermaidValidator:
@@ -215,8 +227,7 @@ class DesignAgent:
     }
 
     def __init__(self):
-        skills = discover_skills("./skills")
-        skill_prompt = generate_skills_prompt(skills)
+        skill_prompt = _get_skill_prompt()
 
         system_prompt = """당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
 
@@ -244,7 +255,7 @@ class DesignAgent:
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
+            model_id=DEFAULT_MODEL_ID,
             max_tokens=16000,
             temperature=0.3,
             tools=[safe_file_read]
@@ -348,8 +359,7 @@ class DiagramAgent:
     """2단계: 다이어그램 생성 (프레임워크 독립적)"""
 
     def __init__(self):
-        skills = discover_skills("./skills")
-        skill_prompt = generate_skills_prompt(skills)
+        skill_prompt = _get_skill_prompt()
 
         system_prompt = """당신은 AI Agent 아키텍처 시각화 전문가입니다.
 
@@ -376,7 +386,7 @@ class DiagramAgent:
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
+            model_id=DEFAULT_MODEL_ID,
             max_tokens=16000,
             temperature=0.3,
             tools=[safe_file_read]
@@ -531,8 +541,7 @@ class DetailAgent:
     }
 
     def __init__(self):
-        skills = discover_skills("./skills")
-        skill_prompt = generate_skills_prompt(skills)
+        skill_prompt = _get_skill_prompt()
 
         system_prompt = """당신은 AI Agent 프롬프트 엔지니어링 및 도구 설계 전문가입니다.
 
@@ -559,7 +568,7 @@ class DetailAgent:
 
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
-            model_id="global.anthropic.claude-opus-4-5-20251101-v1:0",
+            model_id=DEFAULT_MODEL_ID,
             max_tokens=16000,
             temperature=0.3,
             tools=[safe_file_read]
@@ -817,7 +826,7 @@ class AssemblerAgent:
 
 
 class MultiStageSpecAgent:
-    """명세서 생성 조율 - 순차 호출"""
+    """명세서 생성 조율 - DiagramAgent + DetailAgent 병렬 실행"""
 
     def __init__(self):
         self.design_agent = DesignAgent()
@@ -855,33 +864,31 @@ class MultiStageSpecAgent:
             design_result = await task
             yield f"data: {json.dumps({'progress': 40, 'stage': '2. 에이전트 설계 패턴 완료'}, ensure_ascii=False)}\n\n"
 
-            # 2단계: 다이어그램 (40-70%) - Section 3: Visual Design
-            yield f"data: {json.dumps({'progress': 40, 'stage': '3. 워크플로우 다이어그램 생성 시작'}, ensure_ascii=False)}\n\n"
-            task = asyncio.create_task(asyncio.to_thread(
+            # 2-3단계: 다이어그램 + 상세 설계 병렬 실행 (40-95%)
+            yield f"data: {json.dumps({'progress': 40, 'stage': '3. 다이어그램 & 4-5. 프롬프트/도구 병렬 생성 시작'}, ensure_ascii=False)}\n\n"
+            
+            diagram_task = asyncio.create_task(asyncio.to_thread(
                 self.diagram_agent.generate_diagrams, design_result, analysis
             ))
-            progress = 45
-            while not task.done():
-                await asyncio.sleep(3)
-                if not task.done():
-                    progress = min(progress + 5, 65)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '3. 워크플로우 다이어그램 생성 중...'}, ensure_ascii=False)}\n\n"
-            diagram_result = await task
-            yield f"data: {json.dumps({'progress': 70, 'stage': '3. 워크플로우 다이어그램 완료'}, ensure_ascii=False)}\n\n"
-
-            # 3단계: 상세 설계 (70-95%) - Section 4-5: Prompts & Tools
-            yield f"data: {json.dumps({'progress': 70, 'stage': '4-5. 프롬프트 및 도구 정의 시작'}, ensure_ascii=False)}\n\n"
-            task = asyncio.create_task(asyncio.to_thread(
+            detail_task = asyncio.create_task(asyncio.to_thread(
                 self.detail_agent.generate_details, design_result, analysis
             ))
-            progress = 75
-            while not task.done():
+            
+            progress = 45
+            while not diagram_task.done() or not detail_task.done():
                 await asyncio.sleep(3)
-                if not task.done():
+                if not diagram_task.done() or not detail_task.done():
                     progress = min(progress + 5, 90)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '4-5. 프롬프트 및 도구 정의 중...'}, ensure_ascii=False)}\n\n"
-            detail_result = await task
-            yield f"data: {json.dumps({'progress': 95, 'stage': '4-5. 프롬프트 및 도구 정의 완료'}, ensure_ascii=False)}\n\n"
+                    stages_status = []
+                    if not diagram_task.done():
+                        stages_status.append("다이어그램")
+                    if not detail_task.done():
+                        stages_status.append("프롬프트/도구")
+                    stage_text = " & ".join(stages_status) + " 생성 중..."
+                    yield f"data: {json.dumps({'progress': progress, 'stage': stage_text}, ensure_ascii=False)}\n\n"
+            
+            diagram_result, detail_result = await asyncio.gather(diagram_task, detail_task)
+            yield f"data: {json.dumps({'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트/도구 완료'}, ensure_ascii=False)}\n\n"
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
             yield f"data: {json.dumps({'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}, ensure_ascii=False)}\n\n"

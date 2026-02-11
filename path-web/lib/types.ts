@@ -7,10 +7,11 @@ export interface FormData {
   outputTypes: string[];
   humanLoop: string;
   errorTolerance: string;
-  additionalContext: string;
+  /** Optional additional context provided by the user */
+  additionalContext?: string;
   // 데이터소스 (자유 텍스트)
   additionalSources?: string;
-  // 하위 호환성용 (deprecated)
+  /** @deprecated 하위 호환성용 - 새 코드에서는 사용하지 마세요 */
   integrationDetails?: IntegrationDetail[];
 }
 
@@ -129,7 +130,6 @@ export interface Session {
   data_source: string;
   error_tolerance: string;
   additional_context: string;
-  use_agentcore: boolean;
   pattern: string;
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;
@@ -143,7 +143,7 @@ export interface Session {
   user_input_type?: string;
   user_process_steps?: string[];
   user_output_types?: string[];
-  // 하위 호환성용 (deprecated) - 기존 세션에서 통합 정보 표시
+  /** @deprecated 하위 호환성용 - 기존 세션에서 통합 정보 표시 */
   integration_details?: IntegrationDetail[];
   // Step 2 상세 준비도 점검 결과 (새 플로우)
   feasibility_evaluation?: FeasibilityEvaluation;

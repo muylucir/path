@@ -1,11 +1,61 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import { saveSession, listSessions } from "@/lib/aws/dynamodb";
+import type { Session } from "@/lib/types";
+
+const sessionSchema = z.object({
+  pain_point: z.string().min(1),
+  input_type: z.string().min(1),
+  process_steps: z.array(z.string()).min(1),
+  output_types: z.array(z.string()).min(1),
+  human_loop: z.string().min(1),
+  error_tolerance: z.string().min(1),
+  data_source: z.string(),
+  additional_context: z.string().optional().default(""),
+  additional_sources: z.string().optional().default(""),
+  pattern: z.string(),
+  pattern_reason: z.string(),
+  feasibility_breakdown: z.record(z.string(), z.number()),
+  feasibility_score: z.number(),
+  recommendation: z.string(),
+  risks: z.array(z.string()),
+  next_steps: z.array(z.string()),
+  chat_history: z.array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string(),
+    })
+  ),
+  specification: z.string(),
+  // Optional fields
+  user_input_type: z.string().optional(),
+  user_process_steps: z.array(z.string()).optional(),
+  user_output_types: z.array(z.string()).optional(),
+  integration_details: z.array(z.unknown()).optional(),
+  feasibility_evaluation: z.record(z.string(), z.unknown()).nullable().optional(),
+  improvement_plans: z.record(z.string(), z.string()).nullable().optional(),
+  improved_feasibility: z.record(z.string(), z.unknown()).nullable().optional(),
+});
 
 export async function POST(req: NextRequest) {
   try {
-    const sessionData = await req.json();
-    const sessionId = await saveSession(sessionData);
-    
+    const body = await req.json();
+
+    const result = sessionSchema.safeParse(body);
+    if (!result.success) {
+      return Response.json(
+        {
+          error: "Validation failed",
+          details: result.error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+        { status: 400 }
+      );
+    }
+
+    const sessionId = await saveSession(result.data as unknown as Omit<Session, "session_id" | "timestamp">);
     return Response.json({ session_id: sessionId });
   } catch (error) {
     console.error("Error saving session:", error);
@@ -23,12 +73,12 @@ export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const lastKey = searchParams.get('lastKey');
-    let parsedLastKey: Record<string, any> | undefined;
+    let parsedLastKey: Record<string, unknown> | undefined;
     if (lastKey) {
       try {
         const parsed = JSON.parse(decodeURIComponent(lastKey));
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          parsedLastKey = parsed;
+          parsedLastKey = parsed as Record<string, unknown>;
         }
       } catch {
         // 잘못된 형식 무시, 처음부터 조회
