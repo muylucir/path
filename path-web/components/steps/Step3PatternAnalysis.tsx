@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft, MessageSquare, Keyboard, Info } from "lucide-react";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
-import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
+import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
 
 interface ChatMessageWithId extends ChatMessage {
   id: string;
@@ -19,6 +19,7 @@ interface Step3PatternAnalysisProps {
   feasibility: FeasibilityEvaluation;
   improvementPlans?: ImprovementPlans;
   onComplete: (chatHistory: ChatMessage[], analysis: Analysis) => void;
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 type FeasibilityKey = keyof typeof FEASIBILITY_ITEM_NAMES;
@@ -55,7 +56,7 @@ function stripIds(messages: ChatMessageWithId[]): ChatMessage[] {
   return messages.map(({ id: _id, ...rest }) => rest);
 }
 
-export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete }: Step3PatternAnalysisProps) {
+export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete, onUsage }: Step3PatternAnalysisProps) {
   const router = useRouter();
   const [chatHistory, setChatHistory] = useState<ChatMessageWithId[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
@@ -82,6 +83,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
         });
       }
     }, []),
+    onUsage: useCallback((usage: TokenUsage) => {
+      onUsage?.(usage);
+    }, [onUsage]),
     onDone: useCallback(() => {
       const msg: ChatMessageWithId = {
         id: crypto.randomUUID(),
@@ -170,6 +174,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
               }
               try {
                 const parsed = JSON.parse(data);
+                if (parsed.usage) {
+                  onUsage?.(parsed.usage);
+                }
                 if (parsed.text) {
                   fullMessageRef.current += parsed.text;
                   setCurrentMessage(fullMessageRef.current);
@@ -254,6 +261,10 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       }
 
       const analysis = await response.json();
+      if (analysis._usage) {
+        onUsage?.(analysis._usage);
+        delete analysis._usage;
+      }
       onComplete(stripIds(history), analysis);
     } catch (error) {
       console.error("Error:", error);

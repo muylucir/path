@@ -35,6 +35,14 @@ const sessionSchema = z.object({
   feasibility_evaluation: z.record(z.string(), z.unknown()).nullable().optional(),
   improvement_plans: z.record(z.string(), z.string()).nullable().optional(),
   improved_feasibility: z.record(z.string(), z.unknown()).nullable().optional(),
+  token_usage: z.object({
+    inputTokens: z.number(),
+    outputTokens: z.number(),
+    totalTokens: z.number(),
+    cacheReadInputTokens: z.number().optional(),
+    cacheWriteInputTokens: z.number().optional(),
+    estimatedCostUSD: z.number(),
+  }).nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {

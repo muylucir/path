@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Step3Results } from "@/components/steps/Step3Results";
 import { StepIndicator } from "@/components/layout/StepIndicator";
+import { TokenUsageBadge } from "@/components/layout/TokenUsageBadge";
+import { useTokenUsage } from "@/lib/hooks/useTokenUsage";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { RefreshCw, ArrowLeft } from "lucide-react";
@@ -20,6 +22,7 @@ export default function ResultsPage() {
   const [specification, setSpecification] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const { usage, addUsage } = useTokenUsage();
 
   // Warn user before leaving with unsaved changes
   useEffect(() => {
@@ -162,6 +165,8 @@ export default function ResultsPage() {
           improvement_plans: improvementPlans,
           // Step 3 향상된 점수
           improved_feasibility: analysis.improved_feasibility,
+          // 토큰 사용량
+          token_usage: usage.totalTokens > 0 ? usage : null,
         };
 
         const response = await fetch("/api/sessions", {
@@ -233,6 +238,7 @@ export default function ResultsPage() {
             improvementPlans={improvementPlans}
             initialSpecification={specification}
             onSave={handleSave}
+            onUsage={addUsage}
           />
           
           <div className="flex justify-center">
@@ -242,6 +248,7 @@ export default function ResultsPage() {
             </Button>
           </div>
         </div>
+        <TokenUsageBadge usage={usage} />
       </div>
     </div>
   );

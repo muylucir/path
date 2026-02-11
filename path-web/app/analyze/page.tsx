@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Step3PatternAnalysis } from "@/components/steps/Step3PatternAnalysis";
 import { StepIndicator } from "@/components/layout/StepIndicator";
+import { TokenUsageBadge } from "@/components/layout/TokenUsageBadge";
+import { useTokenUsage } from "@/lib/hooks/useTokenUsage";
 import { STEPS } from "@/lib/constants";
 import type { ChatMessage, Analysis, FeasibilityEvaluation, ImprovementPlans } from "@/lib/types";
 
@@ -12,6 +14,7 @@ export default function AnalyzePage() {
   const [formData, setFormData] = useState<any>(null);
   const [feasibility, setFeasibility] = useState<FeasibilityEvaluation | null>(null);
   const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>({});
+  const { usage, addUsage } = useTokenUsage();
 
   useEffect(() => {
     const formDataStr = sessionStorage.getItem("formData");
@@ -77,8 +80,10 @@ export default function AnalyzePage() {
             feasibility={feasibility}
             improvementPlans={improvementPlans}
             onComplete={handleComplete}
+            onUsage={addUsage}
           />
         </div>
+        <TokenUsageBadge usage={usage} />
       </div>
     </div>
   );

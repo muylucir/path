@@ -8,7 +8,7 @@ import { getReadinessLevel, getLevelBadgeClass, getJudgmentBadge } from "@/lib/r
 import { AnalysisTab } from "@/components/steps/results/AnalysisTab";
 import { ChatHistoryTab } from "@/components/steps/results/ChatHistoryTab";
 import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
-import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans } from "@/lib/types";
+import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, TokenUsage } from "@/lib/types";
 import { MULTI_AGENT_PATTERN_LABELS } from "@/lib/constants";
 
 interface Step3ResultsProps {
@@ -19,6 +19,7 @@ interface Step3ResultsProps {
   improvementPlans?: ImprovementPlans;
   initialSpecification?: string;
   onSave: (specification: string) => Promise<void>;
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 export function Step3Results({
@@ -29,6 +30,7 @@ export function Step3Results({
   improvementPlans,
   initialSpecification,
   onSave,
+  onUsage,
 }: Step3ResultsProps) {
   const { feasibility_score, pattern, improved_feasibility } = analysis;
   const finalScore = improved_feasibility?.score ?? feasibility_score;
@@ -192,6 +194,7 @@ export function Step3Results({
             improvementPlans={improvementPlans}
             initialSpecification={initialSpecification}
             onSave={onSave}
+            onUsage={onUsage}
           />
         </TabsContent>
       </Tabs>

@@ -487,7 +487,11 @@ async def feasibility_update(request: Request, data: FeasibilityReevaluateReques
             data.previousEvaluation,
             data.improvementPlans
         )
-        return JSONResponse(content=evaluation)
+        usage = evaluation.pop("_usage", None)
+        response = {**evaluation}
+        if usage:
+            response["_usage"] = usage
+        return JSONResponse(content=response)
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")
@@ -513,7 +517,10 @@ async def pattern_analyze(request: Request, data: PatternAnalyzeRequest):
                     data.feasibility,
                     data.improvementPlans
                 ):
-                    yield _sse_event({'text': chunk, 'sessionId': session_id})
+                    if "text" in chunk:
+                        yield _sse_event({'text': chunk["text"], 'sessionId': session_id})
+                    elif "usage" in chunk:
+                        yield _sse_event({'usage': chunk["usage"]})
                 yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
@@ -550,7 +557,10 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
         async def generate():
             try:
                 async for chunk in pattern_agent.chat_stream(data.userMessage):
-                    yield _sse_event({'text': chunk, 'sessionId': session_id})
+                    if "text" in chunk:
+                        yield _sse_event({'text': chunk["text"], 'sessionId': session_id})
+                    elif "usage" in chunk:
+                        yield _sse_event({'usage': chunk["usage"]})
                 yield _sse_done()
             except Exception as e:
                 logger.error(f"스트리밍 오류: {e}", exc_info=True)
@@ -578,7 +588,11 @@ async def pattern_finalize(request: Request, data: PatternFinalizeRequest):
             data.feasibility,
             data.improvementPlans
         )
-        return JSONResponse(content=analysis)
+        usage = analysis.pop("_usage", None)
+        response = {**analysis}
+        if usage:
+            response["_usage"] = usage
+        return JSONResponse(content=response)
     except Exception as e:
         logger.error(f"엔드포인트 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="내부 서버 오류가 발생했습니다.")

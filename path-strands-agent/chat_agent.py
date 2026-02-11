@@ -12,6 +12,7 @@ import re
 from safe_tools import safe_file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
+from token_tracker import extract_usage
 from prompts import (
     SYSTEM_PROMPT,
     get_initial_analysis_prompt,
@@ -261,10 +262,11 @@ class FeasibilityAgent:
     """Step2: Feasibility 평가 전용 Agent"""
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        self.agent = Agent(
-            model=model_id,
-            system_prompt=FEASIBILITY_SYSTEM_PROMPT,
-            callback_handler=None  # 콘솔 출력 비활성화
+        self.agent = strands_utils.get_agent(
+            system_prompts=FEASIBILITY_SYSTEM_PROMPT,
+            model_id=model_id,
+            max_tokens=8192,
+            temperature=0.3,
         )
 
     def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -272,8 +274,9 @@ class FeasibilityAgent:
         prompt = get_feasibility_evaluation_prompt(form_data)
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
-
-        return _extract_json(response_text, "feasibility evaluation")
+        parsed = _extract_json(response_text, "feasibility evaluation")
+        parsed["_usage"] = extract_usage(result)
+        return parsed
 
     async def evaluate_stream(self, form_data: Dict[str, Any]) -> AsyncIterator[str]:
         """초기 Feasibility 평가 수행 - SSE 스트리밍 (Progress 포함)"""
@@ -309,25 +312,30 @@ class FeasibilityAgent:
 
         # 결과 가져오기
         result = await task
+        usage = result.pop("_usage", None)
 
         # 완료 및 결과 전송
         yield json.dumps({"stage": "분석 완료", "progress": 100}, ensure_ascii=False)
         yield json.dumps({"result": result}, ensure_ascii=False)
+        if usage:
+            yield json.dumps({"usage": usage}, ensure_ascii=False)
 
     def _evaluate_sync(self, prompt: str) -> Dict[str, Any]:
         """동기 평가 (내부용)"""
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
-
-        return _extract_json(response_text, "feasibility evaluation")
+        parsed = _extract_json(response_text, "feasibility evaluation")
+        parsed["_usage"] = extract_usage(result)
+        return parsed
 
     def reevaluate(self, form_data: Dict[str, Any], previous_evaluation: Dict[str, Any], improvement_plans: Dict[str, str]) -> Dict[str, Any]:
         """개선안 반영 재평가 수행"""
         prompt = get_feasibility_reevaluation_prompt(form_data, previous_evaluation, improvement_plans)
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
-
-        return _extract_json(response_text, "feasibility re-evaluation")
+        parsed = _extract_json(response_text, "feasibility re-evaluation")
+        parsed["_usage"] = extract_usage(result)
+        return parsed
 
 
 class PatternAnalyzerAgent:
@@ -367,21 +375,26 @@ class PatternAnalyzerAgent:
         self.add_message("assistant", response)
         return response
 
-    async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> AsyncIterator[str]:
-        """Feasibility 기반 초기 패턴 분석 - 스트리밍 버전"""
+    async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> AsyncIterator[dict]:
+        """Feasibility 기반 초기 패턴 분석 - 스트리밍 버전 (dict yield)"""
         prompt = get_pattern_analysis_prompt(form_data, feasibility, improvement_plans)
 
         full_response = ""
+        usage = None
         async for event in self.agent.stream_async(prompt):
             if "data" in event:
                 chunk = event["data"]
                 full_response += chunk
-                yield chunk
+                yield {"text": chunk}
+            elif "result" in event:
+                usage = extract_usage(event["result"])
 
         self.add_message("assistant", full_response)
+        if usage:
+            yield {"usage": usage}
 
-    async def chat_stream(self, user_message: str) -> AsyncIterator[str]:
-        """패턴 관련 대화 - 스트리밍 버전 (Skill 시스템 지원)"""
+    async def chat_stream(self, user_message: str) -> AsyncIterator[dict]:
+        """패턴 관련 대화 - 스트리밍 버전 (Skill 시스템 지원, dict yield)"""
         self.add_message("user", user_message)
 
         history_text = "\n\n".join([
@@ -401,13 +414,18 @@ class PatternAnalyzerAgent:
 - 코드 블록(```)으로 감싸서 고정폭 폰트로 정렬하세요."""
 
         full_response = ""
+        usage = None
         async for event in self.agent.stream_async(prompt):
             if "data" in event:
                 chunk = event["data"]
                 full_response += chunk
-                yield chunk
+                yield {"text": chunk}
+            elif "result" in event:
+                usage = extract_usage(event["result"])
 
         self.add_message("assistant", full_response)
+        if usage:
+            yield {"usage": usage}
 
     def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> Dict[str, Any]:
         """패턴 확정 및 최종 분석 결과 생성 (개선된 점수 포함)"""
@@ -530,8 +548,9 @@ improved_feasibility 필드에 다음 형식으로 포함:
 
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
-
-        return _extract_json(response_text, "pattern finalization")
+        parsed = _extract_json(response_text, "pattern finalization")
+        parsed["_usage"] = extract_usage(result)
+        return parsed
 
 
 # 테스트용 메인 함수
