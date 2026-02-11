@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Step3Results } from "@/components/steps/Step3Results";
 import { StepIndicator } from "@/components/layout/StepIndicator";
-import { TokenUsageBadge } from "@/components/layout/TokenUsageBadge";
 import { useTokenUsage } from "@/lib/hooks/useTokenUsage";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -146,6 +145,9 @@ export default function ResultsPage() {
           additional_context: formData.additionalContext || "",
           pattern: analysis.pattern,
           pattern_reason: analysis.pattern_reason,
+          recommended_architecture: analysis.recommended_architecture,
+          multi_agent_pattern: analysis.multi_agent_pattern,
+          architecture_reason: analysis.architecture_reason,
           feasibility_breakdown: analysis.feasibility_breakdown,
           feasibility_score: analysis.feasibility_score,
           recommendation: analysis.recommendation,
@@ -248,7 +250,6 @@ export default function ResultsPage() {
             </Button>
           </div>
         </div>
-        <TokenUsageBadge usage={usage} />
       </div>
     </div>
   );

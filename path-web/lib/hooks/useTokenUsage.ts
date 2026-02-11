@@ -58,8 +58,16 @@ export function useTokenUsage() {
         ) / 10000,
       };
       saveToStorage(merged);
+      setTimeout(() => window.dispatchEvent(new Event("tokenUsageUpdated")), 0);
       return merged;
     });
+  }, []);
+
+  // Listen for updates from other hook instances
+  useEffect(() => {
+    const handleUpdate = () => setUsage(loadFromStorage());
+    window.addEventListener("tokenUsageUpdated", handleUpdate);
+    return () => window.removeEventListener("tokenUsageUpdated", handleUpdate);
   }, []);
 
   const resetUsage = useCallback(() => {
@@ -69,6 +77,7 @@ export function useTokenUsage() {
     } catch {
       // ignore
     }
+    setTimeout(() => window.dispatchEvent(new Event("tokenUsageUpdated")), 0);
   }, []);
 
   return { usage, addUsage, resetUsage };
