@@ -40,7 +40,7 @@ import {
 } from "@/lib/constants";
 import { getReadinessLevel, getLevelBadgeClass } from "@/lib/readiness";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
-import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
+import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
 
 interface Step2ReadinessProps {
   formData: FormData;
@@ -48,6 +48,7 @@ interface Step2ReadinessProps {
   initialImprovementPlans?: ImprovementPlans;
   onComplete: (feasibility: FeasibilityEvaluation, improvementPlans: ImprovementPlans) => void;
   onFormDataUpdate?: (updatedFormData: FormData) => void;
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
@@ -58,6 +59,7 @@ export function Step2Readiness({
   initialImprovementPlans,
   onComplete,
   onFormDataUpdate,
+  onUsage,
 }: Step2ReadinessProps) {
   const router = useRouter();
   const [feasibility, setFeasibility] =
@@ -94,6 +96,9 @@ export function Step2Readiness({
       setProgress(p);
       if (s) setStage(s);
     }, []),
+    onUsage: useCallback((usage: TokenUsage) => {
+      onUsage?.(usage);
+    }, [onUsage]),
     onDone: useCallback(() => {
       // Stream completed
     }, []),

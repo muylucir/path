@@ -15,6 +15,7 @@ import logging
 from safe_tools import safe_file_read
 from agentskills import discover_skills, generate_skills_prompt
 from strands_utils import strands_utils
+from token_tracker import extract_usage, merge_usage
 from chat_agent import DEFAULT_MODEL_ID
 
 logger = logging.getLogger(__name__)
@@ -352,6 +353,7 @@ class DesignAgent:
 - **Persistent State**: [영구 저장 필요 데이터]
 """
         result = self.agent(prompt)
+        self._last_usage = extract_usage(result)
         return result.message['content'][0]['text']
 
 
@@ -481,6 +483,7 @@ flowchart TB
         # 1차 생성
         result = self.agent(prompt)
         output = result.message['content'][0]['text']
+        self._last_usage = extract_usage(result)
 
         # 검증
         is_valid, errors = self.validator.validate(output)
@@ -503,6 +506,7 @@ flowchart TB
 """
         retry_result = self.agent(retry_prompt)
         retry_output = retry_result.message['content'][0]['text']
+        self._last_usage = merge_usage(self._last_usage, extract_usage(retry_result))
 
         # 재시도 결과 검증 (실패해도 반환 — 최선의 결과 사용)
         is_valid_retry, retry_errors = self.validator.validate(retry_output)
@@ -684,6 +688,7 @@ class DetailAgent:
 - 복합 타입: `list[Document]`, `{{success: bool, id?: str}}`
 """
         result = self.agent(prompt)
+        self._last_usage = extract_usage(result)
         return result.message['content'][0]['text']
 
 
@@ -902,6 +907,17 @@ class MultiStageSpecAgent:
                 additional_context
             ):
                 yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
+
+            # 서브 에이전트 토큰 사용량 집계
+            total_usage = merge_usage(
+                merge_usage(
+                    getattr(self.design_agent, '_last_usage', {}) or {},
+                    getattr(self.diagram_agent, '_last_usage', {}) or {}
+                ),
+                getattr(self.detail_agent, '_last_usage', {}) or {}
+            )
+            if total_usage.get("totalTokens", 0) > 0:
+                yield f"data: {json.dumps({'usage': total_usage}, ensure_ascii=False)}\n\n"
 
             # 최종 100% 도달
             yield f"data: {json.dumps({'progress': 100, 'stage': '완료'}, ensure_ascii=False)}\n\n"

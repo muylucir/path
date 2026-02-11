@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, Save } from "lucide-react";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
-import type { Analysis, ChatMessage, FormData, ImprovementPlans } from "@/lib/types";
+import type { Analysis, ChatMessage, FormData, ImprovementPlans, TokenUsage } from "@/lib/types";
 
 interface SpecificationTabProps {
   analysis: Analysis;
@@ -16,6 +16,7 @@ interface SpecificationTabProps {
   improvementPlans?: ImprovementPlans;
   initialSpecification?: string;
   onSave: (specification: string) => Promise<void>;
+  onUsage?: (usage: TokenUsage) => void;
 }
 
 export function SpecificationTab({
@@ -25,6 +26,7 @@ export function SpecificationTab({
   improvementPlans,
   initialSpecification,
   onSave,
+  onUsage,
 }: SpecificationTabProps) {
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isSaving, setIsSaving] = useState(false);
@@ -62,6 +64,9 @@ export function SpecificationTab({
       setProgress(p);
       if (s) setStage(s);
     }, []),
+    onUsage: useCallback((usage: TokenUsage) => {
+      onUsage?.(usage);
+    }, [onUsage]),
     onDone: useCallback(() => {
       setSpecification(fullSpecRef.current);
       sessionStorage.setItem("specification", fullSpecRef.current);

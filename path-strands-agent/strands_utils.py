@@ -51,12 +51,14 @@ class StrandsUtils:
         else:
             client_config = BEDROCK_CLIENT_CONFIG
 
-        # BedrockModel 생성 (타임아웃 설정 포함)
+        # BedrockModel 생성 (타임아웃 설정 + 프롬프트 캐싱 포함)
         model = BedrockModel(
             model_id=model_id,
             max_tokens=max_tokens,
             temperature=temperature,
-            boto_client_config=client_config
+            boto_client_config=client_config,
+            cache_tools="default",
+            cache_prompt="default",
         )
         
         # Agent 생성 (콘솔 출력 비활성화)

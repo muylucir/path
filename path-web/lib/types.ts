@@ -119,6 +119,15 @@ export interface Analysis {
   next_steps: string[];
 }
 
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  cacheReadInputTokens?: number;
+  cacheWriteInputTokens?: number;
+  estimatedCostUSD: number;
+}
+
 export interface Session {
   session_id: string;
   timestamp: string;
@@ -151,6 +160,8 @@ export interface Session {
   improvement_plans?: ImprovementPlans;
   // Step 3에서 생성된 향상된 점수
   improved_feasibility?: ImprovedFeasibility;
+  // 세션 전체 토큰 사용량
+  token_usage?: TokenUsage;
 }
 
 export interface SessionListItem {
@@ -160,4 +171,5 @@ export interface SessionListItem {
   feasibility_score: number;
   improved_feasibility?: ImprovedFeasibility;
   next_steps?: string[];
+  token_usage?: TokenUsage;
 }

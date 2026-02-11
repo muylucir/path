@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import type { TokenUsage } from "@/lib/types";
 
 export interface UseSSEStreamOptions {
   url: string;
   body: Record<string, unknown>;
   onChunk?: (data: any) => void;
   onProgress?: (progress: number, stage: string) => void;
+  onUsage?: (usage: TokenUsage) => void;
   onDone?: () => void;
   onError?: (error: string) => void;
 }
@@ -31,7 +33,7 @@ export interface UseSSEStreamReturn {
  * - JSON parsing with SyntaxError tolerance for incomplete chunks
  */
 export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
-  const { url, body, onChunk, onProgress, onDone, onError } = options;
+  const { url, body, onChunk, onProgress, onUsage, onDone, onError } = options;
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -94,6 +96,11 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
               try {
                 const parsed = JSON.parse(data);
 
+                // Usage event
+                if (parsed.usage) {
+                  onUsage?.(parsed.usage);
+                }
+
                 // Progress updates
                 if (parsed.progress !== undefined && parsed.stage !== undefined) {
                   onProgress?.(parsed.progress, parsed.stage);
@@ -137,7 +144,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
         abortControllerRef.current = null;
       }
     }
-  }, [url, body, onChunk, onProgress, onDone, onError]);
+  }, [url, body, onChunk, onProgress, onUsage, onDone, onError]);
 
   return { start, abort, isStreaming, error };
 }

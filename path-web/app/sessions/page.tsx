@@ -124,6 +124,11 @@ export default function SessionsPage() {
         sessionStorage.setItem("feasibility", JSON.stringify(session.feasibility_evaluation));
       }
 
+      // 토큰 사용량 복원
+      if (session.token_usage) {
+        sessionStorage.setItem("tokenUsage", JSON.stringify(session.token_usage));
+      }
+
       // Store session ID for update capability
       sessionStorage.setItem("currentSessionId", sessionId);
 
