@@ -7,6 +7,7 @@ Chat Agent for PATH Step 2 - 대화형 분석 (스트리밍 + 채팅 지원)
 from strands import Agent
 from typing import Dict, List, Any, AsyncIterator
 import json
+import os
 import re
 from safe_tools import safe_file_read
 from agentskills import discover_skills, generate_skills_prompt
@@ -21,11 +22,55 @@ from prompts import (
     get_pattern_analysis_prompt
 )
 
+# Default model ID - can be overridden via environment variable
+DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-5-20251101-v1:0")
+
+# Cache skill discovery results (static content, no need to re-read)
+_cached_skills = None
+_cached_skill_prompt = None
+
+def _get_skill_prompt():
+    global _cached_skills, _cached_skill_prompt
+    if _cached_skill_prompt is None:
+        _cached_skills = discover_skills("./skills")
+        _cached_skill_prompt = generate_skills_prompt(_cached_skills)
+    return _cached_skill_prompt
+
+
+def _extract_json(response_text: str, context: str = "response") -> Dict[str, Any]:
+    """LLM 응답에서 JSON을 추출하고 파싱.
+
+    Args:
+        response_text: LLM 응답 전체 텍스트
+        context: 에러 메시지에 포함할 컨텍스트 설명
+
+    Returns:
+        파싱된 JSON dict
+
+    Raises:
+        ValueError: JSON을 추출할 수 없는 경우
+        json.JSONDecodeError: JSON 파싱에 실패한 경우
+    """
+    # ```json ... ``` 블록 먼저 시도
+    json_block = re.search(r'''```json\s*\n(.*?)\n\s*```''', response_text, re.DOTALL)
+    if json_block:
+        return json.loads(json_block.group(1))
+
+    # { ... } 추출
+    json_start = response_text.find("{")
+    json_end = response_text.rfind("}") + 1
+
+    if json_start != -1 and json_end > json_start:
+        json_str = response_text[json_start:json_end]
+        return json.loads(json_str)
+
+    raise ValueError(f"Failed to extract JSON from {context}")
+
 
 class AnalyzerAgent:
     """사용자 입력(pain point, input, process, output 등)을 분석하는 Agent"""
 
-    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
         self.agent = Agent(
             model=model_id,
             system_prompt=SYSTEM_PROMPT,
@@ -50,7 +95,7 @@ class AnalyzerAgent:
 class ChatAgent:
     """대화형 분석 Agent - 채팅 지원"""
 
-    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
         self.agent = Agent(
             model=model_id,
             system_prompt=SYSTEM_PROMPT,
@@ -131,7 +176,7 @@ class ChatAgent:
 class EvaluatorAgent:
     """답변 수집 후 Feasibility 점수를 계산하는 Agent"""
 
-    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
         self.agent = Agent(
             model=model_id,
             system_prompt=SYSTEM_PROMPT,
@@ -208,22 +253,14 @@ JSON만 출력하세요.
         
         result = json_agent(prompt)
         response_text = result.message['content'][0]['text']
-        
-        # JSON 추출
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-        
-        if json_start != -1 and json_end > json_start:
-            json_str = response_text[json_start:json_end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("Failed to extract JSON from evaluation response")
+
+        return _extract_json(response_text, "evaluation")
 
 
 class FeasibilityAgent:
     """Step2: Feasibility 평가 전용 Agent"""
 
-    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
         self.agent = Agent(
             model=model_id,
             system_prompt=FEASIBILITY_SYSTEM_PROMPT,
@@ -236,15 +273,7 @@ class FeasibilityAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
 
-        # JSON 추출
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-
-        if json_start != -1 and json_end > json_start:
-            json_str = response_text[json_start:json_end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("Failed to extract JSON from feasibility evaluation")
+        return _extract_json(response_text, "feasibility evaluation")
 
     async def evaluate_stream(self, form_data: Dict[str, Any]) -> AsyncIterator[str]:
         """초기 Feasibility 평가 수행 - SSE 스트리밍 (Progress 포함)"""
@@ -290,14 +319,7 @@ class FeasibilityAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
 
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-
-        if json_start != -1 and json_end > json_start:
-            json_str = response_text[json_start:json_end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("Failed to extract JSON from feasibility evaluation")
+        return _extract_json(response_text, "feasibility evaluation")
 
     def reevaluate(self, form_data: Dict[str, Any], previous_evaluation: Dict[str, Any], improvement_plans: Dict[str, str]) -> Dict[str, Any]:
         """개선안 반영 재평가 수행"""
@@ -305,24 +327,15 @@ class FeasibilityAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
 
-        # JSON 추출
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-
-        if json_start != -1 and json_end > json_start:
-            json_str = response_text[json_start:json_end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("Failed to extract JSON from feasibility re-evaluation")
+        return _extract_json(response_text, "feasibility re-evaluation")
 
 
 class PatternAnalyzerAgent:
     """Step3: Feasibility 결과를 바탕으로 패턴 분석하는 Agent (Skill 시스템 지원)"""
 
-    def __init__(self, model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0"):
-        # Skill 시스템 초기화
-        skills = discover_skills("./skills")
-        skill_prompt = generate_skills_prompt(skills)
+    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
+        # Skill 시스템 초기화 (cached)
+        skill_prompt = _get_skill_prompt()
         enhanced_prompt = PATTERN_ANALYSIS_SYSTEM_PROMPT + "\n" + skill_prompt
 
         self.agent = strands_utils.get_agent(
@@ -518,15 +531,7 @@ improved_feasibility 필드에 다음 형식으로 포함:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
 
-        # JSON 추출
-        json_start = response_text.find("{")
-        json_end = response_text.rfind("}") + 1
-
-        if json_start != -1 and json_end > json_start:
-            json_str = response_text[json_start:json_end]
-            return json.loads(json_str)
-        else:
-            raise ValueError("Failed to extract JSON from pattern finalization")
+        return _extract_json(response_text, "pattern finalization")
 
 
 # 테스트용 메인 함수

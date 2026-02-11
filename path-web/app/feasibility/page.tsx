@@ -19,18 +19,33 @@ export default function FeasibilityPage() {
       router.push("/");
       return;
     }
-    setFormData(JSON.parse(data));
+
+    try {
+      setFormData(JSON.parse(data));
+    } catch {
+      sessionStorage.removeItem("formData");
+      router.push("/");
+      return;
+    }
 
     // 기존 feasibility 결과가 있으면 로드
     const existingFeasibility = sessionStorage.getItem("feasibility");
     if (existingFeasibility) {
-      setFeasibility(JSON.parse(existingFeasibility));
+      try {
+        setFeasibility(JSON.parse(existingFeasibility));
+      } catch {
+        sessionStorage.removeItem("feasibility");
+      }
     }
 
     // 기존 improvementPlans가 있으면 로드
     const existingImprovementPlans = sessionStorage.getItem("improvementPlans");
     if (existingImprovementPlans) {
-      setImprovementPlans(JSON.parse(existingImprovementPlans));
+      try {
+        setImprovementPlans(JSON.parse(existingImprovementPlans));
+      } catch {
+        sessionStorage.removeItem("improvementPlans");
+      }
     }
   }, [router]);
 

@@ -10,11 +10,11 @@ import {
 import type { Session, SessionListItem } from "@/lib/types";
 
 const client = new DynamoDBClient({
-  region: process.env.AWS_REGION || "ap-northeast-2",
+  region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-northeast-2",
 });
 
 const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = "path-agent-sessions";
+const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "path-agent-sessions";
 
 export async function saveSession(sessionData: Omit<Session, "session_id" | "timestamp">): Promise<string> {
   const session_id = crypto.randomUUID();

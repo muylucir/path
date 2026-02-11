@@ -1,39 +1,24 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
+import { createSSEProxy } from "../../_shared/proxy-utils";
+import { formSchema } from "@/lib/schema";
 
-const STRANDS_API_URL = process.env.STRANDS_API_URL || "http://localhost:8001";
-const PATH_API_KEY = process.env.PATH_API_KEY || "";
+const patternAnalyzeSchema = z.object({
+  formData: formSchema,
+  feasibility: z.object({
+    feasibility_score: z.number(),
+    feasibility_breakdown: z.record(z.string(), z.unknown()),
+    judgment: z.string(),
+    summary: z.string(),
+    weak_items: z.array(z.unknown()),
+    risks: z.array(z.string()),
+  }),
+  improvementPlans: z.record(z.string(), z.string()).optional(),
+});
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-
-    // Strands Agent API 호출
-    const response = await fetch(`${STRANDS_API_URL}/pattern/analyze`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-API-Key": PATH_API_KEY,
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Strands API error: ${response.statusText}`);
-    }
-
-    // 스트리밍 응답 그대로 전달
-    return new Response(response.body, {
-      headers: {
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
-    });
-  } catch (error) {
-    console.error("Error in pattern analyze API:", error);
-    return new Response(JSON.stringify({ error: "패턴 분석 중 오류가 발생했습니다" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
+  return createSSEProxy(req, "/pattern/analyze", {
+    schema: patternAnalyzeSchema,
+    errorMessage: "패턴 분석 중 오류가 발생했습니다",
+  });
 }

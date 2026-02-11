@@ -71,7 +71,6 @@ export const formSchema = z.object({
   humanLoop: z.string().min(1, "Human-in-Loop을 선택해주세요").max(50),
   errorTolerance: z.string().min(1, "오류 허용도를 선택해주세요").max(50),
   additionalContext: sanitizedString(MAX_CONTEXT_LENGTH).optional(),
-  useAgentCore: z.boolean(),
   // 데이터소스 (자유 텍스트)
   additionalSources: sanitizedString(MAX_SOURCES_LENGTH).optional(),
   // 하위 호환성용 (deprecated)

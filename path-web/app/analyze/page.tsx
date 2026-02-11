@@ -28,9 +28,29 @@ export default function AnalyzePage() {
       return;
     }
 
-    setFormData(JSON.parse(formDataStr));
-    setFeasibility(JSON.parse(feasibilityStr));
-    setImprovementPlans(improvementPlansStr ? JSON.parse(improvementPlansStr) : {});
+    try {
+      setFormData(JSON.parse(formDataStr));
+    } catch {
+      sessionStorage.removeItem("formData");
+      router.push("/");
+      return;
+    }
+
+    try {
+      setFeasibility(JSON.parse(feasibilityStr));
+    } catch {
+      sessionStorage.removeItem("feasibility");
+      router.push("/feasibility");
+      return;
+    }
+
+    if (improvementPlansStr) {
+      try {
+        setImprovementPlans(JSON.parse(improvementPlansStr));
+      } catch {
+        sessionStorage.removeItem("improvementPlans");
+      }
+    }
   }, [router]);
 
   const handleComplete = (chatHistory: ChatMessage[], analysis: Analysis) => {

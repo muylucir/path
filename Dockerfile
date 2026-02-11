@@ -45,6 +45,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
+    && apt-get remove -y gnupg \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directories
@@ -73,6 +75,13 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PYTHONUNBUFFERED=1
 ENV AWS_DEFAULT_REGION=ap-northeast-2
+
+# Create non-root user for security
+RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser \
+    && mkdir -p /var/log/supervisor /var/run \
+    && chown -R appuser:appuser /app /var/log/supervisor /var/run
+
+USER appuser
 
 # Expose frontend port (backend is internal)
 EXPOSE 3009

@@ -51,12 +51,30 @@ export function MDXRenderer({ content }: MDXRendererProps) {
   }, []);
 
   useEffect(() => {
-    if (content && contentRef.current) {
-      // Mermaid 다이어그램 렌더링
-      setTimeout(() => {
-        mermaid.run({ querySelector: ".mermaid" });
-      }, 100);
-    }
+    if (!content || !contentRef.current) return;
+
+    const container = contentRef.current;
+
+    const runMermaid = () => {
+      const nodes = container.querySelectorAll(".mermaid:not([data-processed])");
+      if (nodes.length > 0) {
+        mermaid.run({ nodes: nodes as NodeListOf<HTMLElement> });
+      }
+    };
+
+    // Run immediately for any already-rendered mermaid elements
+    runMermaid();
+
+    // Observe for dynamically added mermaid elements
+    const observer = new MutationObserver(() => {
+      runMermaid();
+    });
+
+    observer.observe(container, { childList: true, subtree: true });
+
+    return () => {
+      observer.disconnect();
+    };
   }, [content]);
 
   if (!content) {

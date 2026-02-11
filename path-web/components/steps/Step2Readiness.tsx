@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,41 +38,19 @@ import {
   READINESS_LEVELS,
   READINESS_ITEM_DETAILS,
 } from "@/lib/constants";
-import type { FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
+import { getReadinessLevel, getLevelBadgeClass } from "@/lib/readiness";
+import { useSSEStream } from "@/lib/hooks/useSSEStream";
+import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
 
 interface Step2ReadinessProps {
-  formData: any;
+  formData: FormData;
   initialFeasibility: FeasibilityEvaluation | null;
   initialImprovementPlans?: ImprovementPlans;
   onComplete: (feasibility: FeasibilityEvaluation, improvementPlans: ImprovementPlans) => void;
-  onFormDataUpdate?: (updatedFormData: any) => void;
+  onFormDataUpdate?: (updatedFormData: FormData) => void;
 }
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
-
-// 점수에 따른 레벨 반환
-function getReadinessLevel(score: number) {
-  if (score >= 8) return READINESS_LEVELS.READY;
-  if (score >= 6) return READINESS_LEVELS.GOOD;
-  if (score >= 4) return READINESS_LEVELS.NEEDS_WORK;
-  return READINESS_LEVELS.PREPARE;
-}
-
-// 레벨에 따른 배지 스타일
-function getLevelBadgeClass(color: string) {
-  switch (color) {
-    case "green":
-      return "bg-green-100 text-green-800 border-green-200";
-    case "blue":
-      return "bg-blue-100 text-blue-800 border-blue-200";
-    case "yellow":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
-    case "orange":
-      return "bg-orange-100 text-orange-800 border-orange-200";
-    default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
-  }
-}
 
 export function Step2Readiness({
   formData,
@@ -84,7 +62,6 @@ export function Step2Readiness({
   const router = useRouter();
   const [feasibility, setFeasibility] =
     useState<FeasibilityEvaluation | null>(initialFeasibility);
-  const [isLoading, setIsLoading] = useState(false);
   const [improvementPlans, setImprovementPlans] = useState<ImprovementPlans>(
     initialImprovementPlans || {}
   );
@@ -99,86 +76,44 @@ export function Step2Readiness({
   });
   const [isAdditionalInfoOpen, setIsAdditionalInfoOpen] = useState(false);
 
+  const { start: startEvaluation, isStreaming: isLoading } = useSSEStream({
+    url: "/api/bedrock/feasibility",
+    body: formData as unknown as Record<string, unknown>,
+    onChunk: useCallback((parsed: any) => {
+      if (parsed.progress !== undefined) {
+        setProgress(parsed.progress);
+      }
+      if (parsed.stage) {
+        setStage(parsed.stage);
+      }
+      if (parsed.result) {
+        setFeasibility(parsed.result);
+      }
+    }, []),
+    onProgress: useCallback((p: number, s: string) => {
+      setProgress(p);
+      if (s) setStage(s);
+    }, []),
+    onDone: useCallback(() => {
+      // Stream completed
+    }, []),
+    onError: useCallback((err: string) => {
+      setError(err);
+    }, []),
+  });
+
+  const evaluateFeasibility = useCallback(() => {
+    setError(null);
+    setProgress(0);
+    setStage("준비 중...");
+    startEvaluation();
+  }, [startEvaluation]);
+
   useEffect(() => {
     if (!initialFeasibility) {
       evaluateFeasibility();
     }
   }, []);
-
-  const evaluateFeasibility = async () => {
-    setIsLoading(true);
-    setError(null);
-    setProgress(0);
-    setStage("준비 중...");
-
-    try {
-      const response = await fetch("/api/bedrock/feasibility", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        throw new Error("준비도 점검에 실패했습니다");
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              const data = line.slice(6);
-              if (data === "[DONE]") {
-                setIsLoading(false);
-                return;
-              }
-              try {
-                const parsed = JSON.parse(data);
-
-                // Progress 업데이트
-                if (parsed.progress !== undefined) {
-                  setProgress(parsed.progress);
-                }
-
-                // Stage 업데이트
-                if (parsed.stage) {
-                  setStage(parsed.stage);
-                }
-
-                // 결과 수신
-                if (parsed.result) {
-                  setFeasibility(parsed.result);
-                }
-
-                // 에러 처리
-                if (parsed.error) {
-                  throw new Error(parsed.error);
-                }
-              } catch (e) {
-                if (e instanceof SyntaxError) {
-                  // JSON 파싱 에러는 무시 (불완전한 청크)
-                } else {
-                  throw e;
-                }
-              }
-            }
-          }
-        }
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "오류가 발생했습니다");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // 레벨별 항목 수 계산
   const getLevelCounts = () => {

@@ -264,20 +264,20 @@ Pain Point를 4가지 요소로 분해합니다.
 
 ```
                     ┌─────────────────────────────┐
-                    │      FeasibilityAgent                                                                          │
-                    │   (Step 2 - 준비도 점검)                                                                     │
+                    │      FeasibilityAgent       │
+                    │   (Step 2 - 준비도 점검)    │
                     └─────────────────────────────┘
                                   │
                                   ▼
                     ┌─────────────────────────────┐
-                    │   PatternAnalyzerAgent                                                                    │
-                    │   (Step 3 - 패턴 분석)                                                                         │
+                    │   PatternAnalyzerAgent      │
+                    │   (Step 3 - 패턴 분석)      │
                     └─────────────────────────────┘
                                   │
                                   ▼
                     ┌─────────────────────────────┐
-                     │   MultiStageSpecAgent       │
-                    │   (Step 4 - 명세서 생성)     │
+                    │   MultiStageSpecAgent       │
+                    │   (Step 4 - 명세서 생성)    │
                     │                             │
                     │  ├── DesignAgent            │
                     │  ├── DiagramAgent           │
