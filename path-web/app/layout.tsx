@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Header } from "@/components/layout/Header";
-import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { CloudscapeProvider } from "@/components/cloudscape/CloudscapeProvider";
+import { FlashbarProvider } from "@/components/cloudscape/FlashbarProvider";
 
 const d2Coding = localFont({
   src: "../D2Coding.woff2",
@@ -29,14 +28,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className={`${d2Coding.variable} antialiased`}>
-        <TooltipProvider delayDuration={200}>
-          <Header />
-          <main className="flex-1">
+      <body className={d2Coding.variable}>
+        <CloudscapeProvider>
+          <FlashbarProvider>
             {children}
-          </main>
-          <Toaster />
-        </TooltipProvider>
+          </FlashbarProvider>
+        </CloudscapeProvider>
       </body>
     </html>
   );

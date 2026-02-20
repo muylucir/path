@@ -54,35 +54,35 @@ export function getReadinessLevel(score: number): ReadinessLevel {
 }
 
 /**
- * Returns a Tailwind CSS class string for a readiness badge based on color.
+ * Maps a readiness color to a Cloudscape StatusIndicator type.
  */
-export function getLevelBadgeClass(color: string): string {
+export function getStatusIndicatorType(color: string): "success" | "info" | "warning" | "error" {
   switch (color) {
     case "green":
-      return "bg-green-100 text-green-800 border-green-200";
+      return "success";
     case "blue":
-      return "bg-blue-100 text-blue-800 border-blue-200";
+      return "info";
     case "yellow":
-      return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      return "warning";
     case "orange":
-      return "bg-orange-100 text-orange-800 border-orange-200";
+      return "error";
     default:
-      return "bg-gray-100 text-gray-800 border-gray-200";
+      return "info";
   }
 }
 
 /**
- * Returns a judgment badge label and variant based on total feasibility score (0-50 scale).
+ * Returns a judgment badge label and StatusIndicator type based on total feasibility score (0-50 scale).
  */
-export function getJudgmentBadge(score: number): { label: string; variant: string } {
+export function getJudgmentBadge(score: number): { label: string; type: "success" | "info" | "warning" | "error" } {
   if (score >= 40) {
-    return { label: "바로 진행", variant: "green" };
+    return { label: "바로 진행", type: "success" };
   }
   if (score >= 30) {
-    return { label: "보완 후 진행", variant: "blue" };
+    return { label: "보완 후 진행", type: "info" };
   }
   if (score >= 20) {
-    return { label: "재검토 권장", variant: "yellow" };
+    return { label: "재검토 권장", type: "warning" };
   }
-  return { label: "준비 필요", variant: "orange" };
+  return { label: "준비 필요", type: "error" };
 }

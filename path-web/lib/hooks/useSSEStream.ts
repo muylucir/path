@@ -139,8 +139,11 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
       setError(message);
       onError?.(message);
     } finally {
-      setIsStreaming(false);
+      // Only reset state if this controller is still the active one.
+      // React Strict Mode double-invokes effects: the first call gets aborted
+      // and its finally must not overwrite the second call's isStreaming=true.
       if (abortControllerRef.current === controller) {
+        setIsStreaming(false);
         abortControllerRef.current = null;
       }
     }

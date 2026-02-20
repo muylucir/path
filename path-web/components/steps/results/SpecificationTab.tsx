@@ -1,10 +1,13 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Button } from "@/components/ui/button";
-import { Download, Loader2, Sparkles, Save } from "lucide-react";
+import Container from "@cloudscape-design/components/container";
+import Header from "@cloudscape-design/components/header";
+import SpaceBetween from "@cloudscape-design/components/space-between";
+import Box from "@cloudscape-design/components/box";
+import Button from "@cloudscape-design/components/button";
+import ProgressBar from "@cloudscape-design/components/progress-bar";
+import TextContent from "@cloudscape-design/components/text-content";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { Analysis, ChatMessage, FormData, ImprovementPlans, TokenUsage } from "@/lib/types";
@@ -98,77 +101,67 @@ export function SpecificationTab({
     URL.revokeObjectURL(url);
   };
 
+  const hasSpecification = specification || isGenerating;
+
   return (
-    <Card>
-      <CardContent className="pt-6 space-y-4">
-        {!specification && !isGenerating && (
-          <Button
-            onClick={generateSpec}
-            className="w-full gap-2 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300"
-            size="lg"
-          >
-            <Sparkles className="h-5 w-5" />
+    <Container
+      header={
+        <Header
+          variant="h2"
+          actions={
+            hasSpecification ? (
+              !isGenerating ? (
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button onClick={generateSpec} iconName="refresh">재생성</Button>
+                  <Button onClick={downloadSpec} iconName="download">다운로드</Button>
+                  <Button
+                    variant="primary"
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    loading={isSaving}
+                  >
+                    {isSaving ? "저장 중..." : "세션 저장"}
+                  </Button>
+                </SpaceBetween>
+              ) : (
+                <Button disabled loading>생성 중...</Button>
+              )
+            ) : undefined
+          }
+        >
+          명세서
+        </Header>
+      }
+    >
+      {!hasSpecification ? (
+        <SpaceBetween size="m">
+          <Box textAlign="center" color="text-body-secondary" padding={{ vertical: "xl" }}>
+            Claude가 분석 결과를 기반으로 상세 명세서를 생성합니다.
+          </Box>
+          <Button variant="primary" fullWidth onClick={generateSpec} iconName="gen-ai">
             Claude로 상세 명세서 생성
           </Button>
-        )}
+        </SpaceBetween>
+      ) : (
+        <SpaceBetween size="m">
+          {isGenerating && (
+            <ProgressBar
+              value={progress}
+              label="명세서 생성 진행률"
+              additionalInfo={stage}
+              description={`${progress}%`}
+            />
+          )}
 
-        {(specification || isGenerating) && (
-          <>
-            <div className="space-y-3">
-              <div className="flex gap-2">
-                {!isGenerating && (
-                  <>
-                    <Button onClick={generateSpec} variant="outline" className="flex-1">
-                      <Loader2 className="h-4 w-4 mr-2" />
-                      재생성
-                    </Button>
-                    <Button onClick={downloadSpec} variant="outline" className="flex-1">
-                      <Download className="h-4 w-4 mr-2" />
-                      다운로드
-                    </Button>
-                    <Button
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className="flex-1"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4 mr-2" />
-                      )}
-                      {isSaving ? "저장 중..." : "세션 저장"}
-                    </Button>
-                  </>
-                )}
-                {isGenerating && (
-                  <Button disabled className="w-full">
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    생성 중...
-                  </Button>
-                )}
-              </div>
-
-              {isGenerating && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{stage}</span>
-                    <span className="font-medium">{progress}%</span>
-                  </div>
-                  <Progress value={progress} className="h-2" />
-                </div>
-              )}
-            </div>
-
-            <div className="border rounded-lg p-6 max-h-[calc(100vh-350px)] min-h-[400px] overflow-y-auto">
-              {isGenerating ? (
-                <pre className="text-sm whitespace-pre-wrap font-mono">{specification}</pre>
-              ) : (
-                <MDXRenderer content={specification} />
-              )}
-            </div>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          <div className="spec-viewer-scroll">
+            {isGenerating ? (
+              <TextContent><pre>{specification}</pre></TextContent>
+            ) : (
+              <MDXRenderer content={specification} />
+            )}
+          </div>
+        </SpaceBetween>
+      )}
+    </Container>
   );
 }
