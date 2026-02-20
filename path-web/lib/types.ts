@@ -141,6 +141,9 @@ export interface Session {
   additional_context: string;
   pattern: string;
   pattern_reason: string;
+  recommended_architecture?: 'single-agent' | 'multi-agent';
+  multi_agent_pattern?: MultiAgentPattern | null;
+  architecture_reason?: string;
   feasibility_breakdown: FeasibilityBreakdown;
   feasibility_score: number;
   recommendation: string;

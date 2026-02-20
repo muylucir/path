@@ -4,6 +4,13 @@ const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   allowedDevOrigins: ["path.workloom.net"],
+  async redirects() {
+    return [
+      { source: "/feasibility", destination: "/", permanent: true },
+      { source: "/analyze", destination: "/", permanent: true },
+      { source: "/results", destination: "/", permanent: true },
+    ];
+  },
   async headers() {
     return [
       {

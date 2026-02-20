@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, memo, useLayoutEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, ArrowLeft, MessageSquare, Keyboard, Info } from "lucide-react";
+import Container from "@cloudscape-design/components/container";
+import Header from "@cloudscape-design/components/header";
+import SpaceBetween from "@cloudscape-design/components/space-between";
+import Button from "@cloudscape-design/components/button";
+import Spinner from "@cloudscape-design/components/spinner";
+import StatusIndicator from "@cloudscape-design/components/status-indicator";
+import PromptInput from "@cloudscape-design/components/prompt-input";
+import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
+import Avatar from "@cloudscape-design/chat-components/avatar";
+import LoadingBar from "@cloudscape-design/chat-components/loading-bar";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
@@ -20,44 +25,48 @@ interface Step3PatternAnalysisProps {
   improvementPlans?: ImprovementPlans;
   onComplete: (chatHistory: ChatMessage[], analysis: Analysis) => void;
   onUsage?: (usage: TokenUsage) => void;
+  onLoadingChange?: (isLoading: boolean) => void;
 }
 
 type FeasibilityKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
-// MessageComponent defined outside the parent to avoid re-creating on every render
-const MessageComponent = memo(({ message }: { message: ChatMessageWithId }) => (
-  <div
-    className={`flex ${
-      message.role === "user" ? "justify-end" : "justify-start"
-    }`}
-  >
-    <div
-      className={`max-w-[80%] rounded-lg p-3 ${
-        message.role === "user"
-          ? "bg-primary text-primary-foreground"
-          : "bg-muted"
-      }`}
-    >
-      <div className="text-xs font-semibold mb-1">
-        {message.role === "user" ? "You" : "Claude"}
+const MessageComponent = memo(({ message }: { message: ChatMessageWithId }) => {
+  if (message.role === "user") {
+    return (
+      <div className="chat-bubble-user">
+        <ChatBubble
+          type="outgoing"
+          avatar={<Avatar color="default" iconName="user-profile" ariaLabel="User" />}
+          ariaLabel="User message"
+        >
+          <span style={{ whiteSpace: "pre-wrap" }}>{message.content}</span>
+        </ChatBubble>
       </div>
-      <div className="text-sm whitespace-pre-wrap">
-        {message.content}
-      </div>
+    );
+  }
+
+  return (
+    <div className="chat-bubble-assistant">
+      <ChatBubble
+        type="incoming"
+        avatar={<Avatar color="gen-ai" iconName="gen-ai" ariaLabel="Claude" />}
+        ariaLabel="Claude response"
+      >
+        <span style={{ whiteSpace: "pre-wrap" }}>{message.content}</span>
+      </ChatBubble>
     </div>
-  </div>
-), (prev, next) => {
+  );
+}, (prev, next) => {
   return prev.message.content === next.message.content;
 });
 
-MessageComponent.displayName = 'MessageComponent';
+MessageComponent.displayName = "MessageComponent";
 
 function stripIds(messages: ChatMessageWithId[]): ChatMessage[] {
   return messages.map(({ id: _id, ...rest }) => rest);
 }
 
-export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete, onUsage }: Step3PatternAnalysisProps) {
-  const router = useRouter();
+export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete, onUsage, onLoadingChange }: Step3PatternAnalysisProps) {
   const [chatHistory, setChatHistory] = useState<ChatMessageWithId[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -71,8 +80,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
   const fullMessageRef = useRef("");
   const abortRef = useRef<(() => void) | null>(null);
 
-  // SSE stream for initial pattern analysis
-  const { start: startAnalysisStream, abort: _abortAnalysis, isStreaming: isAnalysisStreaming } = useSSEStream({
+  const { start: startAnalysisStream, isStreaming: isAnalysisStreaming } = useSSEStream({
     url: "/api/bedrock/pattern/analyze",
     body: { formData, feasibility, improvementPlans },
     onChunk: useCallback((parsed: any) => {
@@ -105,12 +113,10 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
   useEffect(() => {
     if (hasStartedRef.current) return;
     hasStartedRef.current = true;
-
     fullMessageRef.current = "";
     startAnalysisStream();
   }, []);
 
-  // Chat stream uses manual SSE to correctly capture body at call time
   const handleUserMessage = async () => {
     if (!userInput.trim() || isStreaming || isAnalysisStreaming) return;
 
@@ -174,9 +180,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
               }
               try {
                 const parsed = JSON.parse(data);
-                if (parsed.usage) {
-                  onUsage?.(parsed.usage);
-                }
+                if (parsed.usage) onUsage?.(parsed.usage);
                 if (parsed.text) {
                   fullMessageRef.current += parsed.text;
                   setCurrentMessage(fullMessageRef.current);
@@ -205,7 +209,11 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
 
   const streamingAny = isStreaming || isAnalysisStreaming;
 
-  // 사용자 스크롤 감지
+  // Notify parent of loading state changes
+  useEffect(() => {
+    onLoadingChange?.(streamingAny || isAnalyzing);
+  }, [streamingAny, isAnalyzing, onLoadingChange]);
+
   useEffect(() => {
     const container = chatContainerRef.current;
     if (!container) return;
@@ -216,28 +224,23 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       isUserScrollingRef.current = !isNearBottom;
     };
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
+    container.addEventListener("scroll", handleScroll);
+    return () => container.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // 스크롤 관리
   useLayoutEffect(() => {
     if (!chatContainerRef.current) return;
 
     if (isFirstRenderRef.current && (chatHistory.length > 0 || currentMessage)) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
       isFirstRenderRef.current = false;
-
       requestAnimationFrame(() => {
         if (chatContainerRef.current) {
           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
       });
     } else if (!isUserScrollingRef.current) {
-      messagesEndRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'end'
-      });
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [chatHistory, currentMessage]);
 
@@ -272,135 +275,124 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
     }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-green-600 bg-green-100";
-    if (score >= 6) return "text-yellow-600 bg-yellow-100";
-    return "text-red-600 bg-red-100";
+  const getScoreType = (score: number): "success" | "warning" | "error" => {
+    if (score >= 8) return "success";
+    if (score >= 6) return "warning";
+    return "error";
   };
 
   return (
-    <div className="space-y-4">
-      {/* Back Navigation */}
-      <Button
-        variant="ghost"
-        onClick={() => router.push("/feasibility")}
-        className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        이전 단계로
-      </Button>
-
+    <SpaceBetween size="m">
       {/* Feasibility Summary */}
-      <Card className="bg-gradient-to-r from-slate-50 to-slate-100">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Info className="h-4 w-4" />
-            Feasibility 요약 ({feasibility.feasibility_score}/50점)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-2">
-            {(Object.entries(feasibility.feasibility_breakdown) as [FeasibilityKey, FeasibilityItemDetail][]).map(([key, item]) => (
-              <span
-                key={key}
-                className={`px-2 py-1 rounded text-xs font-medium ${getScoreColor(item.score)}`}
-              >
-                {FEASIBILITY_ITEM_NAMES[key]}: {item.score}
-              </span>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <Container header={<Header variant="h2">Feasibility 요약 ({feasibility.feasibility_score}/50점)</Header>}>
+        <SpaceBetween direction="horizontal" size="s">
+          {(Object.entries(feasibility.feasibility_breakdown) as [FeasibilityKey, FeasibilityItemDetail][]).map(([key, item]) => (
+            <StatusIndicator key={key} type={getScoreType(item.score)}>
+              {FEASIBILITY_ITEM_NAMES[key]}: {item.score}
+            </StatusIndicator>
+          ))}
+        </SpaceBetween>
+      </Container>
 
-      {/* Chat Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-primary" />
+      {/* Chat Container */}
+      <Container
+        header={
+          <Header
+            variant="h2"
+            description="Feasibility 결과를 바탕으로 적합한 Agent 패턴을 분석합니다. 질문에 답변하거나 &quot;패턴 확정&quot;을 클릭하세요."
+          >
             패턴 분석 및 논의
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Feasibility 결과를 바탕으로 적합한 Agent 패턴을 분석합니다. 질문에 답변하거나 "패턴 확정"을 클릭하세요.
-          </p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div
-              ref={chatContainerRef}
-              className="border rounded-lg p-4 min-h-[400px] max-h-[600px] overflow-y-scroll space-y-4 scroll-smooth"
-              style={{ scrollBehavior: 'smooth', minHeight: '400px' }}
-              aria-live="polite"
-              aria-label="대화 내용"
-            >
+          </Header>
+        }
+      >
+        <SpaceBetween size="m">
+          <div
+            ref={chatContainerRef}
+            style={{
+              minHeight: 400,
+              maxHeight: 600,
+              overflowY: "auto",
+              padding: 16,
+              border: "1px solid var(--color-border-divider-default, #e9ebed)",
+              borderRadius: 8,
+              scrollBehavior: "smooth",
+            }}
+            aria-live="polite"
+            aria-label="대화 내용"
+          >
+            <SpaceBetween size="s">
               {chatHistory.map((msg) => (
                 <MessageComponent key={msg.id} message={msg} />
               ))}
 
               {streamingAny && currentMessage && (
-                <div className="flex justify-start">
-                  <div className="max-w-[80%] rounded-lg p-3 bg-muted">
-                    <div className="text-xs font-semibold mb-1">Claude</div>
-                    <div className="text-sm whitespace-pre-wrap">
-                      {currentMessage}
-                      <span className="inline-block w-2 h-4 bg-foreground animate-pulse ml-1" />
-                    </div>
-                  </div>
+                <div className="chat-bubble-assistant">
+                  <ChatBubble
+                    type="incoming"
+                    avatar={<Avatar color="gen-ai" iconName="gen-ai" loading ariaLabel="Claude is typing" />}
+                    ariaLabel="Claude is responding"
+                  >
+                    <span style={{ whiteSpace: "pre-wrap" }}>{currentMessage}</span>
+                    <LoadingBar variant="gen-ai" />
+                  </ChatBubble>
+                </div>
+              )}
+
+              {streamingAny && !currentMessage && (
+                <div className="chat-bubble-assistant">
+                  <ChatBubble
+                    type="incoming"
+                    avatar={<Avatar color="gen-ai" iconName="gen-ai" loading ariaLabel="Claude is thinking" />}
+                    ariaLabel="Waiting for response"
+                  >
+                    <Spinner /> 분석 중...
+                  </ChatBubble>
                 </div>
               )}
 
               <div ref={messagesEndRef} />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Textarea
-                  value={userInput}
-                  onChange={(e) => setUserInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && e.ctrlKey) {
-                      e.preventDefault();
-                      handleUserMessage();
-                    }
-                  }}
-                  placeholder="답변을 입력하세요..."
-                  disabled={streamingAny || isAnalyzing}
-                  className="min-h-[80px] resize-none"
-                  aria-label="답변 입력"
-                />
-                <Button
-                  onClick={handleUserMessage}
-                  disabled={streamingAny || isAnalyzing || !userInput.trim()}
-                >
-                  {streamingAny ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "전송"
-                  )}
-                </Button>
-              </div>
-              <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Keyboard className="h-3 w-3" />
-                <span>Ctrl + Enter로 전송</span>
-              </div>
-            </div>
-
-            <Button
-              onClick={() => finalizeAnalysis(chatHistory)}
-              disabled={streamingAny || isAnalyzing || chatHistory.length === 0}
-              className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-300 disabled:opacity-50 disabled:shadow-none disabled:scale-100"
-            >
-              {isAnalyzing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  패턴 확정 중...
-                </>
-              ) : (
-                "✅ 패턴 확정"
-              )}
-            </Button>
+            </SpaceBetween>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+
+          {/* Input */}
+          <div
+            onKeyDownCapture={(e) => {
+              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                if (e.shiftKey) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleUserMessage();
+                } else {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setUserInput((prev) => prev + "\n");
+                }
+              }
+            }}
+          >
+            <PromptInput
+              value={userInput}
+              onChange={({ detail }) => setUserInput(detail.value)}
+              onAction={handleUserMessage}
+              actionButtonIconName="send"
+              placeholder="답변을 입력하세요... (Shift+Enter로 전송)"
+              disabled={streamingAny || isAnalyzing}
+              minRows={3}
+            />
+          </div>
+
+          {/* Finalize Button */}
+          <Button
+            variant="primary"
+            fullWidth
+            onClick={() => finalizeAnalysis(chatHistory)}
+            disabled={streamingAny || isAnalyzing || chatHistory.length === 0}
+            loading={isAnalyzing}
+          >
+            {isAnalyzing ? "패턴 확정 중..." : "패턴 확정"}
+          </Button>
+        </SpaceBetween>
+      </Container>
+    </SpaceBetween>
   );
 }

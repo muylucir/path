@@ -202,7 +202,7 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
         integration_str = "없음"
 
     # 추가 데이터소스 (자유 텍스트)
-    additional_sources = form_data.get('additionalSources', '').strip()
+    additional_sources = (form_data.get('additionalSources') or '').strip()
     additional_str = f"\n**추가 데이터소스**: {additional_sources}" if additional_sources else ""
 
     return f"""<input_data>
@@ -214,7 +214,7 @@ def get_initial_analysis_prompt(form_data: dict) -> str:
 **데이터소스 및 통합 (사용 가능한 도구/데이터)**:
 {integration_str}{additional_str}
 **Error Tolerance**: {form_data.get('errorTolerance', '')}
-**Additional Context**: {form_data.get('additionalContext', '없음')}
+**Additional Context**: {form_data.get('additionalContext') or '없음'}
 </input_data>
 
 <instructions>
@@ -346,7 +346,7 @@ def get_feasibility_evaluation_prompt(form_data: dict) -> str:
     """Step2: Feasibility 평가 프롬프트 생성"""
 
     # 데이터소스 정보 구성
-    additional_sources = form_data.get('additionalSources', '').strip()
+    additional_sources = (form_data.get('additionalSources') or '').strip()
     data_source_str = additional_sources if additional_sources else "명시되지 않음"
 
     return f"""<input_data>
@@ -357,7 +357,7 @@ def get_feasibility_evaluation_prompt(form_data: dict) -> str:
 **HUMAN-IN-LOOP**: {form_data.get('humanLoop', '')}
 **데이터소스**: {data_source_str}
 **Error Tolerance**: {form_data.get('errorTolerance', '')}
-**Additional Context**: {form_data.get('additionalContext', '없음')}
+**Additional Context**: {form_data.get('additionalContext') or '없음'}
 </input_data>
 
 <instructions>
