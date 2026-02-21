@@ -7,13 +7,13 @@ AI Agent 아이디어를 **검증**하고 **명세서를 자동 생성**하는 �
 P.A.T.H (Problem → Technical → Agent Pattern → Handoff) 프레임워크를 사용하여:
 1. **기본 정보 입력** - Pain Point와 요구사항 정의
 2. **준비도 점검** - 5가지 기준으로 Feasibility 평가 (50점 만점)
-3. **패턴 분석** - Claude Opus 4.5 기반 대화형 분석 및 Agent 패턴 추천
+3. **패턴 분석** - Claude Opus 4.6 기반 대화형 분석 및 Agent 패턴 추천
 4. **명세서 생성** - 4단계 파이프라인으로 상세 명세서 자동 생성
 
 ## 아키텍처
 
 ```
-Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude Opus 4.5
+Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude Opus 4.6
                               ↘ DynamoDB (sessions)
 ```
 
@@ -23,7 +23,7 @@ Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude O
 |------|------|
 | **Frontend** | Next.js 16.1.0, React 19.2.3, TypeScript 5, Tailwind CSS 4, shadcn/ui |
 | **Backend** | Python 3.11+, FastAPI, Strands Agents SDK, uvicorn, SlowAPI |
-| **LLM** | AWS Bedrock Claude Opus 4.5 (global.anthropic.claude-opus-4-5-20251101-v1:0) |
+| **LLM** | AWS Bedrock Claude Opus 4.6 (global.anthropic.claude-opus-4-6-v1) |
 | **Storage** | AWS DynamoDB |
 | **Visualization** | Mermaid, react-markdown, react-syntax-highlighter |
 
@@ -40,7 +40,7 @@ Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude O
 
 | 기능 | 설명 |
 |------|------|
-| 🤖 **AI 분석** | Claude Opus 4.5로 아이디어 검증 및 대화형 분석 |
+| 🤖 **AI 분석** | Claude Opus 4.6로 아이디어 검증 및 대화형 분석 |
 | 📊 **준비도 점검** | 5개 항목 50점 만점 평가 + 개선 방안 반영 재평가 |
 | 💬 **대화형 분석** | 패턴 분석 단계에서 채팅으로 요구사항 구체화 |
 | 📋 **명세서 생성** | 4단계 파이프라인으로 프레임워크 독립적 명세서 자동 생성 |

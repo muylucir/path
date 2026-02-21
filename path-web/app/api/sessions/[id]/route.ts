@@ -83,13 +83,12 @@ export async function PUT(
     const body = await req.json();
     const { specification } = body;
 
-    if (typeof specification !== "string") {
+    const MAX_SPECIFICATION_LENGTH = 500_000; // 500KB limit
+
+    if (typeof specification !== "string" || specification.length > MAX_SPECIFICATION_LENGTH) {
       return new Response(
-        JSON.stringify({ error: "명세서가 필요합니다" }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json" },
-        }
+        JSON.stringify({ error: `명세서는 ${MAX_SPECIFICATION_LENGTH.toLocaleString()}자 이내여야 합니다` }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 

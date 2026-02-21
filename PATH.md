@@ -294,5 +294,5 @@ Pain Point를 4가지 요소로 분해합니다.
 |------|------|
 | **Frontend** | Next.js 16, React 19, TypeScript 5, Tailwind CSS 4, shadcn/ui |
 | **Backend** | Python 3.11+, FastAPI, Strands Agents SDK |
-| **LLM** | AWS Bedrock Claude Opus 4.5 |
+| **LLM** | AWS Bedrock Claude Opus 4.6 |
 | **스킬 시스템** | agentskills.io 스펙 기반 동적 로딩 |

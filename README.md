@@ -16,7 +16,7 @@ AI Agent 아이디어를 **검증**하고 **명세서를 자동 생성**하는 �
 ## 아키텍처
 
 ```
-Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude Opus 4.5
+Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude Opus 4.6
                               ↘ DynamoDB (sessions)
 ```
 
@@ -26,7 +26,7 @@ Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude O
 |------|------|
 | **Frontend** | Next.js 16.1.0, React 19.2.3, TypeScript 5, Tailwind CSS 4, shadcn/ui |
 | **Backend** | Python 3.11+, FastAPI, Strands Agents SDK, SlowAPI |
-| **LLM** | AWS Bedrock Claude Opus 4.5 |
+| **LLM** | AWS Bedrock Claude Opus 4.6 |
 | **Storage** | AWS DynamoDB |
 
 ## 실행
@@ -125,7 +125,7 @@ PATH_API_KEY=your-api-key  # API 인증 (선택)
 | 기능 | 설명 |
 |------|------|
 | 준비도 점검 | 5개 항목 평가 + 개선 방안 반영 재평가 |
-| 대화형 분석 | Claude Opus 4.5 기반 패턴 분석 |
+| 대화형 분석 | Claude Opus 4.6 기반 패턴 분석 |
 | 명세서 생성 | 4단계 파이프라인 (DesignAgent → DiagramAgent → DetailAgent → AssemblerAgent) |
 | 세션 관리 | DynamoDB 기반 이력 저장 |
 

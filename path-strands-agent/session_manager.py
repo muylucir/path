@@ -6,6 +6,7 @@
 - 세션 정리 부재 → TTL 및 자동 정리
 """
 
+import logging
 import secrets
 import hashlib
 import time
@@ -14,9 +15,11 @@ from typing import Dict, Any, Optional, TypeVar, Generic
 from dataclasses import dataclass, field
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
+
 # 세션 설정 상수
 SESSION_TTL_SECONDS = 3600  # 60분
-MAX_SESSIONS = 500
+MAX_SESSIONS = 100
 SESSION_CLEANUP_INTERVAL = 300  # 5분
 SESSION_ID_PREFIX = "sess_"
 
@@ -113,6 +116,10 @@ class SecureSessionManager(Generic[T]):
                 ttl=self._ttl_seconds
             )
             self._sessions[session_id] = session
+
+            current_count = len(self._sessions)
+            if current_count > int(self._max_sessions * 0.8):
+                logger.warning(f"세션 수가 한계에 근접합니다: {current_count}/{self._max_sessions}")
 
             return session_id
 

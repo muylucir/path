@@ -13,23 +13,11 @@ import json
 import re
 import logging
 from safe_tools import safe_file_read
-from agentskills import discover_skills, generate_skills_prompt
-from strands_utils import strands_utils
+from strands_utils import strands_utils, get_skill_prompt
 from token_tracker import extract_usage, merge_usage
 from chat_agent import DEFAULT_MODEL_ID
 
 logger = logging.getLogger(__name__)
-
-# Cache skill discovery results (static content, no need to re-read)
-_cached_skills = None
-_cached_skill_prompt = None
-
-def _get_skill_prompt():
-    global _cached_skills, _cached_skill_prompt
-    if _cached_skill_prompt is None:
-        _cached_skills = discover_skills("./skills")
-        _cached_skill_prompt = generate_skills_prompt(_cached_skills)
-    return _cached_skill_prompt
 
 
 class MermaidValidator:
@@ -228,7 +216,7 @@ class DesignAgent:
     }
 
     def __init__(self):
-        skill_prompt = _get_skill_prompt()
+        skill_prompt = get_skill_prompt()
 
         system_prompt = """당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
 
@@ -361,7 +349,7 @@ class DiagramAgent:
     """2단계: 다이어그램 생성 (프레임워크 독립적)"""
 
     def __init__(self):
-        skill_prompt = _get_skill_prompt()
+        skill_prompt = get_skill_prompt()
 
         system_prompt = """당신은 AI Agent 아키텍처 시각화 전문가입니다.
 
@@ -545,7 +533,7 @@ class DetailAgent:
     }
 
     def __init__(self):
-        skill_prompt = _get_skill_prompt()
+        skill_prompt = get_skill_prompt()
 
         system_prompt = """당신은 AI Agent 프롬프트 엔지니어링 및 도구 설계 전문가입니다.
 

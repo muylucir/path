@@ -2,7 +2,7 @@
 Token Usage Tracker - AgentResult에서 토큰 사용량 추출 및 비용 추산
 """
 
-# Claude Opus 4.5 Bedrock 가격 (per 1M tokens, USD)
+# Claude Opus 4.6 Bedrock 가격 (per 1M tokens, USD)
 PRICING = {
     "input": 15.00,
     "output": 75.00,
