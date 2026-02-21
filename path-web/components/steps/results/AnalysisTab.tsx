@@ -105,7 +105,7 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
       {feasibility && (
         <SpaceBetween size="m">
           <Container header={<Header variant="h2">준비도 점검 결과</Header>}>
-            {analysis.improved_feasibility ? (
+            {analysis.improved_feasibility?.score != null ? (
               <Alert type="success" header={`${feasibility.feasibility_score}점 → ${analysis.improved_feasibility.score}점 (예상 +${analysis.improved_feasibility.score_change}점)`}>
                 {analysis.improved_feasibility.summary}
               </Alert>

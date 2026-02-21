@@ -11,6 +11,7 @@ const patternFinalizeSchema = z.object({
     content: z.string(),
   })).max(100),
   improvementPlans: z.record(z.string(), z.string()).optional(),
+  sessionId: z.string().max(100).optional(),
 });
 
 export async function POST(req: NextRequest) {

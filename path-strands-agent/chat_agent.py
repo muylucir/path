@@ -19,7 +19,9 @@ from prompts import (
     get_feasibility_evaluation_prompt,
     get_feasibility_reevaluation_prompt,
     PATTERN_ANALYSIS_SYSTEM_PROMPT,
-    get_pattern_analysis_prompt
+    get_pattern_analysis_prompt,
+    get_pattern_chat_prompt,
+    get_pattern_finalize_prompt,
 )
 
 # Default model ID - can be overridden via environment variable
@@ -55,6 +57,7 @@ def _extract_json(response_text: str, context: str = "response") -> Dict[str, An
     raise ValueError(f"Failed to extract JSON from {context}")
 
 
+# LEGACY: /analyze 엔드포인트 전용 — 새 플로우에서는 FeasibilityAgent 사용
 class AnalyzerAgent:
     """사용자 입력(pain point, input, process, output 등)을 분석하는 Agent"""
 
@@ -80,6 +83,7 @@ class AnalyzerAgent:
                 yield event["data"]
 
 
+# LEGACY: /chat 엔드포인트 전용 — 새 플로우에서는 PatternAnalyzerAgent 사용
 class ChatAgent:
     """대화형 분석 Agent - 채팅 지원"""
 
@@ -161,6 +165,7 @@ class ChatAgent:
         self.add_message("assistant", full_response)
 
 
+# LEGACY: /finalize 엔드포인트 전용 — 새 플로우에서는 PatternAnalyzerAgent.finalize() 사용
 class EvaluatorAgent:
     """답변 수집 후 Feasibility 점수를 계산하는 Agent"""
 
@@ -249,11 +254,16 @@ class FeasibilityAgent:
     """Step2: Feasibility 평가 전용 Agent"""
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID):
+        # Skill 시스템 초기화 (cached)
+        skill_prompt = get_skill_prompt()
+        enhanced_prompt = FEASIBILITY_SYSTEM_PROMPT + "\n" + skill_prompt
+
         self.agent = strands_utils.get_agent(
-            system_prompts=FEASIBILITY_SYSTEM_PROMPT,
+            system_prompts=enhanced_prompt,
             model_id=model_id,
             max_tokens=8192,
             temperature=0.3,
+            tools=[safe_file_read]
         )
 
     def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -340,6 +350,8 @@ class PatternAnalyzerAgent:
             temperature=0.3,
             tools=[safe_file_read]
         )
+        # Stateful 모드에서 충분한 대화 컨텍스트 유지 (기본 40 → 200)
+        self.agent.conversation_manager.window_size = 200
         self.conversation_history: List[Dict[str, str]] = []
 
     def add_message(self, role: str, content: str):
@@ -380,25 +392,18 @@ class PatternAnalyzerAgent:
         if usage:
             yield {"usage": usage}
 
-    async def chat_stream(self, user_message: str) -> AsyncIterator[dict]:
+    async def chat_stream(self, user_message: str, stateful: bool = False) -> AsyncIterator[dict]:
         """패턴 관련 대화 - 스트리밍 버전 (Skill 시스템 지원, dict yield)"""
         self.add_message("user", user_message)
 
-        history_text = "\n\n".join([
-            f"{msg['role'].upper()}: {msg['content']}"
-            for msg in self.conversation_history
-        ])
-
-        prompt = f"""{history_text}
-
-사용자의 답변을 반영하여 패턴 분석을 계속하세요.
-추가 정보가 필요하면 구체적으로 질문하세요.
-충분하면 "패턴을 확정할 수 있습니다. '패턴 확정'을 입력하세요." 안내하세요.
-
-**Skill 사용 안내**:
-- 다이어그램(플로우차트, 박스, 시퀀스, 테이블, 트리 등)을 그려야 하면:
-  file_read로 "ascii-diagram" 스킬의 SKILL.md를 읽고 가이드를 따르세요.
-- 코드 블록(```)으로 감싸서 고정폭 폰트로 정렬하세요."""
+        if stateful:
+            prompt = get_pattern_chat_prompt(user_message=user_message)
+        else:
+            history_text = "\n\n".join([
+                f"{msg['role'].upper()}: {msg['content']}"
+                for msg in self.conversation_history
+            ])
+            prompt = get_pattern_chat_prompt(user_message=user_message, history_text=history_text)
 
         full_response = ""
         usage = None
@@ -414,123 +419,34 @@ class PatternAnalyzerAgent:
         if usage:
             yield {"usage": usage}
 
-    def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> Dict[str, Any]:
+    def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None, stateful: bool = False) -> Dict[str, Any]:
         """패턴 확정 및 최종 분석 결과 생성 (개선된 점수 포함)"""
-        conversation_text = "\n".join([
-            f"{msg['role'].upper()}: {msg['content']}"
-            for msg in self.conversation_history
-        ])
+        if stateful:
+            conversation_text = None
+        else:
+            conversation_text = "\n".join([
+                f"{msg['role'].upper()}: {msg['content']}"
+                for msg in self.conversation_history
+            ])
 
-        # Feasibility breakdown을 단순화
-        breakdown = feasibility.get('feasibility_breakdown', {})
-        simple_breakdown = {}
-        for key, value in breakdown.items():
-            if isinstance(value, dict):
-                simple_breakdown[key] = value.get('score', 0)
-            else:
-                simple_breakdown[key] = value
-
-        # 개선 방안 텍스트 구성
-        improvement_section = ""
-        if improvement_plans:
-            plans_with_content = {k: v for k, v in improvement_plans.items() if v and v.strip()}
-            if plans_with_content:
-                improvement_section = "\n**사용자 개선 방안**:\n"
-                for item, plan in plans_with_content.items():
-                    improvement_section += f"- {item}: {plan}\n"
-
-        # 개선된 점수 계산 프롬프트 추가
-        improved_feasibility_prompt = ""
-        if improvement_plans and any(v and v.strip() for v in improvement_plans.values()):
-            improved_feasibility_prompt = """
-**개선된 Feasibility 점수 계산 (improved_feasibility)**:
-사용자의 개선 방안과 대화 내용을 분석하여 예상되는 개선 점수를 계산하세요.
-
-계산 기준:
-1. 구체적이고 실행 가능한 개선 계획만 점수에 반영
-2. 항목당 최대 +3점 상향 가능
-3. 막연한 계획은 반영하지 않음
-4. 점수는 상향만 가능 (하향 불가)
-
-improved_feasibility 필드에 다음 형식으로 포함:
-"improved_feasibility": {
-  "score": 개선후총점,
-  "score_change": 점수변화량,
-  "breakdown": {
-    "data_access": {
-      "original_score": 원본점수,
-      "improved_score": 개선후점수,
-      "improvement_reason": "왜 점수가 올랐는지 구체적 설명 (개선 방안이 없으면 빈 문자열)"
-    },
-    "decision_clarity": {...},
-    "error_tolerance": {...},
-    "latency": {...},
-    "integration": {...}
-  },
-  "summary": "전체 개선 점수 요약 (1-2문장)"
-}"""
-
-        # 아키텍처 판단을 위한 추가 정보
-        process_count = len(form_data.get('processSteps', []))
-        human_loop = form_data.get('humanLoop', '')
-
-        prompt = f"""다음은 지금까지의 패턴 분석 대화입니다:
-
-{conversation_text}
-
-**Feasibility 정보**:
-- 총점: {feasibility.get('feasibility_score', 0)}/50
-- 판정: {feasibility.get('judgment', '')}
-{improvement_section}
-
-**아키텍처 권장 판단 정보**:
-- PROCESS 단계 수: {process_count}개
-- Human-in-Loop: {human_loop}
-- 아키텍처 권장 기준:
-  - 🔵 싱글 에이전트: PROCESS 3개 이하, 도구 1-2개, Human-in-Loop None/Review, 순차 처리
-  - 🟣 멀티 에이전트: PROCESS 4개 이상, 도구 3개 이상, Human-in-Loop Collaborate, 병렬 처리 필요
-
-스킬 문서에 정의된 Agent 패턴 정보를 참조하세요.
-
-이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
-{improved_feasibility_prompt}
-{{
-  "pain_point": {json.dumps(form_data.get('painPoint', ''), ensure_ascii=False)},
-  "input_type": {json.dumps(form_data.get('inputType', ''), ensure_ascii=False)},
-  "input_detail": "INPUT 상세",
-  "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
-  "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
-  "output_detail": "OUTPUT 상세",
-  "human_loop": {json.dumps(form_data.get('humanLoop', ''), ensure_ascii=False)},
-  "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
-  "recommended_architecture": "single-agent 또는 multi-agent (위 기준에 따라 판단)",
-  "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",
-  "architecture_reason": "권장 아키텍처 이유 (문제의 특성 - 프로세스 단계 수, 도구 수, 협업 방식 기반으로 설명. 멀티 에이전트인 경우 선택한 협업 패턴의 적합성도 설명)",
-  "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
-  "feasibility_breakdown": {json.dumps(simple_breakdown)},
-  "feasibility_score": {feasibility.get('feasibility_score', 0)},
-  "improved_feasibility": null,
-  "recommendation": "추천 사항",
-  "risks": ["리스크1", "리스크2"],
-  "next_steps": [
-    "Phase 1: 핵심 기능 프로토타입 - 설명",
-    "Phase 2: 검증 및 테스트 - 설명",
-    "Phase 3: (선택적) 개선 및 확장 - 설명"
-  ]
-}}
-
-중요:
-- pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
-- recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나로 출력하세요.
-- multi_agent_pattern은 멀티 에이전트인 경우 반드시 "agents-as-tools", "swarm", "graph", "workflow" 중 하나로 출력하세요. 싱글 에이전트인 경우 null.
-- architecture_reason은 왜 해당 아키텍처를 권장하는지 문제 특성을 기반으로 설명하세요. 멀티 에이전트인 경우 협업 패턴 선택 이유도 포함하세요.
-- 사용자 개선 방안이 있으면 improved_feasibility를 계산하여 포함하세요.
-- 개선 방안이 없거나 반영할 내용이 없으면 improved_feasibility는 null로 유지하세요.
-- JSON만 출력하세요."""
+        prompt = get_pattern_finalize_prompt(
+            form_data, feasibility,
+            improvement_plans=improvement_plans,
+            conversation_text=conversation_text
+        )
 
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
         parsed = _extract_json(response_text, "pattern finalization")
+
+        # improved_feasibility 유효성 검증: 불완전한 객체 방어
+        improved = parsed.get("improved_feasibility")
+        if improved is not None:
+            if (not isinstance(improved, dict)
+                or not isinstance(improved.get("score"), (int, float))
+                or not isinstance(improved.get("score_change"), (int, float))):
+                parsed["improved_feasibility"] = None
+
         parsed["_usage"] = extract_usage(result)
         return parsed
 

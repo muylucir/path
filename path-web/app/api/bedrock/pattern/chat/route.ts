@@ -10,6 +10,7 @@ const patternChatSchema = z.object({
   userMessage: z.string().min(1).max(4000),
   formData: z.record(z.string(), z.unknown()).optional(),
   feasibility: z.record(z.string(), z.unknown()).optional(),
+  sessionId: z.string().max(100).optional(),
 });
 
 export async function POST(req: NextRequest) {

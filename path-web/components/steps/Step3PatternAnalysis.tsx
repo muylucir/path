@@ -79,6 +79,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
   const hasStartedRef = useRef(false);
   const fullMessageRef = useRef("");
   const abortRef = useRef<(() => void) | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
 
   const { start: startAnalysisStream, isStreaming: isAnalysisStreaming } = useSSEStream({
     url: "/api/bedrock/pattern/analyze",
@@ -89,6 +90,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
         requestAnimationFrame(() => {
           setCurrentMessage(fullMessageRef.current);
         });
+      }
+      if (parsed.sessionId && !sessionIdRef.current) {
+        sessionIdRef.current = parsed.sessionId;
       }
     }, []),
     onUsage: useCallback((usage: TokenUsage) => {
@@ -142,6 +146,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
           userMessage: message,
           formData,
           feasibility,
+          sessionId: sessionIdRef.current,
         }),
         signal: controller.signal,
       });
@@ -187,6 +192,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                 if (parsed.text) {
                   fullMessageRef.current += parsed.text;
                   setCurrentMessage(fullMessageRef.current);
+                }
+                if (parsed.sessionId && !sessionIdRef.current) {
+                  sessionIdRef.current = parsed.sessionId;
                 }
                 if (parsed.error) {
                   console.error("Chat error:", parsed.error);
@@ -259,6 +267,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
           feasibility,
           conversation: stripIds(history),
           improvementPlans,
+          sessionId: sessionIdRef.current,
         }),
       });
 
