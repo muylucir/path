@@ -8,6 +8,7 @@ from strands.models import BedrockModel
 from strands.models.bedrock import CacheConfig
 from typing import Any
 import botocore.config
+from agentskills import discover_skills, generate_skills_prompt
 
 
 # Bedrock API 호출 타임아웃 및 재시도 설정
@@ -35,7 +36,7 @@ class StrandsUtils:
             **kwargs: 기타 Agent 파라미터
         """
         system_prompts = kwargs.get("system_prompts", "")
-        model_id = kwargs.get("model_id", "global.anthropic.claude-opus-4-5-20251101-v1:0")
+        model_id = kwargs.get("model_id", "global.anthropic.claude-opus-4-6-v1")
         tools = kwargs.get("tools", [])
         max_tokens = kwargs.get("max_tokens", 8192)
         temperature = kwargs.get("temperature", 0.3)
@@ -74,3 +75,16 @@ class StrandsUtils:
 
 # Singleton instance
 strands_utils = StrandsUtils()
+
+
+# Cache skill discovery results (static content, no need to re-read)
+_cached_skills = None
+_cached_skill_prompt = None
+
+def get_skill_prompt():
+    """Skill 프롬프트를 캐싱하여 반환 (모든 Agent에서 공유)"""
+    global _cached_skills, _cached_skill_prompt
+    if _cached_skill_prompt is None:
+        _cached_skills = discover_skills("./skills")
+        _cached_skill_prompt = generate_skills_prompt(_cached_skills)
+    return _cached_skill_prompt

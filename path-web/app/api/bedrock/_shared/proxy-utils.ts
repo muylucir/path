@@ -81,6 +81,7 @@ export async function createSSEProxy(
         "X-API-Key": PATH_API_KEY,
       },
       body: JSON.stringify(body),
+      signal: req.signal,
     });
 
     if (!response.ok) {
@@ -108,6 +109,15 @@ export async function createSSEProxy(
         }
         await writer.close();
       } catch (streamError) {
+        // Client aborted — close writer gracefully without sending error event
+        if (streamError instanceof DOMException && streamError.name === "AbortError") {
+          try {
+            await writer.close();
+          } catch {
+            // Writer may already be closed
+          }
+          return;
+        }
         // Upstream connection dropped mid-stream
         try {
           const errorEvent = `data: ${JSON.stringify({ error: "스트리밍 연결이 중단되었습니다" })}\n\n`;
@@ -171,6 +181,7 @@ export async function createJSONProxy(
         "X-API-Key": PATH_API_KEY,
       },
       body: JSON.stringify(body),
+      signal: req.signal,
     });
 
     if (!response.ok) {

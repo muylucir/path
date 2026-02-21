@@ -65,7 +65,7 @@ def verify_api_key(provided_key: Optional[str]) -> bool:
             logger.warning("API Key가 설정되지 않았습니다. 개발 모드에서만 허용됩니다.")
             return True
         else:
-            logger.error("프로덕션 환경에서 API Key가 설정되지 않았습니다!")
+            logger.critical("프로덕션 환경에서 API Key가 설정되지 않았습니다!")
             return False
 
     if provided_key is None:

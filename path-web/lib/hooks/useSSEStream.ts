@@ -78,14 +78,17 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
       const decoder = new TextDecoder();
 
       if (reader) {
+        let buffer = "";
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
 
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split("\n");
+          buffer = parts.pop() ?? "";
 
-          for (const line of lines) {
+          for (const line of parts) {
             if (line.startsWith("data: ")) {
               const data = line.slice(6);
               if (data === "[DONE]") {
@@ -121,7 +124,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
                 onChunk?.(parsed);
               } catch (e) {
                 if (e instanceof SyntaxError) {
-                  // Ignore incomplete JSON chunks
+                  // Truly malformed JSON, not a partial chunk issue anymore
                 } else {
                   throw e;
                 }

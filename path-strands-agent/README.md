@@ -20,7 +20,7 @@ P.A.T.H Agent Designer의 **Backend 서버**로, Strands Agents SDK를 사용하
 | **Python** | 3.11+ |
 | **Framework** | FastAPI |
 | **LLM SDK** | Strands Agents SDK (strands-agents, strands-agents-tools) |
-| **LLM** | AWS Bedrock Claude Opus 4.5 (global.anthropic.claude-opus-4-5-20251101-v1:0) |
+| **LLM** | AWS Bedrock Claude Opus 4.6 (global.anthropic.claude-opus-4-6-v1) |
 | **Rate Limiting** | SlowAPI |
 | **Port** | 8001 |
 

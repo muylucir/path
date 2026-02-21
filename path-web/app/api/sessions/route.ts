@@ -88,11 +88,17 @@ export async function GET(req: NextRequest) {
     if (lastKey) {
       try {
         const parsed = JSON.parse(decodeURIComponent(lastKey));
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          parsedLastKey = parsed as Record<string, unknown>;
+        if (
+          parsed &&
+          typeof parsed === "object" &&
+          !Array.isArray(parsed) &&
+          typeof parsed.session_id === "string" &&
+          Object.keys(parsed).length <= 2  // session_id + at most one sort key
+        ) {
+          parsedLastKey = { session_id: parsed.session_id };
         }
       } catch {
-        // 잘못된 형식 무시, 처음부터 조회
+        // Invalid format, start from beginning
       }
     }
 

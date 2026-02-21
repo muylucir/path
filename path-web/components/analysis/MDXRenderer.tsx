@@ -3,9 +3,23 @@
 import { useEffect, useRef, Component, ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import mermaid from "mermaid";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("bash", bash);
+SyntaxHighlighter.registerLanguage("yaml", yaml);
+SyntaxHighlighter.registerLanguage("typescript", typescript);
+SyntaxHighlighter.registerLanguage("javascript", javascript);
+SyntaxHighlighter.registerLanguage("markdown", markdown);
 import Alert from "@cloudscape-design/components/alert";
 import TextContent from "@cloudscape-design/components/text-content";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
@@ -42,38 +56,45 @@ export function MDXRenderer({ content }: MDXRendererProps) {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!mermaidInitialized.current) {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: "default",
-        securityLevel: "strict",
-      });
-      mermaidInitialized.current = true;
-    }
-  }, []);
-
-  useEffect(() => {
     if (!content || !contentRef.current) return;
 
     const container = contentRef.current;
+    let observer: MutationObserver | null = null;
 
-    const runMermaid = () => {
-      const nodes = container.querySelectorAll(".mermaid:not([data-processed])");
-      if (nodes.length > 0) {
-        mermaid.run({ nodes: nodes as NodeListOf<HTMLElement> });
+    const initMermaid = async () => {
+      // Only import mermaid if there are mermaid blocks in the content
+      if (!content.includes('```mermaid')) return;
+
+      const mermaid = (await import("mermaid")).default;
+
+      if (!mermaidInitialized.current) {
+        mermaid.initialize({
+          startOnLoad: false,
+          theme: "default",
+          securityLevel: "strict",
+        });
+        mermaidInitialized.current = true;
       }
+
+      const runMermaid = () => {
+        const nodes = container.querySelectorAll(".mermaid:not([data-processed])");
+        if (nodes.length > 0) {
+          mermaid.run({ nodes: nodes as NodeListOf<HTMLElement> });
+        }
+      };
+
+      runMermaid();
+
+      observer = new MutationObserver(() => {
+        runMermaid();
+      });
+      observer.observe(container, { childList: true, subtree: true });
     };
 
-    runMermaid();
-
-    const observer = new MutationObserver(() => {
-      runMermaid();
-    });
-
-    observer.observe(container, { childList: true, subtree: true });
+    initMermaid();
 
     return () => {
-      observer.disconnect();
+      observer?.disconnect();
     };
   }, [content]);
 

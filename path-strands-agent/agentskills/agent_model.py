@@ -3,7 +3,7 @@ from strands.models import BedrockModel
 
 
 def get_bedrock_agent_model(
-    model_id: str = "global.anthropic.claude-opus-4-5-20251101-v1:0",
+    model_id: str = "global.anthropic.claude-opus-4-6-v1",
     temperature: float = 1,
     max_tokens: int = 24000,
     thinking: bool = False,

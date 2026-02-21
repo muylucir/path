@@ -10,8 +10,7 @@ import json
 import os
 import re
 from safe_tools import safe_file_read
-from agentskills import discover_skills, generate_skills_prompt
-from strands_utils import strands_utils
+from strands_utils import strands_utils, get_skill_prompt
 from token_tracker import extract_usage
 from prompts import (
     SYSTEM_PROMPT,
@@ -24,19 +23,7 @@ from prompts import (
 )
 
 # Default model ID - can be overridden via environment variable
-DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-5-20251101-v1:0")
-
-# Cache skill discovery results (static content, no need to re-read)
-_cached_skills = None
-_cached_skill_prompt = None
-
-def _get_skill_prompt():
-    global _cached_skills, _cached_skill_prompt
-    if _cached_skill_prompt is None:
-        _cached_skills = discover_skills("./skills")
-        _cached_skill_prompt = generate_skills_prompt(_cached_skills)
-    return _cached_skill_prompt
-
+DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
 
 def _extract_json(response_text: str, context: str = "response") -> Dict[str, Any]:
     """LLM 응답에서 JSON을 추출하고 파싱.
@@ -343,7 +330,7 @@ class PatternAnalyzerAgent:
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID):
         # Skill 시스템 초기화 (cached)
-        skill_prompt = _get_skill_prompt()
+        skill_prompt = get_skill_prompt()
         enhanced_prompt = PATTERN_ANALYSIS_SYSTEM_PROMPT + "\n" + skill_prompt
 
         self.agent = strands_utils.get_agent(
@@ -503,23 +490,18 @@ improved_feasibility 필드에 다음 형식으로 포함:
   - 🔵 싱글 에이전트: PROCESS 3개 이하, 도구 1-2개, Human-in-Loop None/Review, 순차 처리
   - 🟣 멀티 에이전트: PROCESS 4개 이상, 도구 3개 이상, Human-in-Loop Collaborate, 병렬 처리 필요
 
-**멀티 에이전트 협업 패턴 (Strands Agents 기반)**:
-멀티 에이전트를 권장하는 경우, 다음 4가지 협업 패턴 중 가장 적합한 것을 선택하세요:
-- **agents-as-tools**: Orchestrator가 전문 Agent를 도구처럼 호출 (독립적 서브태스크 분해)
-- **swarm**: 동등한 Agent들이 handoff로 협업 (브레인스토밍, 반복 개선)
-- **graph**: 방향성 그래프로 정보 흐름 정의 (복잡한 계층적 결정)
-- **workflow**: 미리 정의된 순서로 태스크 실행 (단계별 파이프라인)
+스킬 문서에 정의된 Agent 패턴 정보를 참조하세요.
 
 이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
 {improved_feasibility_prompt}
 {{
-  "pain_point": "{form_data.get('painPoint', '')}",
-  "input_type": "INPUT 타입",
+  "pain_point": {json.dumps(form_data.get('painPoint', ''), ensure_ascii=False)},
+  "input_type": {json.dumps(form_data.get('inputType', ''), ensure_ascii=False)},
   "input_detail": "INPUT 상세",
   "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
   "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
   "output_detail": "OUTPUT 상세",
-  "human_loop": "None/Review/Exception/Collaborate",
+  "human_loop": {json.dumps(form_data.get('humanLoop', ''), ensure_ascii=False)},
   "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
   "recommended_architecture": "single-agent 또는 multi-agent (위 기준에 따라 판단)",
   "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",

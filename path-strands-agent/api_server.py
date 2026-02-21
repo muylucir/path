@@ -55,6 +55,13 @@ from rate_limiter import (
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """앱 시작/종료 시 실행되는 lifespan 이벤트"""
+    # 프로덕션 환경에서 API Key 필수 확인
+    if not is_development_mode() and not os.environ.get("PATH_API_KEY"):
+        raise RuntimeError(
+            "PATH_API_KEY 환경 변수가 설정되지 않았습니다. "
+            "프로덕션 환경에서는 API Key가 필수입니다."
+        )
+
     # 시작 시
     scheduler = get_cleanup_scheduler()
     scheduler.register_manager(chat_sessions)
@@ -216,6 +223,8 @@ class ChatRequest(BaseModel):
 
 
 class FinalizeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     formData: Dict[str, Any]
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
 
@@ -233,6 +242,8 @@ class FinalizeRequest(BaseModel):
 
 
 class SpecRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     analysis: Dict[str, Any]
     improvement_plans: Optional[Dict[str, str]] = None
     chat_history: Optional[List[Dict[str, str]]] = None
@@ -275,6 +286,8 @@ class FeasibilityRequest(BaseModel):
 
 
 class FeasibilityReevaluateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     formData: Dict[str, Any]
     previousEvaluation: Dict[str, Any]
     improvementPlans: Dict[str, str]
@@ -289,6 +302,8 @@ class FeasibilityReevaluateRequest(BaseModel):
 
 # Step3: Pattern Analysis 관련 Request Models
 class PatternAnalyzeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
     improvementPlans: Optional[Dict[str, str]] = None
@@ -302,6 +317,8 @@ class PatternAnalyzeRequest(BaseModel):
 
 
 class PatternChatRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
     userMessage: str = Field(..., min_length=1, max_length=MAX_MESSAGE_LENGTH)
     formData: Dict[str, Any]
@@ -327,6 +344,8 @@ class PatternChatRequest(BaseModel):
 
 
 class PatternFinalizeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     formData: Dict[str, Any]
     feasibility: Dict[str, Any]
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
