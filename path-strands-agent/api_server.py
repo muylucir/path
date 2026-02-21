@@ -350,6 +350,7 @@ class PatternFinalizeRequest(BaseModel):
     feasibility: Dict[str, Any]
     conversation: List[Dict[str, str]] = Field(default_factory=list, max_length=50)
     improvementPlans: Optional[Dict[str, str]] = None
+    sessionId: Optional[str] = Field(None, max_length=100)
 
     @field_validator('formData', 'feasibility', 'improvementPlans', mode='before')
     @classmethod
@@ -560,9 +561,12 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
         session_id = data.sessionId
 
         # 기존 세션 조회 또는 새 세션 생성
+        is_stateful = False
         pattern_agent = None
         if session_id:
             pattern_agent = pattern_sessions.get_session(session_id)
+            if pattern_agent is not None:
+                is_stateful = True
 
         if pattern_agent is None:
             # 새 PatternAnalyzerAgent 생성
@@ -575,7 +579,7 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
 
         async def generate():
             try:
-                async for chunk in pattern_agent.chat_stream(data.userMessage):
+                async for chunk in pattern_agent.chat_stream(data.userMessage, stateful=is_stateful):
                     if "text" in chunk:
                         yield _sse_event({'text': chunk["text"], 'sessionId': session_id})
                     elif "usage" in chunk:
@@ -596,16 +600,26 @@ async def pattern_chat(request: Request, data: PatternChatRequest):
 async def pattern_finalize(request: Request, data: PatternFinalizeRequest):
     """Step3: 패턴 확정 및 최종 분석"""
     try:
-        # PatternAnalyzerAgent 생성 및 히스토리 복원
-        pattern_agent = PatternAnalyzerAgent()
-        for msg in data.conversation:
-            pattern_agent.add_message(msg["role"], msg["content"])
+        # 세션 재사용 로직
+        is_stateful = False
+        pattern_agent = None
+
+        if data.sessionId:
+            pattern_agent = pattern_sessions.get_session(data.sessionId)
+            if pattern_agent is not None:
+                is_stateful = True
+
+        if pattern_agent is None:
+            pattern_agent = PatternAnalyzerAgent()
+            for msg in data.conversation:
+                pattern_agent.add_message(msg["role"], msg["content"])
 
         analysis = await asyncio.to_thread(
             pattern_agent.finalize,
             data.formData,
             data.feasibility,
-            data.improvementPlans
+            data.improvementPlans,
+            stateful=is_stateful
         )
         usage = analysis.pop("_usage", None)
         response = {**analysis}

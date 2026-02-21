@@ -1,7 +1,7 @@
 """
-Multi-Stage Spec Agents - 명세서 생성을 3개 Agent로 분할 (DiagramAgent + DetailAgent 병렬)
+Multi-Stage Spec Agents - 명세서 생성을 4개 Agent로 분할 (DiagramAgent + PromptAgent + ToolAgent 병렬)
 
-순서: DesignAgent → (DiagramAgent || DetailAgent) → AssemblerAgent
+순서: DesignAgent → (DiagramAgent || PromptAgent || ToolAgent) → AssemblerAgent
 
 프레임워크 독립적 Agent 설계 명세서 생성
 """
@@ -503,8 +503,115 @@ flowchart TB
         return retry_output
 
 
-class DetailAgent:
-    """3단계: 상세 설계 (프롬프트, 도구)"""
+def _build_analysis_context_section(analysis: Dict[str, Any]) -> str:
+    """analysis 데이터에서 공통 컨텍스트 섹션 생성 (PromptAgent, ToolAgent 공용)"""
+    pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
+    input_type = analysis.get('input_type', analysis.get('inputType', ''))
+    process_steps = analysis.get('process_steps', analysis.get('processSteps', []))
+    output_types = analysis.get('output_types', analysis.get('outputTypes', []))
+    human_loop = analysis.get('human_loop', analysis.get('humanLoop', ''))
+    pattern = analysis.get('pattern', '')
+    recommended_arch = analysis.get('recommended_architecture', '')
+    multi_agent_pattern = analysis.get('multi_agent_pattern', '')
+
+    steps_text = '\n'.join(f'  - {s}' for s in process_steps) if process_steps else 'N/A'
+    outputs_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
+
+    return f"""**원본 분석 컨텍스트**:
+- **Pain Point**: {pain_point}
+- **Input Type**: {input_type}
+- **Process Steps**:
+{steps_text}
+- **Output Types**: {outputs_text}
+- **Human-in-Loop**: {human_loop}
+- **Pattern**: {pattern}
+- **Architecture**: {recommended_arch or 'single-agent'}
+- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}"""
+
+
+class PromptAgent:
+    """3a단계: Agent Prompt 설계"""
+
+    def __init__(self):
+        skill_prompt = get_skill_prompt()
+
+        system_prompt = """당신은 AI Agent 프롬프트 엔지니어링 전문가입니다.
+
+## 전문 영역
+- Agent System Prompt 설계 (역할, 지시사항, 제약조건)
+- 입출력 형식 명세 및 예시 작성
+
+## 설계 원칙
+1. **역할 명확화**: System Prompt에서 Agent의 정체성과 경계를 명확히 정의합니다
+2. **구체적 지시**: 모호한 표현 대신 구체적이고 측정 가능한 지시를 사용합니다
+3. **출력 형식 명시**: 예상 출력의 구조와 형식을 명확히 정의합니다
+
+## 품질 기준
+- System Prompt는 최소 200자 이상으로 충분한 컨텍스트를 제공합니다
+- 각 Agent에 실제 사용 예시(Example User Prompt + Expected Output)를 포함합니다
+
+## 금지 사항
+- 구현 코드 포함 금지
+- 플레이스홀더(TODO, TBD 등)만으로 채우기 금지"""
+        enhanced_prompt = system_prompt + "\n" + skill_prompt
+
+        self.agent = strands_utils.get_agent(
+            system_prompts=enhanced_prompt,
+            model_id=DEFAULT_MODEL_ID,
+            max_tokens=32000,
+            temperature=0.3,
+            tools=[safe_file_read]
+        )
+
+    def generate_prompts(self, design_result: str, analysis: Dict[str, Any]) -> str:
+        """Agent Prompt 설계 생성"""
+        context_section = _build_analysis_context_section(analysis)
+
+        prompt = f"""다음 Agent 설계를 기반으로 각 Agent의 프롬프트를 정의하세요:
+
+{design_result}
+
+{context_section}
+
+**필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
+**필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
+**필수 최종단계**: 위 스킬과 reference를 참고하여 프롬프트를 설계하세요.
+
+**중요 - 출력 규칙**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
+- 바로 설계 결과만 출력하세요
+
+**출력 형식:**
+
+## 4. Agent Prompts
+
+위 Agent Components 테이블의 각 Agent에 대해 아래 형식으로 작성:
+
+### 4.1 [Agent Name]
+**System Prompt:**
+```
+당신은 [역할]입니다.
+[구체적인 지시사항]
+```
+
+**Example User Prompt:**
+```
+[예시 사용자 입력]
+```
+
+**Expected Output:**
+```
+[예상 출력 형식]
+```
+"""
+        result = self.agent(prompt)
+        self._last_usage = extract_usage(result)
+        return result.message['content'][0]['text']
+
+
+class ToolAgent:
+    """3b단계: Tool 스키마 정의"""
 
     # output_types 키워드 → tool-schema reference 파일 매핑
     OUTPUT_TOOL_REFERENCE_MAP = {
@@ -535,22 +642,20 @@ class DetailAgent:
     def __init__(self):
         skill_prompt = get_skill_prompt()
 
-        system_prompt = """당신은 AI Agent 프롬프트 엔지니어링 및 도구 설계 전문가입니다.
+        system_prompt = """당신은 AI Agent 도구(Tool) 설계 전문가입니다.
 
 ## 전문 영역
-- Agent System Prompt 설계 (역할, 지시사항, 제약조건)
 - Tool 스키마 정의 (Compact Signature 형식)
-- 입출력 형식 명세 및 예시 작성
+- Agent가 사용할 외부 도구/API 인터페이스 설계
 
 ## 설계 원칙
-1. **역할 명확화**: System Prompt에서 Agent의 정체성과 경계를 명확히 정의합니다
-2. **구체적 지시**: 모호한 표현 대신 구체적이고 측정 가능한 지시를 사용합니다
-3. **출력 형식 명시**: 예상 출력의 구조와 형식을 명확히 정의합니다
+1. **명확한 인터페이스**: 각 Tool의 입력/출력을 명확히 정의합니다
+2. **단일 책임**: 하나의 Tool은 하나의 명확한 작업을 수행합니다
+3. **재사용성**: 여러 Agent가 공유할 수 있는 범용 Tool을 설계합니다
 
 ## 품질 기준
-- System Prompt는 최소 200자 이상으로 충분한 컨텍스트를 제공합니다
 - Tool은 Compact Signature 형식을 사용합니다 (JSON Schema 금지)
-- 각 Agent에 실제 사용 예시(Example User Prompt + Expected Output)를 포함합니다
+- 각 Tool에 사용 시점(When to use)을 명확히 기술합니다
 
 ## 금지 사항
 - JSON Schema 형식의 Tool 정의 금지
@@ -561,7 +666,7 @@ class DetailAgent:
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id=DEFAULT_MODEL_ID,
-            max_tokens=16000,
+            max_tokens=32000,
             temperature=0.3,
             tools=[safe_file_read]
         )
@@ -570,7 +675,6 @@ class DetailAgent:
         """analysis의 output_types 기반으로 읽어야 할 tool-schema reference 파일 결정"""
         output_types = analysis.get('output_types', analysis.get('outputTypes', []))
         pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
-        # output_types + pain_point에서 키워드 매칭
         search_text = ' '.join(output_types) if isinstance(output_types, list) else str(output_types)
         search_text += ' ' + pain_point
 
@@ -581,32 +685,9 @@ class DetailAgent:
 
         return list(matched_files)
 
-    def generate_details(self, design_result: str, analysis: Dict[str, Any]) -> str:
-        """프롬프트 및 도구 정의 생성"""
-
-        # analysis 컨텍스트 섹션
-        pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
-        input_type = analysis.get('input_type', analysis.get('inputType', ''))
-        process_steps = analysis.get('process_steps', analysis.get('processSteps', []))
-        output_types = analysis.get('output_types', analysis.get('outputTypes', []))
-        human_loop = analysis.get('human_loop', analysis.get('humanLoop', ''))
-        pattern = analysis.get('pattern', '')
-        recommended_arch = analysis.get('recommended_architecture', '')
-        multi_agent_pattern = analysis.get('multi_agent_pattern', '')
-
-        steps_text = '\n'.join(f'  - {s}' for s in process_steps) if process_steps else 'N/A'
-        outputs_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
-
-        context_section = f"""**원본 분석 컨텍스트**:
-- **Pain Point**: {pain_point}
-- **Input Type**: {input_type}
-- **Process Steps**:
-{steps_text}
-- **Output Types**: {outputs_text}
-- **Human-in-Loop**: {human_loop}
-- **Pattern**: {pattern}
-- **Architecture**: {recommended_arch or 'single-agent'}
-- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}"""
+    def generate_tools(self, design_result: str, analysis: Dict[str, Any]) -> str:
+        """Tool 정의 생성"""
+        context_section = _build_analysis_context_section(analysis)
 
         # tool-schema reference 읽기 지시 생성
         tool_refs = self._get_tool_references(analysis)
@@ -617,17 +698,15 @@ class DetailAgent:
                 f'"./skills/tool-schema/references/{ref_file}"를 읽으세요.'
             )
 
-        prompt = f"""다음 Agent 설계를 기반으로 프롬프트와 도구를 정의하세요:
+        prompt = f"""다음 Agent 설계를 기반으로 필요한 도구(Tool)를 정의하세요:
 
 {design_result}
 
 {context_section}
 
-**필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
-**필수 3단계**: file_read로 "tool-schema" 스킬의 SKILL.md를 읽으세요.
+**필수 1단계**: file_read로 "tool-schema" 스킬의 SKILL.md를 읽으세요.
 {tool_ref_instructions}
-**필수 최종단계**: 위 스킬과 reference를 참고하여 상세 설계하세요.
+**필수 최종단계**: 위 스킬과 reference를 참고하여 도구를 설계하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
@@ -635,27 +714,6 @@ class DetailAgent:
 - 바로 설계 결과만 출력하세요
 
 **출력 형식:**
-
-## 4. Agent Prompts
-
-위 Agent Components 테이블의 각 Agent에 대해 아래 형식으로 작성:
-
-### 4.1 [Agent Name]
-**System Prompt:**
-```
-당신은 [역할]입니다.
-[구체적인 지시사항]
-```
-
-**Example User Prompt:**
-```
-[예시 사용자 입력]
-```
-
-**Expected Output:**
-```
-[예상 출력 형식]
-```
 
 ## 5. Tool Definitions
 
@@ -722,10 +780,8 @@ class AssemblerAgent:
         analysis: Dict[str, Any],
         design_result: str,
         diagram_result: str,
-        detail_result: str,
-        improvement_plans: Optional[Dict[str, str]] = None,
-        chat_history: Optional[List[Dict[str, str]]] = None,
-        additional_context: Optional[Dict[str, str]] = None
+        prompt_result: str,
+        tool_result: str,
     ) -> AsyncIterator[dict]:
         """최종 조합 - LLM 없이 단순 문자열 조합 후 스트리밍"""
 
@@ -734,7 +790,8 @@ class AssemblerAgent:
         # 내부 코멘트 제거
         design_result = self._clean_internal_comments(design_result)
         diagram_result = self._clean_internal_comments(diagram_result)
-        detail_result = self._clean_internal_comments(detail_result)
+        prompt_result = self._clean_internal_comments(prompt_result)
+        tool_result = self._clean_internal_comments(tool_result)
 
         # 데이터 추출
         pain_point = analysis.get('pain_point', analysis.get('painPoint', 'N/A'))
@@ -773,7 +830,9 @@ class AssemblerAgent:
 
 {diagram_result}
 
-{detail_result}
+{prompt_result}
+
+{tool_result}
 
 ## 6. Problem Decomposition
 
@@ -819,12 +878,13 @@ class AssemblerAgent:
 
 
 class MultiStageSpecAgent:
-    """명세서 생성 조율 - DiagramAgent + DetailAgent 병렬 실행"""
+    """명세서 생성 조율 - DiagramAgent + PromptAgent + ToolAgent 병렬 실행"""
 
     def __init__(self):
         self.design_agent = DesignAgent()
         self.diagram_agent = DiagramAgent()
-        self.detail_agent = DetailAgent()
+        self.prompt_agent = PromptAgent()
+        self.tool_agent = ToolAgent()
         self.assembler_agent = AssemblerAgent()
 
     async def generate_spec_stream(
@@ -857,31 +917,36 @@ class MultiStageSpecAgent:
             design_result = await task
             yield f"data: {json.dumps({'progress': 40, 'stage': '2. 에이전트 설계 패턴 완료'}, ensure_ascii=False)}\n\n"
 
-            # 2-3단계: 다이어그램 + 상세 설계 병렬 실행 (40-95%)
-            yield f"data: {json.dumps({'progress': 40, 'stage': '3. 다이어그램 & 4-5. 프롬프트/도구 병렬 생성 시작'}, ensure_ascii=False)}\n\n"
-            
+            # 2-3단계: 다이어그램 + 프롬프트 + 도구 병렬 실행 (40-95%)
+            yield f"data: {json.dumps({'progress': 40, 'stage': '3. 다이어그램 & 4. 프롬프트 & 5. 도구 병렬 생성 시작'}, ensure_ascii=False)}\n\n"
+
             diagram_task = asyncio.create_task(asyncio.to_thread(
                 self.diagram_agent.generate_diagrams, design_result, analysis
             ))
-            detail_task = asyncio.create_task(asyncio.to_thread(
-                self.detail_agent.generate_details, design_result, analysis
+            prompt_task = asyncio.create_task(asyncio.to_thread(
+                self.prompt_agent.generate_prompts, design_result, analysis
             ))
-            
+            tool_task = asyncio.create_task(asyncio.to_thread(
+                self.tool_agent.generate_tools, design_result, analysis
+            ))
+
             progress = 45
-            while not diagram_task.done() or not detail_task.done():
+            while not diagram_task.done() or not prompt_task.done() or not tool_task.done():
                 await asyncio.sleep(3)
-                if not diagram_task.done() or not detail_task.done():
+                if not diagram_task.done() or not prompt_task.done() or not tool_task.done():
                     progress = min(progress + 5, 90)
                     stages_status = []
                     if not diagram_task.done():
                         stages_status.append("다이어그램")
-                    if not detail_task.done():
-                        stages_status.append("프롬프트/도구")
+                    if not prompt_task.done():
+                        stages_status.append("프롬프트")
+                    if not tool_task.done():
+                        stages_status.append("도구")
                     stage_text = " & ".join(stages_status) + " 생성 중..."
                     yield f"data: {json.dumps({'progress': progress, 'stage': stage_text}, ensure_ascii=False)}\n\n"
-            
-            diagram_result, detail_result = await asyncio.gather(diagram_task, detail_task)
-            yield f"data: {json.dumps({'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트/도구 완료'}, ensure_ascii=False)}\n\n"
+
+            diagram_result, prompt_result, tool_result = await asyncio.gather(diagram_task, prompt_task, tool_task)
+            yield f"data: {json.dumps({'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}, ensure_ascii=False)}\n\n"
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
             yield f"data: {json.dumps({'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}, ensure_ascii=False)}\n\n"
@@ -889,10 +954,8 @@ class MultiStageSpecAgent:
                 analysis,
                 design_result,
                 diagram_result,
-                detail_result,
-                improvement_plans,
-                chat_history,
-                additional_context
+                prompt_result,
+                tool_result,
             ):
                 yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
 
@@ -902,7 +965,10 @@ class MultiStageSpecAgent:
                     getattr(self.design_agent, '_last_usage', {}) or {},
                     getattr(self.diagram_agent, '_last_usage', {}) or {}
                 ),
-                getattr(self.detail_agent, '_last_usage', {}) or {}
+                merge_usage(
+                    getattr(self.prompt_agent, '_last_usage', {}) or {},
+                    getattr(self.tool_agent, '_last_usage', {}) or {}
+                )
             )
             if total_usage.get("totalTokens", 0) > 0:
                 yield f"data: {json.dumps({'usage': total_usage}, ensure_ascii=False)}\n\n"

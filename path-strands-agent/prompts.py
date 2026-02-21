@@ -4,6 +4,12 @@ PATH 프레임워크 프롬프트 - TypeScript에서 Python으로 변환
 
 import json
 
+# ============================================
+# LEGACY: 아래 SYSTEM_PROMPT와 get_initial_analysis_prompt는
+# deprecated 엔드포인트(/analyze, /chat, /finalize) 전용입니다.
+# 새 플로우는 FEASIBILITY_SYSTEM_PROMPT, PATTERN_ANALYSIS_SYSTEM_PROMPT 등을 사용합니다.
+# ============================================
+
 SYSTEM_PROMPT = """<role>
 당신은 20년차 소프트웨어 아키텍트이자 AI Agent 전문가입니다.
 P.A.T.H (Problem-Agent-Technical-Handoff) 프레임워크를 개발한 전문가입니다.
@@ -91,54 +97,6 @@ Pain Point를 4가지 요소로 분해:
 - **Reflection + Human-in-the-Loop**: 자동 개선 후 최종 검토
 </framework>
 
-<evaluation_criteria>
-## Phase 3: Feasibility Check (실현 가능성 평가)
-
-5개 항목을 평가하여 총 50점 만점으로 산정:
-
-### 1. 데이터 접근성 (10점)
-- **10점**: MCP 서버 또는 RAG 존재
-- **9점**: API 존재
-- **7점**: 파일 기반
-- **6점**: DB 직접 접근
-- **3점**: 화면 스크래핑
-- **0점**: 오프라인만 존재
-
-### 2. 판단 기준 명확성 (10점)
-- **10점**: 명확한 if-then 규칙으로 표현 가능
-- **8점**: 100+ 레이블링된 예시 존재
-- **6점**: 암묵적 패턴 있으나 문서화 안됨
-- **4점**: 전문가 직감에 의존
-- **2점**: "그냥 알 수 있어요" (설명 불가)
-
-### 3. 오류 허용도 (10점)
-- **10점**: 틀려도 괜찮음
-- **8점**: 리뷰 후 실행
-- **5점**: 90%+ 정확도 필요
-- **3점**: 99%+ 정확도 필요
-- **0점**: 무조건 100%
-
-### 4. 지연 요구사항 (10점)
-- **10점**: 몇 시간 OK
-- **9점**: 몇 분 OK
-- **7점**: 1분 이내
-- **5점**: 10초 이내
-- **3점**: 실시간 <3초
-
-### 5. 통합 복잡도 (10점)
-- **10점**: 독립 실행
-- **8점**: 1-2개 시스템
-- **5점**: 3-5개 시스템
-- **3점**: 레거시 시스템
-- **1점**: 커스텀 프로토콜
-
-### 판정 기준
-- **40-50점**: ✅ 즉시 프로토타입 시작
-- **30-40점**: ⚠️ 조건부 진행
-- **20-30점**: 🔄 데이터/프로세스 개선 후 재평가
-- **20점 미만**: ❌ 대안 모색
-</evaluation_criteria>
-
 <your_tasks>
 ## 당신의 역할
 
@@ -168,7 +126,8 @@ Pain Point를 4가지 요소로 분해:
 
 
 def get_initial_analysis_prompt(form_data: dict) -> str:
-    """초기 분석 프롬프트 생성 - 통합 중심 구조"""
+    """[LEGACY] 초기 분석 프롬프트 생성 - deprecated 엔드포인트(/analyze) 전용.
+    새 플로우에서는 get_feasibility_evaluation_prompt, get_pattern_analysis_prompt를 사용하세요."""
     # 등록된 통합 정보 (사용 가능한 도구/데이터) - 상세 포함
     integration_details = form_data.get('integrationDetails', [])
     if integration_details:
@@ -225,7 +184,7 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
 
 1. 입력 내용을 분석하여 PROCESS 단계를 상세화
 2. 적합한 Agent Design Pattern 분석 및 추천
-3. 추가로 필요한 정보가 있다면 3-5개 질문 생성
+3. 추가로 필요한 정보가 있다면 최대 3개 질문 생성
 4. 현재 정보만으로 Feasibility 예비 평가 (0-50점)
 </instructions>
 
@@ -332,7 +291,7 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 - **20점 미만**: ❌ 현재 상태로는 구현 어려움
 
 ## 취약 항목
-- **7점 이하**인 항목은 취약 항목으로 분류
+- **6점 미만** (5점 이하)인 항목은 취약 항목으로 분류
 - 취약 항목에 대해 구체적인 개선 제안 필수
 </judgment_criteria>
 
@@ -342,7 +301,15 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 - 모든 점수에 구체적 근거 제시
 - 개선 제안은 실행 가능하고 구체적으로
 - 리스크를 숨기지 않고 명확히 제시
-</style>"""
+</style>
+
+<skill_usage>
+**스킬 참조 (선택사항)**:
+더 정확한 평가가 필요할 때 `file_read` 도구로 다음 파일을 참조할 수 있습니다:
+- `skills/feasibility-evaluation/references/scoring-criteria.md` — 5개 항목별 세부 점수 기준
+- `skills/feasibility-evaluation/references/improvement-suggestions.md` — 항목별 개선 제안 템플릿
+- `skills/feasibility-evaluation/references/risk-patterns.md` — 일반적인 리스크 패턴 및 대응 방안
+</skill_usage>"""
 
 
 def get_feasibility_evaluation_prompt(form_data: dict) -> str:
@@ -416,54 +383,49 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
   "summary": "전체 평가 요약. 강점과 약점을 균형있게 설명하고, 다음 단계를 위한 조언 포함 (3-4문장)"
 }}
 
-**참고 예시 (형식 참조용, 실제 평가는 독립적으로 수행하세요):**
+**참고 예시 (형식 참조용, 실제 평가는 사용자 입력에 기반하여 완전히 독립적으로 수행하세요. 아래 점수를 참조하지 마세요.):**
 ```json
 {{
-  "feasibility_score": 32,
+  "feasibility_score": "[총점 계산]",
   "feasibility_breakdown": {{
     "data_access": {{
-      "score": 7,
-      "reason": "REST API가 존재하지만 인증 절차가 복잡하고 rate limit이 있어 대량 처리에 제약이 있습니다.",
-      "current_state": "OAuth2 인증 기반 REST API, 시간당 1000건 호출 제한"
+      "score": "[평가 기준표에 따라 산정]",
+      "reason": "데이터 접근 방식과 API 존재 여부를 분석한 결과입니다. 인증 절차의 복잡도와 호출 제한 등도 함께 고려하여 점수를 산정했습니다.",
+      "current_state": "현재 데이터 접근 방식에 대한 상세 분석"
     }},
     "decision_clarity": {{
-      "score": 8,
-      "reason": "승인/반려 기준이 사내 규정으로 명문화되어 있어 규칙 기반 자동화가 가능합니다.",
-      "current_state": "사내 규정집에 의사결정 기준이 문서화됨"
+      "score": "[평가 기준표에 따라 산정]",
+      "reason": "의사결정 기준의 명확성을 분석한 결과입니다. 규칙의 문서화 정도와 예시 데이터 존재 여부를 종합적으로 검토했습니다.",
+      "current_state": "현재 판단 기준 상태에 대한 상세 분석"
     }},
     "error_tolerance": {{
-      "score": 5,
-      "reason": "고객 대면 업무로 90% 이상 정확도가 요구되며, 오류 시 수동 검토 프로세스가 필요합니다.",
-      "current_state": "현재 수동 처리 시 약 95% 정확도"
+      "score": "[평가 기준표에 따라 산정]",
+      "reason": "업무 특성에 따른 오류 허용 수준을 분석한 결과입니다. 오류 발생 시 비즈니스 영향도와 복구 가능성을 함께 고려했습니다.",
+      "current_state": "현재 오류 허용 상황에 대한 상세 분석"
     }},
     "latency": {{
-      "score": 7,
-      "reason": "배치 처리가 가능하여 실시간 응답은 불필요하지만, 1시간 이내 처리가 기대됩니다.",
-      "current_state": "현재 수동 처리 시 평균 4시간 소요"
+      "score": "[평가 기준표에 따라 산정]",
+      "reason": "입력 트리거 유형과 업무 특성에 따른 응답 시간 요구를 분석한 결과입니다. 실시간 필요 여부와 배치 처리 가능 여부를 검토했습니다.",
+      "current_state": "현재 지연 요구 상황에 대한 상세 분석"
     }},
     "integration": {{
-      "score": 5,
-      "reason": "3개의 내부 시스템과 연동이 필요하며, 레거시 ERP 시스템의 API가 불안정합니다.",
-      "current_state": "CRM, ERP, 메일 시스템 연동 필요"
+      "score": "[평가 기준표에 따라 산정]",
+      "reason": "연동 대상 시스템 수와 각 시스템의 API 표준화 정도를 분석한 결과입니다. 레거시 시스템 존재 여부와 프로토콜 호환성도 고려했습니다.",
+      "current_state": "현재 통합 상황에 대한 상세 분석"
     }}
   }},
-  "judgment": "조건부 진행 (취약 항목 개선 후)",
-  "summary": "데이터 접근성과 판단 기준은 양호하나, 오류 허용도와 시스템 통합 측면에서 보완이 필요합니다.",
+  "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
+  "summary": "전체 평가를 요약합니다. 각 항목의 강점과 약점을 균형있게 설명합니다. 특히 취약한 영역에서 필요한 개선 사항을 구체적으로 안내합니다. 다음 단계를 위한 조언도 포함합니다.",
   "weak_items": [
     {{
-      "item": "error_tolerance",
-      "score": 5,
-      "improvement_suggestion": "Human-in-the-Loop 검토 단계를 추가하여 Agent 판단을 전문가가 확인하는 프로세스를 도입하세요."
-    }},
-    {{
-      "item": "integration",
-      "score": 5,
-      "improvement_suggestion": "ERP API의 안정성을 먼저 확보하거나, 중간 데이터 레이어를 구축하여 직접 의존성을 줄이세요."
+      "item": "[6점 미만 항목의 키]",
+      "score": "[해당 점수]",
+      "improvement_suggestion": "구체적인 개선 방안을 단계별로 제시합니다. 어떤 준비를 하면 점수가 올라갈 수 있는지 실행 가능한 액션 아이템으로 설명합니다. 기대 효과와 예상 개선 점수도 함께 제시합니다."
     }}
   ],
   "risks": [
-    "ERP 시스템 API 불안정으로 인한 처리 실패 가능성",
-    "고객 대면 업무 특성상 오류 발생 시 고객 불만 증가 우려"
+    "주요 리스크에 대한 상세 설명과 비즈니스 영향도",
+    "또 다른 리스크와 발생 가능성, 대응 방안"
   ]
 }}
 ```
@@ -730,4 +692,155 @@ Feasibility 결과와 사용자가 제출한 개선 방안을 바탕으로 최�
 3. [질문3]
 
 답변하시면 패턴을 확정합니다. "패턴 확정"을 입력하면 현재 정보로 진행합니다.
+
+**출력 규칙 (필수)**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽겠습니다", "파일을 참조하겠습니다", "분석을 진행하겠습니다" 같은 문구 금지
+- 바로 분석 결과만 출력하세요
 </instructions>"""
+
+
+# ============================================
+# Step 3 (continued): Pattern Chat & Finalize
+# ============================================
+
+def get_pattern_chat_prompt(user_message: str, history_text: str = None) -> str:
+    """Step3: 패턴 분석 채팅 프롬프트 생성
+
+    Args:
+        user_message: 현재 사용자 메시지
+        history_text: 대화 히스토리 텍스트 (세션 미사용 시에만 제공)
+    """
+    instructions = """사용자의 답변을 반영하여 패턴 분석을 계속하세요.
+추가 정보가 필요하면 구체적으로 질문하세요.
+충분하면 "패턴을 확정할 수 있습니다. '패턴 확정'을 입력하세요." 안내하세요.
+
+**중요 규칙**:
+- 패턴 정보는 이미 시스템 프롬프트와 이전 분석에 포함되어 있으므로 스킬 파일을 다시 읽지 마세요.
+- file_read 도구를 사용하지 마세요. 이미 가지고 있는 정보로 답변하세요.
+- "스킬을 읽겠습니다", "파일을 참조하겠습니다" 같은 내부 과정 안내를 출력하지 마세요.
+- 사용자에게 바로 실질적인 답변만 제공하세요.
+- 다이어그램이 필요하면 코드 블록(```)으로 감싸서 ASCII로 직접 그리세요."""
+
+    if history_text is not None:
+        # Stateless fallback: 전체 히스토리를 프롬프트에 포함
+        return f"""{history_text}
+
+{instructions}"""
+    else:
+        # Stateful: SDK messages에 이미 히스토리 존재, 사용자 메시지만 전달
+        return f"""{user_message}
+
+{instructions}"""
+
+
+def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_plans: dict = None, conversation_text: str = None) -> str:
+    """Step3: 패턴 확정 및 최종 분석 결과 생성 프롬프트"""
+
+    # Feasibility breakdown을 단순화
+    breakdown = feasibility.get('feasibility_breakdown', {})
+    simple_breakdown = {}
+    for key, value in breakdown.items():
+        if isinstance(value, dict):
+            simple_breakdown[key] = value.get('score', 0)
+        else:
+            simple_breakdown[key] = value
+
+    # 개선 방안 텍스트 구성
+    improvement_section = ""
+    if improvement_plans:
+        plans_with_content = {k: v for k, v in improvement_plans.items() if v and v.strip()}
+        if plans_with_content:
+            improvement_section = "\n**사용자 개선 방안**:\n"
+            for item, plan in plans_with_content.items():
+                improvement_section += f"- {item}: {plan}\n"
+
+    # 개선된 점수 계산 프롬프트 추가
+    improved_feasibility_prompt = ""
+    improved_feasibility_field = '"improved_feasibility": null,'
+    improved_feasibility_instruction = "- 개선 방안이 없거나 반영할 내용이 없으면 improved_feasibility는 null로 유지하세요."
+    if improvement_plans and any(v and v.strip() for v in improvement_plans.values()):
+        original_score = feasibility.get('feasibility_score', 0)
+        improved_feasibility_prompt = """
+**개선된 Feasibility 점수 계산 (improved_feasibility)**:
+사용자의 개선 방안과 대화 내용을 분석하여 예상되는 개선 점수를 계산하세요.
+
+계산 기준:
+1. 구체적이고 실행 가능한 개선 계획만 점수에 반영
+2. 항목당 최대 +3점 상향 가능
+3. 막연한 계획은 반영하지 않음
+4. 점수는 상향만 가능 (하향 불가)"""
+
+        improved_feasibility_field = f'''"improved_feasibility": {{
+    "score": "개선 후 총점 (숫자, 원본: {original_score})",
+    "score_change": "점수 변화량 (숫자)",
+    "breakdown": {{
+      "data_access": {{ "original_score": {simple_breakdown.get('data_access', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
+      "decision_clarity": {{ "original_score": {simple_breakdown.get('decision_clarity', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
+      "error_tolerance": {{ "original_score": {simple_breakdown.get('error_tolerance', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
+      "latency": {{ "original_score": {simple_breakdown.get('latency', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
+      "integration": {{ "original_score": {simple_breakdown.get('integration', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }}
+    }},
+    "summary": "전체 개선 점수 요약 (1-2문장)"
+  }},'''
+        improved_feasibility_instruction = "- improved_feasibility를 반드시 계산하여 포함하세요. null로 두지 마세요."
+
+    # 아키텍처 판단을 위한 추가 정보
+    process_count = len(form_data.get('processSteps', []))
+    human_loop = form_data.get('humanLoop', '')
+
+    if conversation_text is not None:
+        conversation_section = f"다음은 지금까지의 패턴 분석 대화입니다:\n\n{conversation_text}"
+    else:
+        conversation_section = "위 대화 내용을 참고하여 최종 분석을 수행하세요."
+
+    return f"""{conversation_section}
+
+**Feasibility 정보**:
+- 총점: {feasibility.get('feasibility_score', 0)}/50
+- 판정: {feasibility.get('judgment', '')}
+{improvement_section}
+
+**아키텍처 권장 판단 정보**:
+- PROCESS 단계 수: {process_count}개
+- Human-in-Loop: {human_loop}
+- 아키텍처 권장 기준:
+  - 🔵 싱글 에이전트: PROCESS 3개 이하, 도구 1-2개, Human-in-Loop None/Review, 순차 처리
+  - 🟣 멀티 에이전트: PROCESS 4개 이상, 도구 3개 이상, Human-in-Loop Collaborate, 병렬 처리 필요
+
+스킬 문서에 정의된 Agent 패턴 정보를 참조하세요.
+
+이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
+{improved_feasibility_prompt}
+{{
+  "pain_point": {json.dumps(form_data.get('painPoint', ''), ensure_ascii=False)},
+  "input_type": {json.dumps(form_data.get('inputType', ''), ensure_ascii=False)},
+  "input_detail": "INPUT 상세",
+  "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
+  "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
+  "output_detail": "OUTPUT 상세",
+  "human_loop": {json.dumps(form_data.get('humanLoop', ''), ensure_ascii=False)},
+  "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
+  "recommended_architecture": "single-agent 또는 multi-agent (위 기준에 따라 판단)",
+  "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",
+  "architecture_reason": "권장 아키텍처 이유 (문제의 특성 - 프로세스 단계 수, 도구 수, 협업 방식 기반으로 설명. 멀티 에이전트인 경우 선택한 협업 패턴의 적합성도 설명)",
+  "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
+  "feasibility_breakdown": {json.dumps(simple_breakdown)},
+  "feasibility_score": {feasibility.get('feasibility_score', 0)},
+  {improved_feasibility_field}
+  "recommendation": "추천 사항",
+  "risks": ["리스크1", "리스크2"],
+  "next_steps": [
+    "Phase 1: 핵심 기능 프로토타입 - 설명",
+    "Phase 2: 검증 및 테스트 - 설명",
+    "Phase 3: (선택적) 개선 및 확장 - 설명"
+  ]
+}}
+
+중요:
+- pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
+- recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나로 출력하세요.
+- multi_agent_pattern은 멀티 에이전트인 경우 반드시 "agents-as-tools", "swarm", "graph", "workflow" 중 하나로 출력하세요. 싱글 에이전트인 경우 null.
+- architecture_reason은 왜 해당 아키텍처를 권장하는지 문제 특성을 기반으로 설명하세요. 멀티 에이전트인 경우 협업 패턴 선택 이유도 포함하세요.
+- {improved_feasibility_instruction}
+- JSON만 출력하세요."""

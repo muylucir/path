@@ -73,7 +73,7 @@ export function Step3Results({
         <Container>
           <SpaceBetween size="xs">
             <Box variant="awsui-key-label">준비도</Box>
-            {analysis.improved_feasibility ? (
+            {analysis.improved_feasibility?.score != null ? (
               <SpaceBetween direction="horizontal" size="xs">
                 <Box variant="p" color="text-status-inactive"><span className="text-line-through">{feasibility_score}</span></Box>
                 <Icon name="caret-right-filled" />
