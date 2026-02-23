@@ -5,7 +5,6 @@ import {
   GetCommand,
   ScanCommand,
   DeleteCommand,
-  UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { Session, SessionListItem } from "@/lib/types";
 
@@ -13,7 +12,9 @@ const client = new DynamoDBClient({
   region: process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || "ap-northeast-2",
 });
 
-const docClient = DynamoDBDocumentClient.from(client);
+const docClient = DynamoDBDocumentClient.from(client, {
+  marshallOptions: { removeUndefinedValues: true },
+});
 const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "path-agent-sessions";
 
 export async function saveSession(sessionData: Omit<Session, "session_id" | "timestamp">): Promise<string> {
@@ -94,20 +95,20 @@ export async function deleteSession(sessionId: string): Promise<void> {
   );
 }
 
-export async function updateSessionSpecification(
+export async function replaceSession(
   sessionId: string,
-  specification: string
+  sessionData: Omit<Session, "session_id" | "timestamp">
 ): Promise<void> {
+  const item: Session = {
+    session_id: sessionId,
+    timestamp: new Date().toISOString(),
+    ...sessionData,
+  };
+
   await docClient.send(
-    new UpdateCommand({
+    new PutCommand({
       TableName: TABLE_NAME,
-      Key: { session_id: sessionId },
-      UpdateExpression: "SET specification = :spec, #ts = :ts",
-      ExpressionAttributeNames: { "#ts": "timestamp" },
-      ExpressionAttributeValues: {
-        ":spec": specification,
-        ":ts": new Date().toISOString(),
-      },
+      Item: item,
     })
   );
 }

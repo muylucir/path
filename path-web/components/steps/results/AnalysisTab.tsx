@@ -10,9 +10,10 @@ import KeyValuePairs from "@cloudscape-design/components/key-value-pairs";
 import Badge from "@cloudscape-design/components/badge";
 import TextContent from "@cloudscape-design/components/text-content";
 import Icon from "@cloudscape-design/components/icon";
-import { getReadinessLevel, getStatusIndicatorType } from "@/lib/readiness";
+import Button from "@cloudscape-design/components/button";
+import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import type { Analysis, FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
-import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
+import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, MULTI_AGENT_PATTERN_LABELS } from "@/lib/constants";
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
@@ -25,13 +26,58 @@ interface AnalysisTabProps {
 
 export function AnalysisTab({ analysis, formData, feasibility, improvementPlans }: AnalysisTabProps) {
   const { risks } = analysis;
+  const finalScore = analysis.improved_feasibility?.score ?? analysis.feasibility_score;
 
   const processSteps = formData?.processSteps || [];
   const isUserSelection = processSteps.some((step: string) =>
     PROCESS_STEPS.some((ps) => ps.label === step)
   );
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
+    <div id="print-analysis-area">
+      {/* Print-only header — visible only when printing */}
+      <div className="print-only-header">
+        <h1>P.A.T.H Agent Designer — 분석 결과</h1>
+        <div className="print-summary-cards">
+          <div className="print-summary-card">
+            <div className="print-card-label">추천 패턴</div>
+            <div className="print-card-value">{analysis.pattern}</div>
+            {(analysis.pattern_reason || analysis.architecture_reason) && (
+              <div className="print-card-reason">{analysis.pattern_reason || analysis.architecture_reason}</div>
+            )}
+          </div>
+          <div className="print-summary-card">
+            <div className="print-card-label">준비도</div>
+            <div className="print-card-value">
+              {analysis.improved_feasibility?.score != null ? (
+                <>{analysis.feasibility_score} → {analysis.improved_feasibility.score}/50 <span className="print-badge-green">+{analysis.improved_feasibility.score_change}</span></>
+              ) : (
+                <>{finalScore}/50</>
+              )}
+            </div>
+            <div className="print-card-meta">{getReadinessLevel(finalScore / 5).label}</div>
+          </div>
+          <div className="print-summary-card">
+            <div className="print-card-label">다음 단계</div>
+            <div className="print-card-value">{getJudgmentBadge(finalScore).label}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Print button — hidden during printing */}
+      <div className="no-print" style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 12, marginBottom: 8 }}>
+        <Box variant="small" color="text-body-secondary">
+          인쇄 설정에서 &quot;배경 그래픽&quot; 옵션을 켜면 색상이 유지됩니다
+        </Box>
+        <Button iconName="download" onClick={handlePrint}>
+          인쇄 / PDF 저장
+        </Button>
+      </div>
+
     <SpaceBetween size="l">
       {/* Step 1 Input Summary */}
       <Container header={<Header variant="h2">입력 정보 요약</Header>}>
@@ -209,5 +255,6 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
         </Alert>
       )}
     </SpaceBetween>
+    </div>
   );
 }

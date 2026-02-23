@@ -604,8 +604,61 @@ Feasibility 결과의 강점과 약점을 고려하여,
 </architecture_guide>
 
 <patterns>
-## Agent 패턴 상세 정보
-아래 첨부된 스킬 문서(universal-agent-patterns)의 패턴 정의와 의사결정 매트릭스를 참조하세요.
+## 기본 Agent Design Patterns
+
+| 패턴 | 개념 | 🔵 싱글 적합 | 🟣 멀티 적합 |
+|------|------|:----------:|:----------:|
+| **ReAct** | Think → Act → Observe → Repeat | 단순 추론 | 복잡한 다단계 |
+| **Reflection** | 생성 → 검토 → 개선 반복 | 단일 검토 | 다단계 검토 |
+| **Tool Use** | 외부 도구/API 호출 | 1-2개 도구 | 3개+ 도구 |
+| **Planning** | 작업 분해 → 순차 실행 | 순차 실행 | 병렬 실행 |
+| **Multi-Agent** | 전문화된 에이전트 협업 | N/A | ⭐ 필수 |
+| **Human-in-the-Loop** | 제안 → 검토 → 실행 | 단순 승인 | 복잡한 협업 |
+
+### 패턴 선택 가이드
+
+| 요구사항 | 추천 패턴 | 권장 아키텍처 |
+|---------|----------|:------------:|
+| 복잡한 질문에 정보 검색 필요 | ReAct | 상황에 따라 |
+| 출력 품질 개선 필요 | Reflection | 상황에 따라 |
+| 외부 시스템 연동 | Tool Use | 도구 수에 따라 |
+| 순차적 다단계 작업 | Planning | 단계 수에 따라 |
+| 병렬 처리 또는 다른 전문성 | Multi-Agent | 🟣 멀티 |
+| 사람 검토 필수 | Human-in-the-Loop | 협업 수준에 따라 |
+
+### 패턴 조합 예시
+
+| 조합 | 설명 | 사용 사례 | 권장 아키텍처 |
+|------|------|----------|:------------:|
+| **ReAct + Tool Use** | 추론하면서 도구 활용 | 정보 검색 후 분석 | 🔵/🟣 |
+| **Planning + Multi-Agent** | 계획 후 전문 에이전트 배분 | 복잡한 프로젝트 실행 | 🟣 멀티 |
+| **Reflection + Human-in-the-Loop** | 자동 개선 후 최종 검토 | 문서 작성, 코드 리뷰 | 🔵/🟣 |
+| **Multi-Agent + Reflection** | 협업 후 품질 검증 | 콘텐츠 생성 파이프라인 | 🟣 멀티 |
+
+### 멀티 에이전트 협업 패턴별 예시
+
+| 문제 유형 | 권장 패턴 | 구현 예시 |
+|----------|----------|----------|
+| 검색 + 분석 + 보고서 작성 | 🟣 Agents as Tools | Search Agent → Analysis Agent → Report Agent |
+| 아이디어 브레인스토밍 | 🟣 Swarm | Idea Generator ↔ Critic ↔ Refiner |
+| 복잡한 승인 프로세스 | 🟣 Graph | Validator → Approver1/Approver2 → Executor |
+| 데이터 ETL 파이프라인 | 🟣 Workflow | Extract → Transform → Load → Validate |
+
+### 패턴 선택 흐름
+
+```
+문제 분석
+    │
+    ├─ PROCESS ≤3, 도구 1-2개
+    │       └─→ 🔵 싱글 에이전트 (ReAct / Tool Use / Planning)
+    │
+    └─ PROCESS 4+, 도구 3+, 전문성 분리
+            │
+            ├─ 독립적 서브태스크 → Agents as Tools
+            ├─ 협업/반복 개선 → Swarm
+            ├─ 계층적/조건부 흐름 → Graph
+            └─ 순차 파이프라인 → Workflow
+```
 </patterns>
 
 <style>
@@ -715,12 +768,14 @@ def get_pattern_chat_prompt(user_message: str, history_text: str = None) -> str:
 추가 정보가 필요하면 구체적으로 질문하세요.
 충분하면 "패턴을 확정할 수 있습니다. '패턴 확정'을 입력하세요." 안내하세요.
 
-**중요 규칙**:
-- 패턴 정보는 이미 시스템 프롬프트와 이전 분석에 포함되어 있으므로 스킬 파일을 다시 읽지 마세요.
-- file_read 도구를 사용하지 마세요. 이미 가지고 있는 정보로 답변하세요.
-- "스킬을 읽겠습니다", "파일을 참조하겠습니다" 같은 내부 과정 안내를 출력하지 마세요.
-- 사용자에게 바로 실질적인 답변만 제공하세요.
-- 다이어그램이 필요하면 코드 블록(```)으로 감싸서 ASCII로 직접 그리세요."""
+**Skill 사용 안내**:
+- 더 깊은 패턴 분석이 필요하면 file_read로 스킬의 references/ 파일을 참조하세요.
+- 다이어그램이 필요하면 file_read로 "ascii-diagram" 스킬의 SKILL.md를 읽고 가이드를 따르세요.
+- 코드 블록(```)으로 감싸서 고정폭 폰트로 정렬하세요.
+
+**출력 규칙 (필수)**:
+- "스킬을 읽겠습니다", "파일을 참조하겠습니다", "확인해보겠습니다" 같은 내부 과정 안내를 절대 출력하지 마세요.
+- 도구 사용 여부와 관계없이 사용자에게 바로 실질적인 답변만 제공하세요."""
 
     if history_text is not None:
         # Stateless fallback: 전체 히스토리를 프롬프트에 포함

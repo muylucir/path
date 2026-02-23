@@ -3,7 +3,7 @@ import { z } from "zod";
 import { saveSession, listSessions } from "@/lib/aws/dynamodb";
 import type { Session } from "@/lib/types";
 
-const sessionSchema = z.object({
+export const sessionSchema = z.object({
   pain_point: z.string().min(1),
   input_type: z.string().min(1),
   process_steps: z.array(z.string()).min(1),

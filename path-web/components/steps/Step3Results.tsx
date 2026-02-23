@@ -45,30 +45,32 @@ export function Step3Results({
   return (
     <SpaceBetween size="l">
       {/* Pattern Card (full width) */}
-      <Container>
-        <SpaceBetween size="xs">
-          <SpaceBetween direction="horizontal" size="xs">
-            <Box variant="awsui-key-label">추천 패턴</Box>
-            {analysis.recommended_architecture && (
-              <Badge color={analysis.recommended_architecture === "multi-agent" ? "blue" : "grey"}>
-                {analysis.recommended_architecture === "multi-agent" ? "멀티 에이전트" : "싱글 에이전트"}
-              </Badge>
-            )}
-            {analysis.multi_agent_pattern && (
-              <Badge color="blue">{MULTI_AGENT_PATTERN_LABELS[analysis.multi_agent_pattern]}</Badge>
+      <div id="print-hide-pattern">
+        <Container>
+          <SpaceBetween size="xs">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Box variant="awsui-key-label">추천 패턴</Box>
+              {analysis.recommended_architecture && (
+                <Badge color={analysis.recommended_architecture === "multi-agent" ? "blue" : "grey"}>
+                  {analysis.recommended_architecture === "multi-agent" ? "멀티 에이전트" : "싱글 에이전트"}
+                </Badge>
+              )}
+              {analysis.multi_agent_pattern && (
+                <Badge color="blue">{MULTI_AGENT_PATTERN_LABELS[analysis.multi_agent_pattern]}</Badge>
+              )}
+            </SpaceBetween>
+            <Box variant="h2">{pattern}</Box>
+            {(analysis.pattern_reason || analysis.architecture_reason) && (
+              <Box variant="p" color="text-body-secondary">
+                {analysis.pattern_reason || analysis.architecture_reason}
+              </Box>
             )}
           </SpaceBetween>
-          <Box variant="h2">{pattern}</Box>
-          {(analysis.pattern_reason || analysis.architecture_reason) && (
-            <Box variant="p" color="text-body-secondary">
-              {analysis.pattern_reason || analysis.architecture_reason}
-            </Box>
-          )}
-        </SpaceBetween>
-      </Container>
+        </Container>
+      </div>
 
       {/* Readiness + Next Step (equal height) */}
-      <div className="summary-cards-equal">
+      <div id="print-hide-summary"><div className="summary-cards-equal">
         {/* Readiness Score */}
         <Container>
           <SpaceBetween size="xs">
@@ -100,7 +102,7 @@ export function Step3Results({
             </StatusIndicator>
           </SpaceBetween>
         </Container>
-      </div>
+      </div></div>
 
       {/* Tabs */}
       <Tabs
