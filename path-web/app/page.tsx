@@ -183,46 +183,59 @@ export default function DesignWizardPage() {
 
   const handleSave = useCallback(async (spec: string) => {
     try {
+      // Read latest analysis from sessionStorage to avoid stale closure
+      const savedAnalysisRaw = sessionStorage.getItem("analysis");
+      const latestAnalysis: Analysis | null = savedAnalysisRaw ? JSON.parse(savedAnalysisRaw) : analysis;
+      const a = latestAnalysis!;
+
+      // Build full session body (shared by POST and PUT)
+      const body = {
+        pain_point: formData!.painPoint,
+        input_type: a.input_type || formData!.inputType,
+        process_steps: a.process_steps || formData!.processSteps,
+        output_types: a.output_types || formData!.outputTypes,
+        human_loop: formData!.humanLoop,
+        error_tolerance: formData!.errorTolerance,
+        user_input_type: formData!.inputType,
+        user_process_steps: formData!.processSteps,
+        user_output_types: formData!.outputTypes,
+        data_source: formData!.additionalSources || "",
+        additional_context: formData!.additionalContext || "",
+        additional_sources: formData!.additionalSources || "",
+        pattern: a.pattern,
+        pattern_reason: a.pattern_reason,
+        recommended_architecture: a.recommended_architecture ?? null,
+        multi_agent_pattern: a.multi_agent_pattern ?? null,
+        architecture_reason: a.architecture_reason ?? null,
+        feasibility_breakdown: a.feasibility_breakdown,
+        feasibility_score: a.feasibility_score,
+        recommendation: a.recommendation,
+        risks: a.risks,
+        next_steps: a.next_steps,
+        chat_history: chatHistory,
+        specification: spec,
+        feasibility_evaluation: feasibility ?? null,
+        improvement_plans: improvementPlans,
+        improved_feasibility: a.improved_feasibility ?? null,
+        token_usage: (() => {
+          try {
+            const raw = sessionStorage.getItem("tokenUsage");
+            return raw ? JSON.parse(raw) : null;
+          } catch { return null; }
+        })(),
+      };
+
       if (sessionId) {
-        // PUT: only update specification
+        // PUT: replace entire session (same session_id)
         const res = await fetch(`/api/sessions/${sessionId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ specification: spec }),
+          body: JSON.stringify(body),
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         addFlash("success", "세션이 업데이트되었습니다");
       } else {
-        // POST: flatten to match sessionSchema
-        const body = {
-          pain_point: formData!.painPoint,
-          input_type: formData!.inputType,
-          process_steps: formData!.processSteps,
-          output_types: formData!.outputTypes,
-          human_loop: formData!.humanLoop,
-          error_tolerance: formData!.errorTolerance,
-          user_input_type: formData!.inputType,
-          user_process_steps: formData!.processSteps,
-          user_output_types: formData!.outputTypes,
-          data_source: formData!.additionalSources || "",
-          additional_context: formData!.additionalContext || "",
-          additional_sources: formData!.additionalSources || "",
-          pattern: analysis!.pattern,
-          pattern_reason: analysis!.pattern_reason,
-          recommended_architecture: analysis!.recommended_architecture ?? null,
-          multi_agent_pattern: analysis!.multi_agent_pattern ?? null,
-          architecture_reason: analysis!.architecture_reason ?? null,
-          feasibility_breakdown: analysis!.feasibility_breakdown,
-          feasibility_score: analysis!.feasibility_score,
-          recommendation: analysis!.recommendation,
-          risks: analysis!.risks,
-          next_steps: analysis!.next_steps,
-          chat_history: chatHistory,
-          specification: spec,
-          feasibility_evaluation: feasibility ?? null,
-          improvement_plans: improvementPlans,
-          improved_feasibility: analysis!.improved_feasibility ?? null,
-        };
+        // POST: create new session
         const res = await fetch("/api/sessions", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

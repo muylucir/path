@@ -139,6 +139,7 @@ export interface Session {
   data_source: string;
   error_tolerance: string;
   additional_context: string;
+  additional_sources?: string;
   pattern: string;
   pattern_reason: string;
   recommended_architecture?: 'single-agent' | 'multi-agent';

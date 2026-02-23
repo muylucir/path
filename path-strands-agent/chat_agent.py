@@ -374,23 +374,63 @@ class PatternAnalyzerAgent:
         self.add_message("assistant", response)
         return response
 
+    async def _stream_filtered(self, prompt: str) -> AsyncIterator[dict]:
+        """Tool 사용 시 meta-commentary를 필터링하는 스트리밍 헬퍼
+
+        동작 원리:
+        1. 텍스트를 버퍼에 축적
+        2. current_tool_use 이벤트 → 버퍼 폐기 (tool 전 메타 코멘터리 제거)
+        3. start 이벤트 (tool 후 새 사이클) → 스트리밍 모드 전환
+        4. tool 미사용 시 → 100자 초과 시 자동 플러시 (지연 최소화)
+        """
+        full_response = ""
+        usage = None
+        buffer = ""
+        had_tool_use = False
+        streaming = False
+
+        async for event in self.agent.stream_async(prompt):
+            if "data" in event:
+                chunk = event["data"]
+                if streaming:
+                    full_response += chunk
+                    yield {"text": chunk}
+                else:
+                    buffer += chunk
+                    # Tool 미사용이 확실해지면 바로 스트리밍 시작
+                    if not had_tool_use and len(buffer) > 100:
+                        streaming = True
+                        full_response += buffer
+                        yield {"text": buffer}
+                        buffer = ""
+            elif "current_tool_use" in event:
+                had_tool_use = True
+                buffer = ""  # Tool 전 메타 코멘터리 폐기
+            elif "start" in event:
+                # Tool 실행 후 새 사이클 시작 → 스트리밍 모드 전환
+                if had_tool_use and not streaming:
+                    streaming = True
+            elif "result" in event:
+                usage = extract_usage(event["result"])
+
+        # 잔여 버퍼 플러시 (짧은 응답 또는 tool 미사용)
+        if buffer:
+            full_response += buffer
+            yield {"text": buffer}
+
+        yield {"_full_response": full_response}
+        if usage:
+            yield {"usage": usage}
+
     async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> AsyncIterator[dict]:
         """Feasibility 기반 초기 패턴 분석 - 스트리밍 버전 (dict yield)"""
         prompt = get_pattern_analysis_prompt(form_data, feasibility, improvement_plans)
 
-        full_response = ""
-        usage = None
-        async for event in self.agent.stream_async(prompt):
-            if "data" in event:
-                chunk = event["data"]
-                full_response += chunk
-                yield {"text": chunk}
-            elif "result" in event:
-                usage = extract_usage(event["result"])
-
-        self.add_message("assistant", full_response)
-        if usage:
-            yield {"usage": usage}
+        async for chunk in self._stream_filtered(prompt):
+            if "_full_response" in chunk:
+                self.add_message("assistant", chunk["_full_response"])
+            else:
+                yield chunk
 
     async def chat_stream(self, user_message: str, stateful: bool = False) -> AsyncIterator[dict]:
         """패턴 관련 대화 - 스트리밍 버전 (Skill 시스템 지원, dict yield)"""
@@ -405,19 +445,11 @@ class PatternAnalyzerAgent:
             ])
             prompt = get_pattern_chat_prompt(user_message=user_message, history_text=history_text)
 
-        full_response = ""
-        usage = None
-        async for event in self.agent.stream_async(prompt):
-            if "data" in event:
-                chunk = event["data"]
-                full_response += chunk
-                yield {"text": chunk}
-            elif "result" in event:
-                usage = extract_usage(event["result"])
-
-        self.add_message("assistant", full_response)
-        if usage:
-            yield {"usage": usage}
+        async for chunk in self._stream_filtered(prompt):
+            if "_full_response" in chunk:
+                self.add_message("assistant", chunk["_full_response"])
+            else:
+                yield chunk
 
     def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None, stateful: bool = False) -> Dict[str, Any]:
         """패턴 확정 및 최종 분석 결과 생성 (개선된 점수 포함)"""

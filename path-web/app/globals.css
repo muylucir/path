@@ -188,3 +188,226 @@ body {
   max-width: 100%;
   height: auto;
 }
+
+/* ===== Print / PDF export styles ===== */
+
+/* Print-only elements (hidden on screen) */
+.print-only-header {
+  display: none;
+}
+.print-summary-cards,
+.print-summary-card,
+.print-card-label,
+.print-card-value,
+.print-card-meta,
+.print-badge-green,
+.print-card-reason {
+  display: none;
+}
+
+/* Elements to hide during print */
+.no-print {
+  display: block;
+}
+
+@media print {
+  /* Paper size & margins */
+  @page {
+    size: A4;
+    margin: 12mm 10mm;
+  }
+
+  /* Hide everything on the page */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the analysis print area and its children */
+  #print-analysis-area,
+  #print-analysis-area * {
+    visibility: visible;
+  }
+
+  /* Position the print area at the top, fit to paper width */
+  #print-analysis-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+
+  /* Force ALL children to respect paper width */
+  #print-analysis-area *  {
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    word-break: break-word;
+  }
+
+  /* Override Cloudscape layout constraints */
+  #print-analysis-area [class*="awsui_root"],
+  #print-analysis-area [class*="awsui_content"],
+  #print-analysis-area [class*="awsui_container"],
+  #print-analysis-area [class*="awsui_header"],
+  #print-analysis-area [class*="awsui_body"] {
+    max-width: 100% !important;
+    width: 100% !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+  }
+
+  /* Cloudscape SpaceBetween / flex layout — prevent horizontal overflow */
+  #print-analysis-area [class*="awsui_child"] {
+    max-width: 100% !important;
+    overflow: visible !important;
+  }
+
+  /* KeyValuePairs grid — stack vertically if too wide */
+  #print-analysis-area [class*="awsui_key-value-pair"] {
+    max-width: 100% !important;
+  }
+
+  /* Tables should shrink to fit */
+  #print-analysis-area table {
+    width: 100% !important;
+    table-layout: fixed;
+    word-break: break-word;
+  }
+
+  /* Images & SVGs fit paper */
+  #print-analysis-area img,
+  #print-analysis-area svg {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Show the print-only header */
+  .print-only-header {
+    display: block !important;
+    visibility: visible !important;
+    margin-bottom: 20px;
+    padding-bottom: 0;
+  }
+
+  .print-only-header h1 {
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #232f3e;
+    color: #232f3e;
+  }
+
+  /* Summary cards — vertical stack */
+  .print-summary-cards {
+    display: flex !important;
+    visibility: visible !important;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+
+  .print-summary-card {
+    display: block !important;
+    visibility: visible !important;
+    border: 1px solid #d5dbdb;
+    border-radius: 8px;
+    padding: 10px 14px;
+  }
+
+  .print-card-label {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #545b64;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+  }
+
+  .print-card-value {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #16191f;
+    margin-bottom: 2px;
+  }
+
+  .print-card-meta {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 0.8rem;
+    color: #687078;
+  }
+
+  .print-badge-green {
+    display: inline !important;
+    visibility: visible !important;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #037f0c;
+  }
+
+  .print-card-reason {
+    display: block !important;
+    visibility: visible !important;
+    font-size: 0.8rem;
+    color: #545b64;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #e9ebed;
+    line-height: 1.5;
+  }
+
+  /* Hide all no-print elements — high specificity to override everything */
+  .no-print,
+  #print-analysis-area .no-print,
+  #print-analysis-area .no-print * {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure page breaks work well — avoid splitting containers */
+  #print-analysis-area [class*="awsui_container"] {
+    break-inside: avoid;
+  }
+
+  /* Remove fixed/sticky elements */
+  #top-nav {
+    display: none !important;
+  }
+
+  /* Hide Wizard navigation buttons (이전/저장/취소/다음) */
+  [class*="awsui_action-buttons"],
+  [class*="awsui_wizard-actions"] {
+    display: none !important;
+  }
+
+  /* Hide pattern card & summary cards in print */
+  #print-hide-pattern,
+  #print-hide-summary {
+    display: none !important;
+  }
+
+
+  /* Reduce font sizes slightly for better fit */
+  #print-analysis-area {
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  #print-analysis-area h2,
+  #print-analysis-area [class*="awsui_header-variant-h2"] {
+    font-size: 13pt;
+  }
+
+  #print-analysis-area h3,
+  #print-analysis-area [class*="awsui_header-variant-h3"] {
+    font-size: 12pt;
+  }
+}

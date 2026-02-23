@@ -1,5 +1,7 @@
 import { NextRequest } from "next/server";
-import { loadSession, deleteSession, updateSessionSpecification } from "@/lib/aws/dynamodb";
+import { loadSession, deleteSession, replaceSession } from "@/lib/aws/dynamodb";
+import { sessionSchema } from "@/app/api/sessions/route";
+import type { Session } from "@/lib/types";
 
 const SESSION_ID_PATTERN = /^[a-zA-Z0-9_-]{10,100}$/;
 
@@ -80,19 +82,23 @@ export async function PUT(
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
+
     const body = await req.json();
-    const { specification } = body;
-
-    const MAX_SPECIFICATION_LENGTH = 500_000; // 500KB limit
-
-    if (typeof specification !== "string" || specification.length > MAX_SPECIFICATION_LENGTH) {
-      return new Response(
-        JSON.stringify({ error: `명세서는 ${MAX_SPECIFICATION_LENGTH.toLocaleString()}자 이내여야 합니다` }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+    const result = sessionSchema.safeParse(body);
+    if (!result.success) {
+      return Response.json(
+        {
+          error: "Validation failed",
+          details: result.error.issues.map((issue) => ({
+            path: issue.path.join("."),
+            message: issue.message,
+          })),
+        },
+        { status: 400 }
       );
     }
 
-    await updateSessionSpecification(id, specification);
+    await replaceSession(id, result.data as unknown as Omit<Session, "session_id" | "timestamp">);
 
     return Response.json({ success: true });
   } catch (error) {
