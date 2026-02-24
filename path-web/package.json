@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@aws-sdk/client-bedrock-agentcore": "^3.955.0",
     "@aws-sdk/client-dynamodb": "^3.955.0",
     "@aws-sdk/lib-dynamodb": "^3.955.0",
     "@cloudscape-design/chat-components": "^1.0.94",

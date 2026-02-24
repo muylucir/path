@@ -893,14 +893,14 @@ class MultiStageSpecAgent:
         improvement_plans: Optional[Dict[str, str]] = None,
         chat_history: Optional[List[Dict[str, str]]] = None,
         additional_context: Optional[Dict[str, str]] = None
-    ) -> AsyncIterator[str]:
-        """명세서 생성 - keep-alive 포함"""
+    ) -> AsyncIterator[dict]:
+        """명세서 생성 - dict yield (AgentCore 엔트리포인트에서 SSE 변환)"""
 
         import asyncio
 
         try:
             # 1단계: Agent 설계 패턴 (0-40%) - Section 2: Agent Design Pattern
-            yield f"data: {json.dumps({'progress': 0, 'stage': '2. 에이전트 설계 패턴 분석 시작'}, ensure_ascii=False)}\n\n"
+            yield {'progress': 0, 'stage': '2. 에이전트 설계 패턴 분석 시작'}
             task = asyncio.create_task(asyncio.to_thread(
                 self.design_agent.analyze,
                 analysis,
@@ -913,12 +913,12 @@ class MultiStageSpecAgent:
                 await asyncio.sleep(3)
                 if not task.done():
                     progress = min(progress + 5, 35)
-                    yield f"data: {json.dumps({'progress': progress, 'stage': '2. 에이전트 설계 패턴 분석 중...'}, ensure_ascii=False)}\n\n"
+                    yield {'progress': progress, 'stage': '2. 에이전트 설계 패턴 분석 중...'}
             design_result = await task
-            yield f"data: {json.dumps({'progress': 40, 'stage': '2. 에이전트 설계 패턴 완료'}, ensure_ascii=False)}\n\n"
+            yield {'progress': 40, 'stage': '2. 에이전트 설계 패턴 완료'}
 
             # 2-3단계: 다이어그램 + 프롬프트 + 도구 병렬 실행 (40-95%)
-            yield f"data: {json.dumps({'progress': 40, 'stage': '3. 다이어그램 & 4. 프롬프트 & 5. 도구 병렬 생성 시작'}, ensure_ascii=False)}\n\n"
+            yield {'progress': 40, 'stage': '3. 다이어그램 & 4. 프롬프트 & 5. 도구 병렬 생성 시작'}
 
             diagram_task = asyncio.create_task(asyncio.to_thread(
                 self.diagram_agent.generate_diagrams, design_result, analysis
@@ -943,13 +943,13 @@ class MultiStageSpecAgent:
                     if not tool_task.done():
                         stages_status.append("도구")
                     stage_text = " & ".join(stages_status) + " 생성 중..."
-                    yield f"data: {json.dumps({'progress': progress, 'stage': stage_text}, ensure_ascii=False)}\n\n"
+                    yield {'progress': progress, 'stage': stage_text}
 
             diagram_result, prompt_result, tool_result = await asyncio.gather(diagram_task, prompt_task, tool_task)
-            yield f"data: {json.dumps({'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}, ensure_ascii=False)}\n\n"
+            yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
-            yield f"data: {json.dumps({'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}, ensure_ascii=False)}\n\n"
+            yield {'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}
             async for chunk_data in self.assembler_agent.assemble_stream(
                 analysis,
                 design_result,
@@ -957,7 +957,7 @@ class MultiStageSpecAgent:
                 prompt_result,
                 tool_result,
             ):
-                yield f"data: {json.dumps(chunk_data, ensure_ascii=False)}\n\n"
+                yield chunk_data
 
             # 서브 에이전트 토큰 사용량 집계
             total_usage = merge_usage(
@@ -971,12 +971,11 @@ class MultiStageSpecAgent:
                 )
             )
             if total_usage.get("totalTokens", 0) > 0:
-                yield f"data: {json.dumps({'usage': total_usage}, ensure_ascii=False)}\n\n"
+                yield {'usage': total_usage}
 
             # 최종 100% 도달
-            yield f"data: {json.dumps({'progress': 100, 'stage': '완료'}, ensure_ascii=False)}\n\n"
-            yield "data: [DONE]\n\n"
+            yield {'progress': 100, 'stage': '완료'}
 
         except Exception as e:
             logger.error(f"명세서 생성 오류: {e}", exc_info=True)
-            yield f"data: {json.dumps({'error': '명세서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}, ensure_ascii=False)}\n\n"
+            yield {'error': '명세서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}

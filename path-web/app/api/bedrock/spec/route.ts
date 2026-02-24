@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { createSSEProxy } from "../_shared/proxy-utils";
+import { invokeAgentCoreSSE } from "../_shared/agentcore-client";
 
 export const maxDuration = 600;
 
@@ -20,8 +20,9 @@ const specSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  return createSSEProxy(req, "/spec", {
+  return invokeAgentCoreSSE(req, {
     schema: specSchema,
+    actionType: "spec",
     transformBody: (body) => ({
       analysis: body.analysis,
       improvement_plans: body.improvementPlans,

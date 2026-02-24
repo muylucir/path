@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { createJSONProxy } from "../../_shared/proxy-utils";
+import { invokeAgentCoreJSON } from "../../_shared/agentcore-client";
 
 // conversation에는 assistant 응답(장문)이 포함되므로 sanitizedString 대신 일반 string 사용
 const patternFinalizeSchema = z.object({
@@ -15,8 +15,10 @@ const patternFinalizeSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  return createJSONProxy(req, "/pattern/finalize", {
+  return invokeAgentCoreJSON(req, {
     schema: patternFinalizeSchema,
+    actionType: "pattern_finalize",
+    getSessionId: (body) => body.sessionId as string | undefined,
     errorMessage: "패턴 확정 중 오류가 발생했습니다",
   });
 }
