@@ -1,0 +1,1758 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'Workshop with SSM Document-based Installation'
+
+Mappings:
+  CidrMappings:
+    private-subnet-1: {CIDR: 10.2.3.0/24}
+    private-subnet-2: {CIDR: 10.2.4.0/24}
+    public-subnet-1: {CIDR: 10.2.1.0/24}
+    public-subnet-2: {CIDR: 10.2.2.0/24}
+    vpc: {CIDR: 10.2.0.0/16}
+  DomainNameMappings:
+    us-east-1: {Domain: ec2.internal}
+    ap-northeast-1: {Domain: ap-northeast-1.compute.internal}
+    ap-northeast-2: {Domain: ap-northeast-2.compute.internal}
+  # CloudFront Prefix List IDs for each region
+  AWSRegionsPrefixListID:
+    us-east-1: {PrefixList: pl-3b927c52}
+    ap-northeast-1: {PrefixList: pl-58a04531}
+    ap-northeast-2: {PrefixList: pl-22a6434b}
+
+Resources:
+  # Secrets Manager Resources
+  VSCodeSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}-vscode-credentials'
+      Description: 'VS Code server credentials for SaaS Workshop'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "admin"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludePunctuation: true
+
+  # Lambda function to retrieve secrets plaintext
+  SecretPlaintextLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: AwsSecretsManager
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource:
+                  - !Ref VSCodeSecret
+
+  SecretPlaintextLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Return the value of the secret
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 10
+      Role: !GetAtt SecretPlaintextLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import json
+          import cfnresponse
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def is_valid_json(json_string):
+              try:
+                  json.loads(json_string)
+                  return True
+              except json.JSONDecodeError:
+                  return False
+
+          def lambda_handler(event, context):
+              try:
+                  if event['RequestType'] == 'Delete':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+                  else:
+                      resource_properties = event['ResourceProperties']
+                      secret_name = resource_properties['SecretArn']
+                      secrets_mgr = boto3.client('secretsmanager')
+
+                      secret = secrets_mgr.get_secret_value(SecretId = secret_name)
+                      secret_value = secret['SecretString']
+
+                      responseData = {}
+                      if is_valid_json(secret_value):
+                          responseData = secret_value
+                      else:
+                          responseData = {'secret': secret_value}
+                      
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData=json.loads(responseData), reason='OK', noEcho=True)
+              except Exception as e:
+                  logger.error(e)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+
+  VSCodeSecretPlaintext:
+    Type: Custom::SecretPlaintextLambda
+    Properties:
+      ServiceToken: !GetAtt SecretPlaintextLambda.Arn
+      ServiceTimeout: 15
+      SecretArn: !Ref VSCodeSecret
+
+  # SSM Document for Code Server Setup
+  CodeServerSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Bootstrap code-server instance for SaaS Workshop
+        parameters:
+          VSCodePassword:
+            type: String
+            default: !Ref AWS::StackId
+        mainSteps:
+          - name: InstallCloudWatchAgent
+            action: aws:configurePackage
+            inputs:
+              name: AmazonCloudWatchAgent
+              action: Install
+          - name: ConfigureCloudWatchAgent
+            action: aws:runDocument
+            inputs:
+              documentType: SSMDocument
+              documentPath: AmazonCloudWatch-ManageAgent
+              documentParameters:
+                action: configure
+                mode: ec2
+                optionalConfigurationSource: default
+                optionalRestart: 'yes'
+          - name: InstallBasePackages
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 300
+              runCommand:
+                - '#!/bin/bash'
+                - echo "Installing base packages..."
+                - dnf install -y --allowerasing curl gnupg whois argon2 unzip nginx openssl git
+                - echo "Base packages installed successfully"
+          - name: InstallAWSCLI
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 300
+              runCommand:
+                - '#!/bin/bash'
+                - echo "Installing AWS CLI v2..."
+                - cd /tmp
+                - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                - unzip -o awscliv2.zip
+                - ./aws/install
+                - rm -rf aws awscliv2.zip
+                - echo "AWS CLI installed successfully"
+          - name: SetupUser
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 300
+              runCommand:
+                - '#!/bin/bash'
+                - echo "Setting up ec2-user environment..."
+                - mkdir -p /home/ec2-user/.config/code-server
+                - mkdir -p /home/ec2-user/.local/bin
+                - chown -R ec2-user:ec2-user /home/ec2-user/.config
+                - chown -R ec2-user:ec2-user /home/ec2-user/.local
+                - echo 'export PATH=$PATH:/home/ec2-user/.local/bin' >> /home/ec2-user/.bashrc
+                - !Sub echo 'export AWS_REGION=${AWS::Region}' >> /home/ec2-user/.bashrc
+                - !Sub echo 'export AWS_ACCOUNTID=${AWS::AccountId}' >> /home/ec2-user/.bashrc
+                - echo "alias ll='ls -la'" >> /home/ec2-user/.bash_profile
+                - echo "alias h='history'" >> /home/ec2-user/.bash_profile
+                - echo "alias rm='rm -i'" >> /home/ec2-user/.bash_profile
+                - chown -R ec2-user:ec2-user /home/ec2-user
+                - echo "User environment setup completed"
+          - name: InstallCodeServer
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 600
+              runCommand:
+                - '#!/bin/bash'
+                - !Sub export HOME=/home/ec2-user
+                - curl -fsSL https://code-server.dev/install.sh | bash -s -- 2>&1
+                - !Sub systemctl enable --now code-server@ec2-user 2>&1
+                - !Sub |
+                  tee /etc/nginx/conf.d/code-server.conf <<EOF
+                  server {
+                      listen 80;
+                      listen [::]:80;
+                      # server_name \$\{CloudFrontDistribution.DomainName\};
+                      server_name *.cloudfront.net;
+                      location / {
+                        proxy_pass http://localhost:8080/;
+                        proxy_set_header Host \$host;
+                        proxy_set_header Upgrade \$http_upgrade;
+                        proxy_set_header Connection upgrade;
+                        proxy_set_header Accept-Encoding gzip;
+                      }
+                  }
+                  EOF
+                - !Sub mkdir -p /home/ec2-user/.config/code-server
+                - !Sub |
+                  tee /home/ec2-user/.config/code-server/config.yaml <<EOF
+                  cert: false
+                  auth: password
+                  hashed-password: "$(echo -n {{ VSCodePassword }} | argon2 $(openssl rand -base64 12) -e)"
+                  EOF
+                - !Sub mkdir -p /home/ec2-user/.local/share/code-server/User/
+                - !Sub touch /home/ec2-user/.hushlogin
+                - !Sub |
+                  tee /home/ec2-user/.local/share/code-server/User/settings.json <<EOF
+                  {
+                    "extensions.autoUpdate": false,
+                    "extensions.autoCheckUpdates": false,
+                    "telemetry.telemetryLevel": "off",
+                    "security.workspace.trust.startupPrompt": "never",
+                    "security.workspace.trust.enabled": false,
+                    "security.workspace.trust.banner": "never",
+                    "security.workspace.trust.emptyWindow": false,
+                    "auto-run-command.rules": [
+                      {
+                        "command": "workbench.action.terminal.new"
+                      }
+                    ]
+                  }
+                  EOF
+                - !Sub chown -R ec2-user:ec2-user /home/ec2-user
+                - !Sub systemctl restart code-server@ec2-user
+                - systemctl enable nginx
+                - systemctl restart nginx
+                - echo "Nginx installed. Checking configuration"
+                - nginx -t 2>&1
+                - systemctl status nginx
+                - echo "CodeServer installed. Checking configuration"
+                - code-server -v
+                - !Sub systemctl status code-server@ec2-user
+          - name: CloneWorkshopRepo
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 600
+              runCommand:
+                - '#!/bin/bash'
+                - echo "Cloning workshop repository..."
+                - cd /home/ec2-user/
+                - sudo -u ec2-user bash -c 'curl -fsSL https://cli.kiro.dev/install | bash'
+                - sudo -u ec2-user git clone https://github.com/muylucir/agent-building-workshop.git
+                - chown -R ec2-user:ec2-user agent-building-workshop
+                - echo "Workshop repository cloned successfully"
+                - ls -la /home/ec2-user/
+
+  # Lambda functions for SSM Document execution
+  SSMDocLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SSMDocOnEC2
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource:
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${CodeServerSSMDoc}
+                  - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/AmazonCloudWatch-ManageAgent
+                  - !Sub arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VSCodeServerInstance}
+              - Effect: Allow
+                Action:
+                  - ssm:ListCommandInvocations
+                  - ssm:GetCommandInvocation
+                Resource: '*'
+
+  RunSSMDocLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Run SSM document on EC2 instance
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 600
+      Environment:
+        Variables:
+          RetrySleep: 2900
+          AbortTimeRemaining: 3200
+      Role: !GetAtt SSMDocLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          import time
+          import os
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              if event['RequestType'] != 'Create':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+              else:
+                  sleep_ms = int(os.environ.get('RetrySleep'))
+                  abort_time_remaining_ms = int(os.environ.get('AbortTimeRemaining'))
+                  resource_properties = event['ResourceProperties']
+                  instance_id = resource_properties['InstanceId']
+                  document_name = resource_properties['DocumentName']
+                  cloudwatch_log_group_name = resource_properties['CloudWatchLogGroupName']
+
+                  logger.info(f'Running SSM Document {document_name} on EC2 instance {instance_id}')
+
+                  del resource_properties['ServiceToken']
+                  if 'ServiceTimeout' in resource_properties:
+                      del resource_properties['ServiceTimeout']
+                  del resource_properties['InstanceId']
+                  del resource_properties['DocumentName']
+                  del resource_properties['CloudWatchLogGroupName']
+
+                  parameters = {}
+                  for key, value in resource_properties.items():
+                      parameters[key] = [value]
+
+                  retry = True
+                  attempt_no = 0
+                  time_remaining_ms = context.get_remaining_time_in_millis()
+                  ssm = boto3.client('ssm')
+
+                  while (retry == True):
+                      attempt_no += 1
+                      logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining_ms/1000}s')
+                      try:
+                          response = ssm.send_command(
+                              InstanceIds = [instance_id],
+                              DocumentName = document_name,
+                              CloudWatchOutputConfig = {'CloudWatchLogGroupName': cloudwatch_log_group_name, 'CloudWatchOutputEnabled': True},
+                              Parameters = parameters
+                          )
+                          command_id = response['Command']['CommandId']
+                          responseData = {'CommandId': command_id}
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, reason='OK')
+                          retry = False
+
+                      except ssm.exceptions.InvalidInstanceId as e:
+                          time_remaining_ms = context.get_remaining_time_in_millis()
+                          if (time_remaining_ms > abort_time_remaining_ms):
+                              logger.info(f'Instance {instance_id} not ready. Sleeping: {sleep_ms/1000}s')
+                              time.sleep(sleep_ms/1000)
+                              retry = True
+                          else:
+                              logger.error(e, exc_info=True)
+                              cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Timed out')
+                              retry = False
+                      except Exception as e:
+                          logger.error(e, exc_info=True)
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+                          retry = False
+
+  CheckSSMDocLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Check SSM document completion on EC2 instance
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 600
+      Environment:
+        Variables:
+          RetrySleep: 2900
+          AbortTimeRemaining: 5000
+      Role: !GetAtt SSMDocLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          import time
+          import os
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              if event['RequestType'] != 'Create':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+              else:
+                  sleep_ms = int(os.environ.get('RetrySleep'))
+                  abort_time_remaining_ms = int(os.environ.get('AbortTimeRemaining'))
+                  resource_properties = event['ResourceProperties']
+                  instance_id = resource_properties['InstanceId']
+                  document_name = resource_properties['DocumentName']
+
+                  logger.info(f'Checking SSM Document {document_name} on EC2 instance {instance_id}')
+
+                  retry = True
+                  attempt_no = 0
+                  time_remaining_ms = context.get_remaining_time_in_millis()
+                  ssm = boto3.client('ssm')
+
+                  while (retry == True):
+                      attempt_no += 1
+                      logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining_ms/1000}s')
+                      try:
+                          response = ssm.list_command_invocations(
+                              InstanceId=instance_id,
+                              Details=True
+                          )
+                          
+                          for invocation in response['CommandInvocations']:
+                              if invocation['DocumentName'] == document_name:
+                                  invocation_status = invocation['Status']
+                                  if invocation_status == 'Success':
+                                      logger.info(f'SSM Document completed successfully')                                  
+                                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='OK')
+                                      retry = False
+                                  elif invocation_status in ['Failed', 'Cancelled', 'TimedOut']:
+                                      reason = f'SSM Document failed with status: {invocation_status}'
+                                      for step in invocation['CommandPlugins']:
+                                          step_name = step['Name']
+                                          step_status = step['Status']
+                                          if step_status != 'Success':
+                                              step_output = step.get('Output', 'No output available')
+                                              reason += f'\nStep {step_name} {step_status}: {step_output[:500]}'
+                                      logger.error(reason)
+                                      cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=reason)
+                                      retry = False
+                                  else:
+                                      logger.info(f'SSM Document still running. Status: {invocation_status}')
+                                      retry = True
+                                      
+                          if retry == True:
+                              if (time_remaining_ms > abort_time_remaining_ms):
+                                  time.sleep(sleep_ms/1000)
+                                  time_remaining_ms = context.get_remaining_time_in_millis()
+                              else:
+                                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Timeout waiting for SSM document completion')
+                                  retry = False
+                      except Exception as e:
+                          logger.error(e, exc_info=True)
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+                          retry = False
+
+  # Health Check Lambda
+  CodeServerHealthCheckLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  CodeServerHealthCheckLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Run health check on code-server instance
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 600
+      Environment:
+        Variables:
+          RetrySleep: 2900
+          AbortTimeRemaining: 5000
+      Role: !GetAtt CodeServerHealthCheckLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import cfnresponse
+          import logging
+          import time
+          import os
+          import http.client
+          from urllib.parse import urlparse
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def healthURLOk(url):
+              try:
+                  parsed_url = urlparse(url)
+                  if parsed_url.scheme == 'https':
+                      conn = http.client.HTTPSConnection(parsed_url.netloc)
+                  else:
+                      conn = http.client.HTTPConnection(parsed_url.netloc)
+                  conn.request("GET", parsed_url.path or "/")
+                  response = conn.getresponse()
+                  content = response.read()
+                  
+                  if 200 <= response.status < 400:
+                      try:
+                          response_dict = json.loads(content.decode('utf-8'))
+                          if 'status' in response_dict and response_dict['status'].lower() in ['alive', 'expired']:
+                              logger.info(f'Health check OK. Status: {response_dict["status"]}')
+                              return True
+                      except json.JSONDecodeError:
+                          pass
+                      logger.info(f'Health check OK with status code: {response.status}')
+                      return True
+                  else:
+                      logger.info(f'Health check failed with status: {response.status}')
+                      return False
+
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  return False
+              finally:
+                  if 'conn' in locals():
+                      conn.close()
+
+          def lambda_handler(event, context):
+              try:
+                  if event['RequestType'] != 'Create':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+                  else:
+                      sleep_ms = int(os.environ.get('RetrySleep'))
+                      abort_time_remaining_ms = int(os.environ.get('AbortTimeRemaining'))
+                      resource_properties = event['ResourceProperties']
+                      url = resource_properties['Url']
+
+                      logger.info(f'Testing url: {url}')
+
+                      time_remaining_ms = context.get_remaining_time_in_millis()
+                      attempt_no = 0
+                      health_check = False
+                      
+                      while (attempt_no == 0 or (time_remaining_ms > abort_time_remaining_ms and not health_check)):
+                          attempt_no += 1
+                          logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining_ms/1000}s')
+                          health_check = healthURLOk(url)
+                          if not health_check:
+                              time.sleep(sleep_ms/1000)
+                          time_remaining_ms = context.get_remaining_time_in_millis()
+                          
+                      if health_check:
+                          logger.info(f'Health check successful after {attempt_no} attempts')
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='Code-server healthcheck successful')
+                      else:
+                          logger.info(f'Health check failed after {attempt_no} attempts')
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Code-server healthcheck failed')
+
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+
+  # IAM Role for EC2 to access Secrets Manager and SSM
+  SecretsManagerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-secrets-manager-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: 
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryFullAccess'
+        - 'arn:aws:iam::aws:policy/AmazonS3FullAccess'
+        - 'arn:aws:iam::aws:policy/AdministratorAccess'
+        - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
+        - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+      Policies:
+        - PolicyName: SecretsManagerAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                  - secretsmanager:DescribeSecret
+                Resource:
+                  - !Ref VSCodeSecret
+
+  AttachGateway:
+    DependsOn: [VPC, InternetGateway]
+    Properties:
+      InternetGatewayId: {Ref: InternetGateway}
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::VPCGatewayAttachment
+
+  DHCPOptions:
+    Properties:
+      DomainName:
+        Fn::FindInMap:
+        - DomainNameMappings
+        - {Ref: 'AWS::Region'}
+        - Domain
+      DomainNameServers: [AmazonProvidedDNS]
+    Type: AWS::EC2::DHCPOptions
+
+  InternetGateway: {DependsOn: VPC, Type: 'AWS::EC2::InternetGateway'}
+
+  PublicRoute:
+    DependsOn: [PublicRouteTable, AttachGateway]
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: {Ref: InternetGateway}
+      RouteTableId: {Ref: PublicRouteTable}
+    Type: AWS::EC2::Route
+
+  PublicRouteTable:
+    DependsOn: [VPC, AttachGateway]
+    Properties:
+      Tags:
+      - {Key: Name, Value: PublicRouteTable}
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::RouteTable
+
+  PublicSubnet1:
+    DependsOn: AttachGateway
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '0'
+        - {'Fn::GetAZs': ''}
+      CidrBlock:
+        Fn::FindInMap: [CidrMappings, public-subnet-1, CIDR]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - {Key: Name, Value: PublicSubnet1}
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+  PublicSubnet1RouteTableAssociation:
+    DependsOn: [PublicRouteTable, PublicSubnet1, AttachGateway]
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet1}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  PublicSubnet2:
+    DependsOn: AttachGateway
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - '1'
+        - {'Fn::GetAZs': ''}
+      CidrBlock:
+        Fn::FindInMap: [CidrMappings, public-subnet-2, CIDR]
+      MapPublicIpOnLaunch: true
+      Tags:
+      - {Key: Name, Value: PublicSubnet2}
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::Subnet
+
+  PublicSubnet2RouteTableAssociation:
+    DependsOn: [PublicRouteTable, PublicSubnet2, AttachGateway]
+    Properties:
+      RouteTableId: {Ref: PublicRouteTable}
+      SubnetId: {Ref: PublicSubnet2}
+    Type: AWS::EC2::SubnetRouteTableAssociation
+
+  VPC:
+    Properties:
+      CidrBlock:
+        Fn::FindInMap: [CidrMappings, vpc, CIDR]
+      EnableDnsHostnames: 'true'
+      EnableDnsSupport: 'true'
+      Tags:
+      - {Key: Name, Value: SaaSWorkshopVPC}
+    Type: AWS::EC2::VPC
+
+  VPCDHCPOptionsAssociation:
+    Properties:
+      DhcpOptionsId: {Ref: DHCPOptions}
+      VpcId: {Ref: VPC}
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+
+  CodeServerInstanceCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        DefaultTTL: 86400
+        MaxTTL: 31536000
+        MinTTL: 1
+        Name: !Sub
+        - VSCodeServerInstance-${RandomGUID}
+        - RandomGUID: !Select [0, !Split ['-', !Select [2, !Split ['/', !Ref AWS::StackId ]]]]
+        ParametersInCacheKeyAndForwardedToOrigin:
+          CookiesConfig:
+            CookieBehavior: all
+          EnableAcceptEncodingGzip: False
+          HeadersConfig:
+            HeaderBehavior: whitelist
+            Headers:
+              - Accept-Charset
+              - Authorization
+              - Origin
+              - Accept
+              - Referer
+              - Host
+              - Accept-Language
+              - Accept-Encoding
+              - Accept-Datetime
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  # CloudFront Distribution
+  CloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: True
+        HttpVersion: http2and3
+        CacheBehaviors:
+          - AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - PATCH
+              - POST
+              - DELETE
+            CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad 
+            Compress: False
+            OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 
+            TargetOriginId: !Sub CloudFront-${AWS::StackName}
+            ViewerProtocolPolicy: allow-all
+            PathPattern: '/proxy/*'
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachePolicyId: !Ref CodeServerInstanceCachePolicy
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3 
+          TargetOriginId: !Sub CloudFront-${AWS::StackName}
+          ViewerProtocolPolicy: allow-all
+        Origins:
+          - DomainName: !GetAtt VSCodeServerInstance.PublicDnsName
+            Id: !Sub CloudFront-${AWS::StackName}
+            CustomOriginConfig:
+              OriginProtocolPolicy: http-only
+
+  # VS Code Server Security Group
+  VSCodeServerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for code-server - only allow CloudFront ingress
+      VpcId: {Ref: VPC}
+      SecurityGroupIngress:
+        - Description: Allow HTTP from CloudFront
+          IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourcePrefixListId: !FindInMap [AWSRegionsPrefixListID, !Ref 'AWS::Region', PrefixList]
+  
+  VSCodeInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref SecretsManagerRole
+
+  # VS Code Server Instance
+  VSCodeServerInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: [VSCodeServerSecurityGroup, VSCodeSecret]
+    Properties:
+      ImageId: resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+      InstanceType: m5.2xlarge
+      IamInstanceProfile: !Ref VSCodeInstanceProfile
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref VSCodeServerSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 200
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      Monitoring: true
+      Tags:
+        - Key: Name
+          Value: VSCodeServer
+
+  # Run SSM Document
+  RunCodeServerSSMDoc:
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 305
+      InstanceId: !Ref VSCodeServerInstance
+      DocumentName: !Ref CodeServerSSMDoc
+      CloudWatchLogGroupName: !Sub /aws/ssm/${CodeServerSSMDoc}
+      VSCodePassword: !GetAtt VSCodeSecretPlaintext.password
+
+  # Check SSM Document completion
+  CheckCodeServerSSMDoc:
+    Type: Custom::CheckSSMDocLambda
+    DependsOn: RunCodeServerSSMDoc
+    Properties:   
+      ServiceToken: !GetAtt CheckSSMDocLambda.Arn
+      ServiceTimeout: 610
+      InstanceId: !Ref VSCodeServerInstance
+      DocumentName: !Ref CodeServerSSMDoc
+
+  # ============================================================
+  # PATH Agent Designer Resources
+  # ============================================================
+
+  # S3 Bucket for Agent deployment package
+  PathCodeBucket:
+    Type: AWS::S3::Bucket
+
+  # DynamoDB Table for session management
+  PathSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: path-agent-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+
+  # IAM Role for AgentCore Runtime
+  PathAgentCoreRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-path-agentcore-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+
+  # IAM Policy for AgentCore Role (Bedrock, S3, CloudWatch, X-Ray)
+  PathAgentCoreRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PathAgentCorePolicy
+      Roles:
+        - !Ref PathAgentCoreRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub 'arn:aws:s3:::${PathCodeBucket}/*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Resource: '*'
+
+  # SSM Document: Build PATH Agent deployment package
+  PathBuildSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Build PATH Agent deployment package and upload to S3
+        parameters:
+          S3Bucket:
+            type: String
+          S3Key:
+            type: String
+        mainSteps:
+          - name: BuildAndUpload
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 900
+              runCommand:
+                - '#!/bin/bash'
+                - set -e
+                - echo "=== Building PATH Agent deployment package ==="
+                - python3.11 -m ensurepip --upgrade 2>/dev/null || true
+                - python3.11 -m pip install --upgrade pip
+                - cd /tmp && rm -rf path-build
+                - git clone -b enhance/agentcore https://github.com/muylucir/path.git path-build
+                - cd /tmp/path-build/path-strands-agent
+                - PACKAGE_DIR=deployment_package
+                - rm -rf $PACKAGE_DIR deployment_package.zip && mkdir -p $PACKAGE_DIR
+                - python3.11 -m pip install --platform manylinux2014_aarch64 --target=$PACKAGE_DIR --only-binary=:all: --python-version 3.11 -r requirements.txt
+                - cp agentcore_entrypoint.py chat_agent.py multi_stage_spec_agent.py prompts.py strands_utils.py safe_tools.py token_tracker.py $PACKAGE_DIR/
+                - cp -r agentskills/ $PACKAGE_DIR/agentskills/
+                - cp -r skills/ $PACKAGE_DIR/skills/
+                - cd $PACKAGE_DIR && zip -r ../deployment_package.zip . -x "*.pyc" "__pycache__/*" > /dev/null && cd ..
+                - 'aws s3 cp deployment_package.zip "s3://{{ S3Bucket }}/{{ S3Key }}"'
+                - echo "=== Upload complete ==="
+
+  # IAM Policy: Allow SSMDocLambdaRole to execute new SSM Documents
+  PathSSMDocPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PathSSMDocPolicy
+      Roles:
+        - !Ref SSMDocLambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:SendCommand
+            Resource:
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${PathBuildSSMDoc}'
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${PathFrontendSSMDoc}'
+              - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${VSCodeServerInstance}'
+
+  # Run PATH Build SSM Document
+  RunPathBuildSSMDoc:
+    Type: Custom::RunSSMDocLambda
+    DependsOn:
+      - CheckCodeServerSSMDoc
+      - PathSSMDocPolicy
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 305
+      InstanceId: !Ref VSCodeServerInstance
+      DocumentName: !Ref PathBuildSSMDoc
+      CloudWatchLogGroupName: !Sub '/aws/ssm/${PathBuildSSMDoc}'
+      S3Bucket: !Ref PathCodeBucket
+      S3Key: deployment_package.zip
+
+  # Check PATH Build SSM Document completion
+  CheckPathBuildSSMDoc:
+    Type: Custom::CheckSSMDocLambda
+    DependsOn: RunPathBuildSSMDoc
+    Properties:
+      ServiceToken: !GetAtt CheckSSMDocLambda.Arn
+      ServiceTimeout: 610
+      InstanceId: !Ref VSCodeServerInstance
+      DocumentName: !Ref PathBuildSSMDoc
+
+  # AgentCore Runtime
+  PathAgentCoreRuntime:
+    Type: AWS::BedrockAgentCore::Runtime
+    DependsOn:
+      - CheckPathBuildSSMDoc
+      - PathAgentCoreRolePolicy
+    Properties:
+      AgentRuntimeName: PathAgentDesigner
+      Description: PATH Agent Designer - AI Agent validation and specification generator
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3:
+              Bucket: !Ref PathCodeBucket
+              Prefix: deployment_package.zip
+          EntryPoint:
+            - agentcore_entrypoint.py
+          Runtime: PYTHON_3_11
+      RoleArn: !GetAtt PathAgentCoreRole.Arn
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      EnvironmentVariables:
+        AWS_DEFAULT_REGION: !Ref 'AWS::Region'
+        BEDROCK_MODEL_ID: 'global.anthropic.claude-opus-4-6-v1'
+
+  # AgentCore Runtime Endpoint
+  PathAgentCoreEndpoint:
+    Type: AWS::BedrockAgentCore::RuntimeEndpoint
+    DependsOn: PathAgentCoreRuntime
+    Properties:
+      AgentRuntimeId: !GetAtt PathAgentCoreRuntime.AgentRuntimeId
+      Name: PathAgentDesignerEndpoint
+      Description: PATH Agent Designer Runtime Endpoint
+
+  # SSM Document: Deploy PATH Frontend (Node.js + Next.js standalone)
+  PathFrontendSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Build and deploy PATH Agent Designer frontend
+        parameters:
+          AgentRuntimeArn:
+            type: String
+          DynamoDBTableName:
+            type: String
+          AwsRegion:
+            type: String
+        mainSteps:
+          - name: InstallNodeAndDeploy
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 900
+              runCommand:
+                - '#!/bin/bash'
+                - set -e
+                - echo "=== Installing Node.js 22 ==="
+                - curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
+                - dnf install -y nodejs
+                - node --version && npm --version
+                - echo "=== Building PATH frontend ==="
+                - cd /tmp/path-build/path-web
+                - npm ci
+                - npm run build
+                - echo "=== Deploying standalone output ==="
+                - rm -rf /opt/path-web
+                - mkdir -p /opt/path-web
+                - cp -r .next/standalone/* /opt/path-web/
+                - cp -r .next/static /opt/path-web/.next/static
+                - cp -r public /opt/path-web/public 2>/dev/null || true
+                - echo "=== Creating systemd service ==="
+                - |
+                  cat > /etc/systemd/system/path-web.service <<UNIT
+                  [Unit]
+                  Description=PATH Agent Designer Frontend
+                  After=network.target
+
+                  [Service]
+                  Type=simple
+                  User=ec2-user
+                  WorkingDirectory=/opt/path-web
+                  ExecStart=/usr/bin/node server.js
+                  Restart=always
+                  RestartSec=5
+                  Environment=NODE_ENV=production
+                  Environment=PORT=3009
+                  Environment=HOSTNAME=0.0.0.0
+                  Environment=AGENT_RUNTIME_ARN={{ AgentRuntimeArn }}
+                  Environment=AWS_DEFAULT_REGION={{ AwsRegion }}
+                  Environment=DYNAMODB_TABLE_NAME={{ DynamoDBTableName }}
+
+                  [Install]
+                  WantedBy=multi-user.target
+                  UNIT
+                - chown -R ec2-user:ec2-user /opt/path-web
+                - systemctl daemon-reload
+                - systemctl enable path-web
+                - systemctl start path-web
+                - echo "=== Waiting for health check ==="
+                - set +e
+                - 'for i in $(seq 1 30); do curl -sf http://localhost:3009/api/health > /dev/null 2>&1 && echo "Health check passed" && break; sleep 2; done'
+                - echo "PATH frontend deployment complete"
+
+  # Run PATH Frontend SSM Document
+  RunPathFrontendSSMDoc:
+    Type: Custom::RunSSMDocLambda
+    DependsOn:
+      - PathAgentCoreEndpoint
+      - PathSSMDocPolicy
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 305
+      InstanceId: !Ref VSCodeServerInstance
+      DocumentName: !Ref PathFrontendSSMDoc
+      CloudWatchLogGroupName: !Sub '/aws/ssm/${PathFrontendSSMDoc}'
+      AgentRuntimeArn: !GetAtt PathAgentCoreRuntime.AgentRuntimeArn
+      DynamoDBTableName: !Ref PathSessionsTable
+      AwsRegion: !Ref 'AWS::Region'
+
+  # Check PATH Frontend SSM Document completion
+  CheckPathFrontendSSMDoc:
+    Type: Custom::CheckSSMDocLambda
+    DependsOn: RunPathFrontendSSMDoc
+    Properties:
+      ServiceToken: !GetAtt CheckSSMDocLambda.Arn
+      ServiceTimeout: 610
+      InstanceId: !Ref VSCodeServerInstance
+      DocumentName: !Ref PathFrontendSSMDoc
+
+  # Security Group Ingress: Allow CloudFront to reach PATH Frontend (port 3009)
+  PathSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref VSCodeServerSecurityGroup
+      Description: Allow HTTP from CloudFront to PATH Frontend
+      IpProtocol: tcp
+      FromPort: 3009
+      ToPort: 3009
+      SourcePrefixListId: !FindInMap [AWSRegionsPrefixListID, !Ref 'AWS::Region', PrefixList]
+
+  # CloudFront Distribution for PATH Frontend
+  PathCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: CheckPathFrontendSSMDoc
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2and3
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          TargetOriginId: !Sub 'PathFrontend-${AWS::StackName}'
+          ViewerProtocolPolicy: redirect-to-https
+        Origins:
+          - DomainName: !GetAtt VSCodeServerInstance.PublicDnsName
+            Id: !Sub 'PathFrontend-${AWS::StackName}'
+            CustomOriginConfig:
+              HTTPPort: 3009
+              OriginProtocolPolicy: http-only
+
+  # IAM Identity Center Resources
+  IdentityCenterInstance:
+    Type: AWS::SSO::Instance
+
+  IdentityCenterLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/AdministratorAccess
+      Policies:
+        - PolicyName: SSOAdminPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sso:DescribeInstance
+                  - sso:ListInstances
+                  - identitystore:CreateGroup
+                  - identitystore:CreateGroupMembership
+                  - identitystore:CreateUser
+                  - identitystore:ListUsers
+                  - identitystore:ListGroups
+                Resource:
+                  - !GetAtt IdentityCenterInstance.InstanceArn
+                  - !Sub arn:aws:identitystore::${AWS::AccountId}:identitystore/*
+                  - !Sub arn:aws:identitystore:::*
+
+  IdentityCenterLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.handler
+      Runtime: python3.10
+      Timeout: 300
+      Description: Create Identity Center Local Instance for Kiro
+      Role: !GetAtt IdentityCenterLambdaRole.Arn
+      Code:
+        ZipFile: |
+            import json
+            import boto3
+            import cfnresponse
+            import hashlib
+            import hmac
+            from datetime import datetime
+            import urllib3
+            import uuid
+            import logging
+            import time
+
+            logger = logging.getLogger()
+            logger.setLevel(logging.INFO)
+
+            sso_client = boto3.client('sso-admin')
+            id_store_client = boto3.client('identitystore')
+
+            def get_sso_start_url():
+                """Get SSO start URL from the first available SSO instance"""
+                try:
+                    response = sso_client.list_instances()
+                    if response['Instances']:
+                        identity_store_id = response['Instances'][0]['IdentityStoreId']
+                        return f"https://{identity_store_id}.awsapps.com/start"
+                    logger.warning('No SSO instances found')
+                    return None
+                except Exception as e:
+                    logger.error(f'Failed to get SSO start URL: {str(e)}')
+                    return None
+
+            GROUPS = ["AllUsers"]
+            USERS = [
+                {
+                    "user_name": "kiro",
+                    "email": "kiro@example.com",
+                    "display_name": "Kiro User",
+                    "given_name": "Kiro",
+                    "last_name": "User",
+                    "groups": ["AllUsers"]
+                }
+            ]
+
+            def handler(event, context):
+                logger.info('Lambda handler started')
+                try:
+                    print('Received event: ' + json.dumps(event, indent=4, default=str))
+                    if event['RequestType'] in ['Create', 'Update']:
+                        identity_store_id = event['ResourceProperties']['IdentityStoreId']
+                        instance_arn = event['ResourceProperties']['InstanceArn']
+                        group_idx = {}
+                        user_id = []
+                        start_url = []
+                        group_id = []
+                        password_otp = []
+
+                        start_url.append(get_sso_start_url())
+                        for group in GROUPS:
+                            logger.info(f'Processing group: {group}')
+                            if not check_group_exists(identity_store_id, group):
+                                resp = id_store_client.create_group(
+                                    IdentityStoreId=identity_store_id,
+                                    DisplayName=group,
+                                    Description=group
+                                )
+                                print("Group Creation:" + json.dumps(resp, indent=4, default=str))
+                                group_idx[group] = resp["GroupId"]
+                                group_id.append(resp["GroupId"])
+                        for user in USERS:
+                            logger.info(f'Processing user: {user["user_name"]}')
+                            user_exists = check_user_exists(identity_store_id, user["user_name"])
+                            if not user_exists:
+                                user_resp = id_store_client.create_user(
+                                    IdentityStoreId=identity_store_id,
+                                    UserName=user["user_name"],
+                                    DisplayName=user["display_name"],
+                                    Emails=[{"Value": user["email"], "Type": "Work", "Primary": True}],
+                                    Name={"GivenName": user["given_name"], "FamilyName": user["last_name"]}
+                                )
+                                print("User Creation:" + json.dumps(user_resp, indent=4, default=str))
+                                user_id.append(user_resp["UserId"])
+                                # Assign groups
+                                for grp in user["groups"]:
+                                    if grp in group_idx:
+                                        member_resp = id_store_client.create_group_membership(
+                                            IdentityStoreId=identity_store_id,
+                                            GroupId=group_idx[grp],
+                                            MemberId={"UserId": user_resp["UserId"]}
+                                        )
+                                        print("Group Member Creation:" + json.dumps(member_resp, indent=4, default=str))
+
+                                # Try to update password (generate OTP)
+                                try:
+                                    logger.info(f'Updating password for user: {user["user_name"]}')
+                                    password = update_password(user_resp["UserId"])
+                                    password_otp.append(password)
+                                except Exception as e:
+                                    print(f"Failed to update password for user {user['user_name']}: {str(e)}")
+
+                                # Try to update SSO configuration
+                                try:
+                                    logger.info('Updating SSO configuration')
+                                    sso_config = {
+                                        "mfaMode": "DISABLED",
+                                        "noMfaSignInBehavior": "ALLOWED_WITH_ENROLLMENT",
+                                        "allowedMfaTypes": ["TOTP", "WEBAUTHN"]
+                                    }
+                                    if instance_arn:
+                                        update_sso_configuration(instance_arn, "APP_AUTHENTICATION_CONFIGURATION", sso_config)
+                                except Exception as e:
+                                    print(f"Failed to update SSO configuration: {str(e)}")
+
+                                # Create CodeWhisperer profile
+                                try:
+                                    logger.info('Creating CodeWhisperer profile')
+                                    if instance_arn:
+                                        create_codewhisperer_profile(instance_arn)
+                                        # Poll for profile status with max retries
+                                        max_poll = 15
+                                        poll_count = 0
+                                        while poll_count < max_poll and not check_codewhisperer_profile_status():
+                                            poll_count += 1
+                                            logger.info(f'Waiting for CodeWhisperer profile ({poll_count}/{max_poll})...')
+                                            time.sleep(10)
+                                        if poll_count < max_poll:
+                                            logger.info('CodeWhisperer profile is now active')
+                                            create_assignment(user_id[0])
+                                        else:
+                                            logger.warning('CodeWhisperer profile did not become active within max retries')
+                                except Exception as e:
+                                    print(f"Failed to create CodeWhisperer profile: {str(e)}")
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, { 'StartURL': start_url, 'UserID': user_id, 'GroupID': group_id, 'PasswordOTP': password_otp}, identity_store_id)
+                    else:
+                        cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                    logger.info('Lambda handler completed successfully')
+                    print("done")
+                except Exception as e:
+                    logger.error(f'Lambda handler failed: {str(e)}')
+                    print(e)
+                    cfnresponse.send(event, context, cfnresponse.FAILED, {})
+            def check_user_exists(identity_store_id, user_id):
+                logger.info(f'Checking if user exists: {user_id}')
+                try:
+                    response = id_store_client.list_users(
+                        IdentityStoreId=identity_store_id,
+                        Filters=[
+                            {
+                                'AttributePath': 'UserName',
+                                'AttributeValue': user_id
+                            }
+                        ]
+                    )
+                    return len(response['Users']) > 0
+                except Exception as e:
+                    print(f"Error checking user existence: {str(e)}")
+                    return False
+            def check_group_exists(identity_store_id, group_name):
+                logger.info(f'Checking if group exists: {group_name}')
+                try:
+                    response = id_store_client.list_groups(
+                        IdentityStoreId=identity_store_id,
+                        Filters=[
+                            {
+                                'AttributePath': 'DisplayName',
+                                'AttributeValue': group_name
+                            }
+                        ]
+                    )
+                    return len(response['Groups']) > 0
+                except Exception as e:
+                    print(f"Error checking group existence: {str(e)}")
+                    return False
+
+            def sign(key, msg):
+                return hmac.new(key, msg.encode('utf-8'), hashlib.sha256).digest()
+
+            def get_signature_key(key, date_stamp, region_name, service_name):
+                k_date = sign(('AWS4' + key).encode('utf-8'), date_stamp)
+                k_region = sign(k_date, region_name)
+                k_service = sign(k_region, service_name)
+                k_signing = sign(k_service, 'aws4_request')
+                return k_signing
+
+            def update_password(user_id, password_mode="OTP"):
+                logger.info(f'Starting password update for user: {user_id}')
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                access_key = credentials.access_key
+                secret_key = credentials.secret_key
+                session_token = credentials.token
+
+                method = 'POST'
+                service = 'userpool'
+                host = 'up.sso.us-east-1.amazonaws.com'
+                region = 'us-east-1'
+                endpoint = f'https://{host}/'
+
+                payload = {
+                    "UserId": user_id,
+                    "PasswordMode": password_mode
+                }
+                payload_json = json.dumps(payload, separators=(',', ':'))
+
+                t = datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = '/'
+                canonical_querystring = ''
+                payload_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+                canonical_headers = f'host:{host}\n'
+                canonical_headers += f'x-amz-content-sha256:{payload_hash}\n'
+                canonical_headers += f'x-amz-date:{amz_date}\n'
+                canonical_headers += f'x-amz-security-token:{session_token}\n'
+                canonical_headers += f'x-amz-target:SWBUPService.UpdatePassword\n'
+                canonical_headers += f'x-amz-user-agent:aws-sdk-js/2.1467.0 promise\n'
+
+                signed_headers = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target;x-amz-user-agent'
+
+                canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+                string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                signing_key = get_signature_key(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                authorization_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+
+                headers = {
+                    'Authorization': authorization_header,
+                    'Content-Type': 'application/x-amz-json-1.0',
+                    'X-Amz-Date': amz_date,
+                    'X-Amz-Security-Token': session_token,
+                    'X-Amz-Target': 'SWBUPService.UpdatePassword',
+                    'X-Amz-User-Agent': 'aws-sdk-js/2.1467.0 promise',
+                    'X-Amz-Content-Sha256': payload_hash
+                }
+
+                http = urllib3.PoolManager()
+                response = http.request('POST', endpoint, headers=headers, body=payload_json)
+                if response.status == 200:
+                    password = json.loads(response.data.decode('utf-8'))["Password"]
+                    print(f"New password: {password}")
+                    return password
+                else:
+                    logger.error(f"Password update failed with status {response.status}")
+                    logger.error(f"Response body: {response.data.decode('utf-8')}")
+                    return None
+
+            def create_codewhisperer_profile(instance_arn):
+                logger.info('Starting CodeWhisperer profile creation')
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                access_key = credentials.access_key
+                secret_key = credentials.secret_key
+                session_token = credentials.token
+                client_token = str(uuid.uuid4())
+
+                method = 'POST'
+                service = 'codewhisperer'
+                host = 'codewhisperer.us-east-1.amazonaws.com'
+                region = 'us-east-1'
+                endpoint = f'https://{host}/'
+
+                payload = {
+                    "profileName": "QDefaultProfile",
+                    "referenceTrackerConfiguration": {"recommendationsWithReferences": "ALLOW"},
+                    "activeFunctionalities": ["ANALYSIS", "CONVERSATIONS", "TASK_ASSIST", "TRANSFORMATIONS", "COMPLETIONS"],
+                    "optInFeatures": {"dashboardAnalytics": {"toggle": "ON"}},
+                    "identitySource": {"ssoIdentitySource": {"instanceArn": instance_arn, "ssoRegion": "us-east-1"}},
+                    "clientToken": client_token
+                }
+                payload_json = json.dumps(payload, separators=(',', ':'))
+
+                t = datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = '/'
+                canonical_querystring = ''
+                payload_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+                canonical_headers = f'host:{host}\n'
+                canonical_headers += f'x-amz-content-sha256:{payload_hash}\n'
+                canonical_headers += f'x-amz-date:{amz_date}\n'
+                canonical_headers += f'x-amz-security-token:{session_token}\n'
+                canonical_headers += f'x-amz-target:AWSCodeWhispererService.CreateProfile\n'
+                canonical_headers += f'x-amz-user-agent:aws-sdk-js/2.1692.0 promise\n'
+
+                signed_headers = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target;x-amz-user-agent'
+
+                canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+                string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                signing_key = get_signature_key(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                authorization_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+
+                headers = {
+                    'Authorization': authorization_header,
+                    'Content-Type': 'application/x-amz-json-1.0',
+                    'X-Amz-Date': amz_date,
+                    'X-Amz-Security-Token': session_token,
+                    'X-Amz-Target': 'AWSCodeWhispererService.CreateProfile',
+                    'X-Amz-User-Agent': 'aws-sdk-js/2.1692.0 promise',
+                    'X-Amz-Content-Sha256': payload_hash
+                }
+
+                http = urllib3.PoolManager()
+                response = http.request('POST', endpoint, headers=headers, body=payload_json)
+                logger.info(f'CodeWhisperer profile creation response: {response.status}')
+                return response
+
+            def update_sso_configuration(instance_arn, config_type, sso_config):
+                logger.info(f'Starting SSO configuration update for instance: {instance_arn}')
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                access_key = credentials.access_key
+                secret_key = credentials.secret_key
+                session_token = credentials.token
+
+                method = 'POST'
+                service = 'sso'
+                host = 'sso.us-east-1.amazonaws.com'
+                region = 'us-east-1'
+                endpoint = f'https://{host}/control/'
+
+                payload = {
+                    "instanceArn": instance_arn,
+                    "configurationType": config_type,
+                    "ssoConfiguration": sso_config
+                }
+                payload_json = json.dumps(payload, separators=(',', ':'))
+
+                t = datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = '/control/'
+                canonical_querystring = ''
+                payload_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+                canonical_headers = f'host:{host}\n'
+                canonical_headers += f'x-amz-content-sha256:{payload_hash}\n'
+                canonical_headers += f'x-amz-date:{amz_date}\n'
+                canonical_headers += f'x-amz-security-token:{session_token}\n'
+                canonical_headers += f'x-amz-target:SWBService.UpdateSsoConfiguration\n'
+                canonical_headers += f'x-amz-user-agent:aws-sdk-js/2.1467.0 promise\n'
+
+                signed_headers = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target;x-amz-user-agent'
+
+                canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+                string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                signing_key = get_signature_key(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                authorization_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+
+                headers = {
+                    'Authorization': authorization_header,
+                    'Content-Type': 'application/x-amz-json-1.1',
+                    'X-Amz-Date': amz_date,
+                    'X-Amz-Security-Token': session_token,
+                    'X-Amz-Target': 'SWBService.UpdateSsoConfiguration',
+                    'X-Amz-User-Agent': 'aws-sdk-js/2.1467.0 promise',
+                    'X-Amz-Content-Sha256': payload_hash
+                }
+
+                http = urllib3.PoolManager()
+                response = http.request('POST', endpoint, headers=headers, body=payload_json)
+                print(f"Response: {response.data.decode('utf-8')}")
+                return response
+
+            def check_codewhisperer_profile_status():
+                logger.info('Checking CodeWhisperer profile status')
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                access_key = credentials.access_key
+                secret_key = credentials.secret_key
+                session_token = credentials.token
+
+                method = 'POST'
+                service = 'codewhisperer'
+                host = 'codewhisperer.us-east-1.amazonaws.com'
+                region = 'us-east-1'
+                endpoint = f'https://{host}/'
+
+                payload_json = '{}'
+
+                t = datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = '/'
+                canonical_querystring = ''
+                payload_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+                canonical_headers = f'host:{host}\n'
+                canonical_headers += f'x-amz-content-sha256:{payload_hash}\n'
+                canonical_headers += f'x-amz-date:{amz_date}\n'
+                canonical_headers += f'x-amz-security-token:{session_token}\n'
+                canonical_headers += f'x-amz-target:AWSCodeWhispererService.ListProfiles\n'
+                canonical_headers += f'x-amz-user-agent:aws-sdk-js/2.1692.0 promise\n'
+
+                signed_headers = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target;x-amz-user-agent'
+
+                canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+                string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                signing_key = get_signature_key(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                authorization_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+
+                headers = {
+                    'Authorization': authorization_header,
+                    'Content-Type': 'application/x-amz-json-1.0',
+                    'X-Amz-Date': amz_date,
+                    'X-Amz-Security-Token': session_token,
+                    'X-Amz-Target': 'AWSCodeWhispererService.ListProfiles',
+                    'X-Amz-User-Agent': 'aws-sdk-js/2.1692.0 promise',
+                    'X-Amz-Content-Sha256': payload_hash
+                }
+
+                http = urllib3.PoolManager()
+                response = http.request('POST', endpoint, headers=headers, body=payload_json)
+
+                if response.status == 200:
+                    data = json.loads(response.data.decode('utf-8'))
+                    profiles = data.get('profiles', [])
+                    for profile in profiles:
+                        if profile.get('status') == 'ACTIVE':
+                            logger.info(f'Found active profile: {profile.get("profileName")}')
+                            return True
+                    logger.info('No active profiles found')
+                    return False
+                else:
+                    logger.error(f'Failed to check profile status: {response.status}')
+                    return False
+
+            def create_assignment(user_id):
+                logger.info(f'Creating CodeWhisperer assignment for user: {user_id}')
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                access_key = credentials.access_key
+                secret_key = credentials.secret_key
+                session_token = credentials.token
+
+                method = 'POST'
+                service = 'q'
+                host = 'codewhisperer.us-east-1.amazonaws.com'
+                region = 'us-east-1'
+                endpoint = f'https://{host}/'
+
+                payload = {
+                    "principalId": user_id,
+                    "principalType": "USER",
+                    "subscriptionType": "Q_DEVELOPER_STANDALONE_PRO"
+                }
+                payload_json = json.dumps(payload, separators=(',', ':'))
+
+                t = datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = '/'
+                canonical_querystring = ''
+                payload_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+                canonical_headers = f'host:{host}\n'
+                canonical_headers += f'x-amz-content-sha256:{payload_hash}\n'
+                canonical_headers += f'x-amz-date:{amz_date}\n'
+                canonical_headers += f'x-amz-security-token:{session_token}\n'
+                canonical_headers += f'x-amz-target:AmazonQDeveloperService.CreateAssignment\n'
+                canonical_headers += f'x-amz-user-agent:aws-sdk-js/2.1692.0 promise\n'
+
+                signed_headers = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target;x-amz-user-agent'
+
+                canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+                string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                signing_key = get_signature_key(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                authorization_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+
+                headers = {
+                    'Authorization': authorization_header,
+                    'Content-Type': 'application/x-amz-json-1.0',
+                    'X-Amz-Date': amz_date,
+                    'X-Amz-Security-Token': session_token,
+                    'X-Amz-Target': 'AmazonQDeveloperService.CreateAssignment',
+                    'X-Amz-User-Agent': 'aws-sdk-js/2.1692.0 promise',
+                    'X-Amz-Content-Sha256': payload_hash
+                }
+
+                http = urllib3.PoolManager()
+                response = http.request('POST', endpoint, headers=headers, body=payload_json)
+                logger.info(f'Assignment creation response: {response.status}')
+                return response
+
+  IdentityCenterSetup:
+    Type: AWS::CloudFormation::CustomResource
+    Properties:
+      InstanceArn: !GetAtt IdentityCenterInstance.InstanceArn
+      ServiceToken: !GetAtt IdentityCenterLambda.Arn
+      IdentityStoreId: !GetAtt IdentityCenterInstance.IdentityStoreId
+
+Outputs:
+  CloudFrontURL:
+    Description: CloudFront URL to access VS Code server securely
+    Value: !Sub 'https://${CloudFrontDistribution.DomainName}/?folder=/home/ec2-user/agent-building-workshop'
+    
+  VSCodePassword:
+    Description: VS Code Server Password (retrieved from Secrets Manager)
+    Value: !GetAtt VSCodeSecretPlaintext.password
+
+  IDCUsername:
+    Description: Identity Center Username
+    Value: "kiro"
+
+  IDCStartURL:
+    Description: Identity Center Start URL
+    Value: !Join [",", !GetAtt IdentityCenterSetup.StartURL]
+
+  IDCPassword:
+    Description: Identity Center OTP Password
+    Value: !Join [",", !GetAtt IdentityCenterSetup.PasswordOTP]
+
+  IDCRegion:
+    Description: Identity Center Region
+    Value: "us-east-1"
+
+  # PATH Agent Designer Outputs
+  PathCloudFrontURL:
+    Description: PATH Agent Designer URL
+    Value: !Sub 'https://${PathCloudFrontDistribution.DomainName}'
+
+  PathAgentCoreRuntimeArn:
+    Description: PATH AgentCore Runtime ARN
+    Value: !GetAtt PathAgentCoreRuntime.AgentRuntimeArn
+
+  PathAgentCoreRuntimeId:
+    Description: PATH AgentCore Runtime ID
+    Value: !GetAtt PathAgentCoreRuntime.AgentRuntimeId
+
+  PathAgentCoreEndpointArn:
+    Description: PATH AgentCore Runtime Endpoint ARN
+    Value: !GetAtt PathAgentCoreEndpoint.AgentRuntimeEndpointArn
+
+  PathSessionsTableName:
+    Description: PATH DynamoDB Sessions Table Name
+    Value: !Ref PathSessionsTable

@@ -76,6 +76,7 @@ path-strands-agent/venv/
 path-strands-agent/**/__pycache__/
 strands-skill-system/
 path-strands-agent/deployment_package/
+infra/cdk.out/
 
 
 CLAUDE.md
