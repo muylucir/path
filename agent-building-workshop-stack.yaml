@@ -910,7 +910,7 @@ Resources:
                 - python3.11 -m ensurepip --upgrade 2>/dev/null || true
                 - python3.11 -m pip install --upgrade pip
                 - cd /tmp && rm -rf path-build
-                - git clone -b enhance/agentcore https://github.com/muylucir/path.git path-build
+                - git clone https://github.com/muylucir/path.git path-build
                 - cd /tmp/path-build/path-strands-agent
                 - PACKAGE_DIR=deployment_package
                 - rm -rf $PACKAGE_DIR deployment_package.zip && mkdir -p $PACKAGE_DIR
