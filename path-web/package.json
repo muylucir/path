@@ -18,13 +18,9 @@
     "@cloudscape-design/design-tokens": "^3.0.70",
     "@cloudscape-design/global-styles": "^1.0.50",
     "@hookform/resolvers": "^5.2.2",
-    "@mdx-js/loader": "^3.1.1",
-    "@mdx-js/react": "^3.1.1",
-    "@next/mdx": "^16.1.0",
     "lucide-react": "^0.562.0",
     "mermaid": "^11.12.2",
     "next": "16.1.0",
-    "next-mdx-remote": "^5.0.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-hook-form": "^7.71.1",
@@ -37,7 +33,6 @@
     "node": ">=22.0.0"
   },
   "devDependencies": {
-    "@types/mdx": "^2.0.13",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

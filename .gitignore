@@ -20,10 +20,10 @@ wheels/
 *.egg
 
 # Node.js
-path-web/node_modules/
-path-web/.next/
 node_modules/
 .next/
+*.tsbuildinfo
+next-env.d.ts
 
 # Virtual Environment
 path/.venv/
@@ -46,6 +46,7 @@ path/env/
 # Environment Variables
 .env
 .env.local
+.env*.local
 
 # Logs
 *.log
@@ -74,8 +75,13 @@ path-test-agent/
 path-test-agent/venv/
 path-strands-agent/venv/
 path-strands-agent/**/__pycache__/
-strands-skill-system/
 path-strands-agent/deployment_package/
+path-strands-agent/deployment_package.zip
+path-strands-agent/.pytest_cache/
+path-strands-agent/tests/
+path-strands-agent/_output/
+path-strands-agent/_scratch/
+strands-skill-system/
 infra/cdk.out/
 
 
