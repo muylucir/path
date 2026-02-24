@@ -7,6 +7,7 @@ from strands import Agent
 from strands.models import BedrockModel
 from strands.models.bedrock import CacheConfig
 from typing import Any
+import os
 import botocore.config
 from agentskills import discover_skills, generate_skills_prompt
 
@@ -85,6 +86,7 @@ def get_skill_prompt():
     """Skill 프롬프트를 캐싱하여 반환 (모든 Agent에서 공유)"""
     global _cached_skills, _cached_skill_prompt
     if _cached_skill_prompt is None:
-        _cached_skills = discover_skills("./skills")
+        _skills_dir = os.path.join(os.path.dirname(__file__), "skills")
+        _cached_skills = discover_skills(_skills_dir)
         _cached_skill_prompt = generate_skills_prompt(_cached_skills)
     return _cached_skill_prompt

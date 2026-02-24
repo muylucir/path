@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.STRANDS_API_URL || "http://localhost:8001";
-
 interface HealthStatus {
   status: "healthy" | "degraded" | "unhealthy";
   timestamp: string;
@@ -10,10 +8,9 @@ interface HealthStatus {
       status: "healthy" | "unhealthy";
       version: string;
     };
-    backend: {
-      status: "healthy" | "unhealthy";
-      url: string;
-      error?: string;
+    agentcore: {
+      status: "configured" | "not_configured";
+      runtimeArn: string;
     };
   };
 }
@@ -21,51 +18,21 @@ interface HealthStatus {
 export async function GET(): Promise<NextResponse<HealthStatus>> {
   const timestamp = new Date().toISOString();
 
-  // Frontend is always healthy if this endpoint responds
   const frontendStatus = {
     status: "healthy" as const,
     version: process.env.npm_package_version || "0.1.0",
   };
 
-  // Check backend health
-  let backendStatus: HealthStatus["services"]["backend"];
+  const runtimeArn = process.env.AGENT_RUNTIME_ARN || "";
+  const agentcoreStatus = {
+    status: runtimeArn ? ("configured" as const) : ("not_configured" as const),
+    runtimeArn: runtimeArn ? `${runtimeArn.slice(0, 40)}...` : "",
+  };
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-    const response = await fetch(`${BACKEND_URL}/health`, {
-      method: "GET",
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (response.ok) {
-      backendStatus = {
-        status: "healthy",
-        url: BACKEND_URL,
-      };
-    } else {
-      backendStatus = {
-        status: "unhealthy",
-        url: BACKEND_URL,
-        error: `HTTP ${response.status}`,
-      };
-    }
-  } catch (error) {
-    backendStatus = {
-      status: "unhealthy",
-      url: BACKEND_URL,
-      error: error instanceof Error ? error.message : "Connection failed",
-    };
-  }
-
-  // Determine overall status
   const overallStatus: HealthStatus["status"] =
-    frontendStatus.status === "healthy" && backendStatus.status === "healthy"
+    frontendStatus.status === "healthy" && agentcoreStatus.status === "configured"
       ? "healthy"
-      : frontendStatus.status === "healthy" || backendStatus.status === "healthy"
+      : frontendStatus.status === "healthy"
         ? "degraded"
         : "unhealthy";
 
@@ -74,11 +41,11 @@ export async function GET(): Promise<NextResponse<HealthStatus>> {
     timestamp,
     services: {
       frontend: frontendStatus,
-      backend: backendStatus,
+      agentcore: agentcoreStatus,
     },
   };
 
-  const statusCode = overallStatus === "healthy" ? 200 : overallStatus === "degraded" ? 200 : 503;
+  const statusCode = overallStatus === "unhealthy" ? 503 : 200;
 
   return NextResponse.json(healthResponse, { status: statusCode });
 }

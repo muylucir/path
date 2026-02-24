@@ -9,12 +9,22 @@ from .models import SkillProperties
 
 # Directory paths for agent file operations
 ROOT_DIR = Path(__file__).parent.parent  # Project root
-SCRATCH_DIR = ROOT_DIR / "_scratch"
-OUTPUT_DIR = ROOT_DIR / "_output"
 
-# Ensure directories exist
-SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+# AgentCore 런타임에서는 /var/task 가 읽기 전용이므로 /tmp 폴백
+import tempfile
+try:
+    SCRATCH_DIR = ROOT_DIR / "_scratch"
+    SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    SCRATCH_DIR = Path(tempfile.gettempdir()) / "_scratch"
+    SCRATCH_DIR.mkdir(parents=True, exist_ok=True)
+
+try:
+    OUTPUT_DIR = ROOT_DIR / "_output"
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+except OSError:
+    OUTPUT_DIR = Path(tempfile.gettempdir()) / "_output"
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 DEFAULT_SYSTEM_PROMPT = """

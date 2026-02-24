@@ -1,7 +1,8 @@
 """
-Chat Agent for PATH Step 2 - 대화형 분석 (스트리밍 + 채팅 지원)
+Chat Agent for PATH — Feasibility 평가 및 Pattern 분석 Agent
 
-사용자 입력을 분석하고 후속 질문을 생성하여 Feasibility를 평가하는 Agent
+FeasibilityAgent: Step 2 준비도 점검
+PatternAnalyzerAgent: Step 3 패턴 분석 + 대화 + 확정
 """
 
 from strands import Agent
@@ -13,8 +14,6 @@ from safe_tools import safe_file_read
 from strands_utils import strands_utils, get_skill_prompt
 from token_tracker import extract_usage
 from prompts import (
-    SYSTEM_PROMPT,
-    get_initial_analysis_prompt,
     FEASIBILITY_SYSTEM_PROMPT,
     get_feasibility_evaluation_prompt,
     get_feasibility_reevaluation_prompt,
@@ -55,199 +54,6 @@ def _extract_json(response_text: str, context: str = "response") -> Dict[str, An
         return json.loads(json_str)
 
     raise ValueError(f"Failed to extract JSON from {context}")
-
-
-# LEGACY: /analyze 엔드포인트 전용 — 새 플로우에서는 FeasibilityAgent 사용
-class AnalyzerAgent:
-    """사용자 입력(pain point, input, process, output 등)을 분석하는 Agent"""
-
-    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        self.agent = Agent(
-            model=model_id,
-            system_prompt=SYSTEM_PROMPT,
-            callback_handler=None  # 콘솔 출력 비활성화
-        )
-    
-    def analyze(self, form_data: Dict[str, Any]) -> str:
-        """초기 분석 수행 - 동기 버전"""
-        prompt = get_initial_analysis_prompt(form_data)
-        result = self.agent(prompt)
-        return result.message['content'][0]['text']
-    
-    async def analyze_stream(self, form_data: Dict[str, Any]) -> AsyncIterator[str]:
-        """초기 분석 수행 - 스트리밍 버전"""
-        prompt = get_initial_analysis_prompt(form_data)
-        
-        async for event in self.agent.stream_async(prompt):
-            if "data" in event:
-                yield event["data"]
-
-
-# LEGACY: /chat 엔드포인트 전용 — 새 플로우에서는 PatternAnalyzerAgent 사용
-class ChatAgent:
-    """대화형 분석 Agent - 채팅 지원"""
-
-    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        self.agent = Agent(
-            model=model_id,
-            system_prompt=SYSTEM_PROMPT,
-            callback_handler=None  # 콘솔 출력 비활성화
-        )
-        self.conversation_history: List[Dict[str, str]] = []
-    
-    def add_message(self, role: str, content: str):
-        """대화 히스토리에 메시지 추가"""
-        self.conversation_history.append({"role": role, "content": content})
-    
-    def get_history(self) -> List[Dict[str, str]]:
-        """대화 히스토리 반환"""
-        return self.conversation_history
-    
-    def clear_history(self):
-        """대화 히스토리 초기화"""
-        self.conversation_history = []
-    
-    def chat(self, user_message: str) -> str:
-        """채팅 - 동기 버전"""
-        # 사용자 메시지 추가
-        self.add_message("user", user_message)
-        
-        # 대화 컨텍스트 구성
-        history_text = "\n\n".join([
-            f"{msg['role'].upper()}: {msg['content']}" 
-            for msg in self.conversation_history
-        ])
-        
-        prompt = f"""{history_text}
-
-사용자의 답변을 반영하여:
-1. 추가 정보가 더 필요하면 구체적으로 질문 (최대 3개)
-2. 충분하면 "이제 최종 분석을 진행할 수 있습니다. '분석 완료'를 입력하세요." 안내
-
-자연스럽게 대화하세요."""
-        
-        result = self.agent(prompt)
-        response = result.message['content'][0]['text']
-        
-        # 응답 추가
-        self.add_message("assistant", response)
-        
-        return response
-    
-    async def chat_stream(self, user_message: str) -> AsyncIterator[str]:
-        """채팅 - 스트리밍 버전"""
-        # 사용자 메시지 추가
-        self.add_message("user", user_message)
-        
-        # 대화 컨텍스트 구성
-        history_text = "\n\n".join([
-            f"{msg['role'].upper()}: {msg['content']}" 
-            for msg in self.conversation_history
-        ])
-        
-        prompt = f"""{history_text}
-
-사용자의 답변을 반영하여:
-1. 추가 정보가 더 필요하면 구체적으로 질문 (최대 3개)
-2. 충분하면 "이제 최종 분석을 진행할 수 있습니다. '분석 완료'를 입력하세요." 안내
-
-자연스럽게 대화하세요."""
-        
-        # 스트리밍 응답 수집
-        full_response = ""
-        async for event in self.agent.stream_async(prompt):
-            if "data" in event:
-                chunk = event["data"]
-                full_response += chunk
-                yield chunk
-        
-        # 전체 응답 추가
-        self.add_message("assistant", full_response)
-
-
-# LEGACY: /finalize 엔드포인트 전용 — 새 플로우에서는 PatternAnalyzerAgent.finalize() 사용
-class EvaluatorAgent:
-    """답변 수집 후 Feasibility 점수를 계산하는 Agent"""
-
-    def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        self.agent = Agent(
-            model=model_id,
-            system_prompt=SYSTEM_PROMPT,
-            callback_handler=None  # 콘솔 출력 비활성화
-        )
-    
-    def evaluate(self, form_data: Dict[str, Any], conversation: List[Dict]) -> Dict[str, Any]:
-        """Feasibility 평가 수행 - PATH 웹앱 형식"""
-        conversation_text = "\n".join([
-            f"{msg['role'].upper()}: {msg['content']}" 
-            for msg in conversation
-        ])
-        
-        prompt = f"""다음은 지금까지의 분석 내용입니다:
-
-{conversation_text}
-
-이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
-
-**Universal Agent Design Patterns**:
-- **ReAct**: 단계적 추론(Think) → 도구 사용(Act) → 결과 관찰(Observe) → 반복
-- **Reflection**: 출력 생성 → 품질 검토 → 개선 반복 (자기 성찰 루프)
-- **Tool Use**: 외부 도구/API를 호출하여 데이터 접근, 계산, 시스템 연동
-- **Planning**: 복잡한 작업을 하위 작업으로 분해하여 순차 실행
-- **Multi-Agent**: 전문화된 여러 에이전트가 역할 분담하여 협업
-- **Human-in-the-Loop**: Agent 제안 → 사람 검토/승인 → 실행
-
-**패턴 조합도 가능**: 예) "ReAct + Tool Use", "Planning + Multi-Agent"
-
-{{
-  "pain_point": "{form_data.get('painPoint', '')}",
-  "input_type": "INPUT 타입",
-  "input_detail": "INPUT 상세",
-  "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
-  "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
-  "output_detail": "OUTPUT 상세",
-  "human_loop": "None/Review/Exception/Collaborate",
-  "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
-  "pattern_reason": "패턴 선택 이유 (문제의 특성과 패턴의 적합성 설명)",
-  "feasibility_breakdown": {{
-    "data_access": 0-10,
-    "decision_clarity": 0-10,
-    "error_tolerance": 0-10,
-    "latency": 0-10,
-    "integration": 0-10
-  }},
-  "feasibility_score": 0-50,
-  "recommendation": "추천 사항",
-  "risks": ["리스크1", "리스크2"],
-  "next_steps": [
-    "Phase 1: 핵심 기능 프로토타입 - 설명",
-    "Phase 2: 검증 및 테스트 - 설명",
-    "Phase 3: (선택적) 개선 및 확장 - 설명"
-  ]
-}}
-
-중요:
-- pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
-- next_steps는 주 단위 기간이 아닌 Phase/단계 중심으로 작성하세요.
-JSON만 출력하세요.
-"""
-        
-        system_prompt_for_json = f"""{SYSTEM_PROMPT}
-
-당신은 지금까지의 대화를 바탕으로 최종 분석을 수행하고 JSON 형식으로 출력합니다.
-간결하고 정확하게 작성하세요."""
-        
-        # Agent 재생성 (JSON 전용 시스템 프롬프트)
-        json_agent = Agent(
-            model=self.agent.model.config['model_id'],
-            system_prompt=system_prompt_for_json,
-            callback_handler=None  # 콘솔 출력 비활성화
-        )
-        
-        result = json_agent(prompt)
-        response_text = result.message['content'][0]['text']
-
-        return _extract_json(response_text, "evaluation")
 
 
 class FeasibilityAgent:
@@ -389,29 +195,33 @@ class PatternAnalyzerAgent:
         had_tool_use = False
         streaming = False
 
-        async for event in self.agent.stream_async(prompt):
-            if "data" in event:
-                chunk = event["data"]
-                if streaming:
-                    full_response += chunk
-                    yield {"text": chunk}
-                else:
-                    buffer += chunk
-                    # Tool 미사용이 확실해지면 바로 스트리밍 시작
-                    if not had_tool_use and len(buffer) > 100:
+        try:
+            async for event in self.agent.stream_async(prompt):
+                if "data" in event:
+                    chunk = event["data"]
+                    if streaming:
+                        full_response += chunk
+                        yield {"text": chunk}
+                    else:
+                        buffer += chunk
+                        # Tool 미사용이 확실해지면 바로 스트리밍 시작
+                        if not had_tool_use and len(buffer) > 100:
+                            streaming = True
+                            full_response += buffer
+                            yield {"text": buffer}
+                            buffer = ""
+                elif "current_tool_use" in event:
+                    had_tool_use = True
+                    buffer = ""  # Tool 전 메타 코멘터리 폐기
+                elif "start" in event:
+                    # Tool 실행 후 새 사이클 시작 → 스트리밍 모드 전환
+                    if had_tool_use and not streaming:
                         streaming = True
-                        full_response += buffer
-                        yield {"text": buffer}
-                        buffer = ""
-            elif "current_tool_use" in event:
-                had_tool_use = True
-                buffer = ""  # Tool 전 메타 코멘터리 폐기
-            elif "start" in event:
-                # Tool 실행 후 새 사이클 시작 → 스트리밍 모드 전환
-                if had_tool_use and not streaming:
-                    streaming = True
-            elif "result" in event:
-                usage = extract_usage(event["result"])
+                elif "result" in event:
+                    usage = extract_usage(event["result"])
+        except RuntimeError as e:
+            if "StopIteration" not in str(e):
+                raise
 
         # 잔여 버퍼 플러시 (짧은 응답 또는 tool 미사용)
         if buffer:
@@ -481,19 +291,3 @@ class PatternAnalyzerAgent:
 
         parsed["_usage"] = extract_usage(result)
         return parsed
-
-
-# 테스트용 메인 함수
-if __name__ == "__main__":
-    import asyncio
-
-    async def test():
-        # 스트리밍 테스트
-        print("🔍 스트리밍 분석 테스트")
-        print("="*80)
-        analyzer = AnalyzerAgent()
-        async for chunk in analyzer.analyze_stream(form_data):
-            print(chunk, end="", flush=True)
-        print("\n\n✅ 완료!")
-
-    asyncio.run(test())
