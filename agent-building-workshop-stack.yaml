@@ -389,9 +389,16 @@ Resources:
           import logging
           import time
           import os
+          import re
 
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
+
+          def sanitize(text):
+              """Strip ANSI escape codes and control characters for CloudFormation response"""
+              text = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+              text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+              return text
 
           def lambda_handler(event, context):
               if event['RequestType'] != 'Create':
@@ -418,12 +425,12 @@ Resources:
                               InstanceId=instance_id,
                               Details=True
                           )
-                          
+
                           for invocation in response['CommandInvocations']:
                               if invocation['DocumentName'] == document_name:
                                   invocation_status = invocation['Status']
                                   if invocation_status == 'Success':
-                                      logger.info(f'SSM Document completed successfully')                                  
+                                      logger.info(f'SSM Document completed successfully')
                                       cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='OK')
                                       retry = False
                                   elif invocation_status in ['Failed', 'Cancelled', 'TimedOut']:
@@ -433,14 +440,15 @@ Resources:
                                           step_status = step['Status']
                                           if step_status != 'Success':
                                               step_output = step.get('Output', 'No output available')
-                                              reason += f'\nStep {step_name} {step_status}: {step_output[:500]}'
+                                              clean_output = sanitize(step_output[-2000:])
+                                              reason += f'\nStep {step_name} {step_status}: {clean_output}'
                                       logger.error(reason)
                                       cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=reason)
                                       retry = False
                                   else:
                                       logger.info(f'SSM Document still running. Status: {invocation_status}')
                                       retry = True
-                                      
+
                           if retry == True:
                               if (time_remaining_ms > abort_time_remaining_ms):
                                   time.sleep(sleep_ms/1000)
@@ -580,6 +588,7 @@ Resources:
         - 'arn:aws:iam::aws:policy/AdministratorAccess'
         - 'arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore'
         - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+        - 'arn:aws:iam::aws:policy/AmazonBedrockFullAccess'
       Policies:
         - PolicyName: SecretsManagerAccess
           PolicyDocument:
@@ -764,10 +773,10 @@ Resources:
       GroupDescription: Security Group for code-server - only allow CloudFront ingress
       VpcId: {Ref: VPC}
       SecurityGroupIngress:
-        - Description: Allow HTTP from CloudFront
+        - Description: Allow HTTP from CloudFront (VS Code port 80 + PATH Frontend port 3009)
           IpProtocol: tcp
           FromPort: 80
-          ToPort: 80
+          ToPort: 3009
           SourcePrefixListId: !FindInMap [AWSRegionsPrefixListID, !Ref 'AWS::Region', PrefixList]
   
   VSCodeInstanceProfile:
@@ -906,15 +915,17 @@ Resources:
               runCommand:
                 - '#!/bin/bash'
                 - set -e
+                - echo "=== Installing Python 3.11 ==="
+                - dnf install -y -q python3.11 python3.11-pip
+                - python3.11 --version
                 - echo "=== Building PATH Agent deployment package ==="
-                - python3.11 -m ensurepip --upgrade 2>/dev/null || true
                 - python3.11 -m pip install --upgrade pip
                 - cd /tmp && rm -rf path-build
-                - git clone https://github.com/muylucir/path.git path-build
+                - git clone -b enhance/agentcore https://github.com/muylucir/path.git path-build
                 - cd /tmp/path-build/path-strands-agent
                 - PACKAGE_DIR=deployment_package
                 - rm -rf $PACKAGE_DIR deployment_package.zip && mkdir -p $PACKAGE_DIR
-                - python3.11 -m pip install --platform manylinux2014_aarch64 --target=$PACKAGE_DIR --only-binary=:all: --python-version 3.11 -r requirements.txt
+                - 'python3.11 -m pip install --platform manylinux2014_aarch64 --target=$PACKAGE_DIR --only-binary=:all: --python-version 3.11 -r requirements.txt'
                 - cp agentcore_entrypoint.py chat_agent.py multi_stage_spec_agent.py prompts.py strands_utils.py safe_tools.py token_tracker.py $PACKAGE_DIR/
                 - cp -r agentskills/ $PACKAGE_DIR/agentskills/
                 - cp -r skills/ $PACKAGE_DIR/skills/
@@ -1033,7 +1044,7 @@ Resources:
                 - echo "=== Deploying standalone output ==="
                 - rm -rf /opt/path-web
                 - mkdir -p /opt/path-web
-                - cp -r .next/standalone/* /opt/path-web/
+                - cp -r .next/standalone/. /opt/path-web/
                 - cp -r .next/static /opt/path-web/.next/static
                 - cp -r public /opt/path-web/public 2>/dev/null || true
                 - echo "=== Creating systemd service ==="
@@ -1095,17 +1106,6 @@ Resources:
       InstanceId: !Ref VSCodeServerInstance
       DocumentName: !Ref PathFrontendSSMDoc
 
-  # Security Group Ingress: Allow CloudFront to reach PATH Frontend (port 3009)
-  PathSecurityGroupIngress:
-    Type: AWS::EC2::SecurityGroupIngress
-    Properties:
-      GroupId: !Ref VSCodeServerSecurityGroup
-      Description: Allow HTTP from CloudFront to PATH Frontend
-      IpProtocol: tcp
-      FromPort: 3009
-      ToPort: 3009
-      SourcePrefixListId: !FindInMap [AWSRegionsPrefixListID, !Ref 'AWS::Region', PrefixList]
-
   # CloudFront Distribution for PATH Frontend
   PathCloudFrontDistribution:
     Type: AWS::CloudFront::Distribution
@@ -1135,6 +1135,7 @@ Resources:
               OriginProtocolPolicy: http-only
 
   # IAM Identity Center Resources
+  # Ensures at least one Identity Center instance exists (no-op if already present)
   IdentityCenterInstance:
     Type: AWS::SSO::Instance
 
@@ -1167,10 +1168,7 @@ Resources:
                   - identitystore:CreateUser
                   - identitystore:ListUsers
                   - identitystore:ListGroups
-                Resource:
-                  - !GetAtt IdentityCenterInstance.InstanceArn
-                  - !Sub arn:aws:identitystore::${AWS::AccountId}:identitystore/*
-                  - !Sub arn:aws:identitystore:::*
+                Resource: '*'
 
   IdentityCenterLambda:
     Type: AWS::Lambda::Function
@@ -1199,19 +1197,6 @@ Resources:
             sso_client = boto3.client('sso-admin')
             id_store_client = boto3.client('identitystore')
 
-            def get_sso_start_url():
-                """Get SSO start URL from the first available SSO instance"""
-                try:
-                    response = sso_client.list_instances()
-                    if response['Instances']:
-                        identity_store_id = response['Instances'][0]['IdentityStoreId']
-                        return f"https://{identity_store_id}.awsapps.com/start"
-                    logger.warning('No SSO instances found')
-                    return None
-                except Exception as e:
-                    logger.error(f'Failed to get SSO start URL: {str(e)}')
-                    return None
-
             GROUPS = ["AllUsers"]
             USERS = [
                 {
@@ -1231,13 +1216,12 @@ Resources:
                     if event['RequestType'] in ['Create', 'Update']:
                         identity_store_id = event['ResourceProperties']['IdentityStoreId']
                         instance_arn = event['ResourceProperties']['InstanceArn']
+                        logger.info(f'Using stack SSO instance: {instance_arn}, IdentityStore: {identity_store_id}')
                         group_idx = {}
                         user_id = []
-                        start_url = []
+                        start_url = [f"https://{identity_store_id}.awsapps.com/start"]
                         group_id = []
                         password_otp = []
-
-                        start_url.append(get_sso_start_url())
                         for group in GROUPS:
                             logger.info(f'Processing group: {group}')
                             if not check_group_exists(identity_store_id, group):
@@ -1251,8 +1235,12 @@ Resources:
                                 group_id.append(resp["GroupId"])
                         for user in USERS:
                             logger.info(f'Processing user: {user["user_name"]}')
-                            user_exists = check_user_exists(identity_store_id, user["user_name"])
-                            if not user_exists:
+                            existing_uid = check_user_exists(identity_store_id, user["user_name"])
+                            if existing_uid:
+                                logger.info(f'User already exists: {user["user_name"]} ({existing_uid})')
+                                current_uid = existing_uid
+                                user_id.append(existing_uid)
+                            else:
                                 user_resp = id_store_client.create_user(
                                     IdentityStoreId=identity_store_id,
                                     UserName=user["user_name"],
@@ -1261,57 +1249,71 @@ Resources:
                                     Name={"GivenName": user["given_name"], "FamilyName": user["last_name"]}
                                 )
                                 print("User Creation:" + json.dumps(user_resp, indent=4, default=str))
-                                user_id.append(user_resp["UserId"])
+                                current_uid = user_resp["UserId"]
+                                user_id.append(current_uid)
                                 # Assign groups
                                 for grp in user["groups"]:
                                     if grp in group_idx:
                                         member_resp = id_store_client.create_group_membership(
                                             IdentityStoreId=identity_store_id,
                                             GroupId=group_idx[grp],
-                                            MemberId={"UserId": user_resp["UserId"]}
+                                            MemberId={"UserId": current_uid}
                                         )
                                         print("Group Member Creation:" + json.dumps(member_resp, indent=4, default=str))
 
                                 # Try to update password (generate OTP)
                                 try:
                                     logger.info(f'Updating password for user: {user["user_name"]}')
-                                    password = update_password(user_resp["UserId"])
+                                    password = update_password(current_uid)
                                     password_otp.append(password)
                                 except Exception as e:
                                     print(f"Failed to update password for user {user['user_name']}: {str(e)}")
 
-                                # Try to update SSO configuration
-                                try:
-                                    logger.info('Updating SSO configuration')
-                                    sso_config = {
-                                        "mfaMode": "DISABLED",
-                                        "noMfaSignInBehavior": "ALLOWED_WITH_ENROLLMENT",
-                                        "allowedMfaTypes": ["TOTP", "WEBAUTHN"]
-                                    }
-                                    if instance_arn:
-                                        update_sso_configuration(instance_arn, "APP_AUTHENTICATION_CONFIGURATION", sso_config)
-                                except Exception as e:
-                                    print(f"Failed to update SSO configuration: {str(e)}")
+                            # SSO configuration and CodeWhisperer setup — always run
+                            try:
+                                logger.info('Updating SSO configuration')
+                                sso_config = {
+                                    "mfaMode": "DISABLED",
+                                    "noMfaSignInBehavior": "ALLOWED_WITH_ENROLLMENT",
+                                    "allowedMfaTypes": ["TOTP", "WEBAUTHN"]
+                                }
+                                if instance_arn:
+                                    update_sso_configuration(instance_arn, "APP_AUTHENTICATION_CONFIGURATION", sso_config)
+                            except Exception as e:
+                                print(f"Failed to update SSO configuration: {str(e)}")
 
-                                # Create CodeWhisperer profile
-                                try:
-                                    logger.info('Creating CodeWhisperer profile')
-                                    if instance_arn:
+                            try:
+                                logger.info('Ensuring CodeWhisperer profile for this instance')
+                                if instance_arn:
+                                    # Check if profile exists and is linked to the right instance
+                                    existing_profile = check_codewhisperer_profile_status()
+                                    if existing_profile:
+                                        profile_instance = existing_profile.get('identityDetails', {}).get('ssoIdentityDetails', {}).get('instanceArn')
+                                        if profile_instance != instance_arn:
+                                            logger.info(f'Profile linked to {profile_instance}, need {instance_arn}. Deleting and recreating.')
+                                            delete_codewhisperer_profile(existing_profile.get('arn', ''))
+                                            time.sleep(3)
+                                            existing_profile = None
+
+                                    if not existing_profile:
                                         create_codewhisperer_profile(instance_arn)
-                                        # Poll for profile status with max retries
-                                        max_poll = 15
-                                        poll_count = 0
-                                        while poll_count < max_poll and not check_codewhisperer_profile_status():
-                                            poll_count += 1
-                                            logger.info(f'Waiting for CodeWhisperer profile ({poll_count}/{max_poll})...')
-                                            time.sleep(10)
-                                        if poll_count < max_poll:
-                                            logger.info('CodeWhisperer profile is now active')
-                                            create_assignment(user_id[0])
-                                        else:
-                                            logger.warning('CodeWhisperer profile did not become active within max retries')
-                                except Exception as e:
-                                    print(f"Failed to create CodeWhisperer profile: {str(e)}")
+
+                                    max_poll = 15
+                                    poll_count = 0
+                                    profile_result = check_codewhisperer_profile_status()
+                                    while poll_count < max_poll and not profile_result:
+                                        poll_count += 1
+                                        logger.info(f'Waiting for CodeWhisperer profile ({poll_count}/{max_poll})...')
+                                        time.sleep(10)
+                                        profile_result = check_codewhisperer_profile_status()
+                                    if profile_result:
+                                        profile_arn = profile_result.get('arn', '') if isinstance(profile_result, dict) else None
+                                        logger.info(f'CodeWhisperer profile is now active, arn={profile_arn}')
+                                        create_assignment(current_uid, profile_arn)
+                                    else:
+                                        logger.warning('CodeWhisperer profile did not become active within max retries')
+                            except Exception as e:
+                                print(f"Failed to create CodeWhisperer profile: {str(e)}")
                         cfnresponse.send(event, context, cfnresponse.SUCCESS, { 'StartURL': start_url, 'UserID': user_id, 'GroupID': group_id, 'PasswordOTP': password_otp}, identity_store_id)
                     else:
                         cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
@@ -1321,22 +1323,24 @@ Resources:
                     logger.error(f'Lambda handler failed: {str(e)}')
                     print(e)
                     cfnresponse.send(event, context, cfnresponse.FAILED, {})
-            def check_user_exists(identity_store_id, user_id):
-                logger.info(f'Checking if user exists: {user_id}')
+            def check_user_exists(identity_store_id, user_name):
+                logger.info(f'Checking if user exists: {user_name}')
                 try:
                     response = id_store_client.list_users(
                         IdentityStoreId=identity_store_id,
                         Filters=[
                             {
                                 'AttributePath': 'UserName',
-                                'AttributeValue': user_id
+                                'AttributeValue': user_name
                             }
                         ]
                     )
-                    return len(response['Users']) > 0
+                    if response['Users']:
+                        return response['Users'][0]['UserId']
+                    return None
                 except Exception as e:
                     print(f"Error checking user existence: {str(e)}")
-                    return False
+                    return None
             def check_group_exists(identity_store_id, group_name):
                 logger.info(f'Checking if group exists: {group_name}')
                 try:
@@ -1501,6 +1505,69 @@ Resources:
                 http = urllib3.PoolManager()
                 response = http.request('POST', endpoint, headers=headers, body=payload_json)
                 logger.info(f'CodeWhisperer profile creation response: {response.status}')
+                logger.info(f'CodeWhisperer profile creation body: {response.data.decode("utf-8")}')
+                return response
+
+            def delete_codewhisperer_profile(profile_arn):
+                logger.info(f'Deleting CodeWhisperer profile: {profile_arn}')
+                session = boto3.Session()
+                credentials = session.get_credentials()
+
+                access_key = credentials.access_key
+                secret_key = credentials.secret_key
+                session_token = credentials.token
+
+                method = 'POST'
+                service = 'codewhisperer'
+                host = 'codewhisperer.us-east-1.amazonaws.com'
+                region = 'us-east-1'
+                endpoint = f'https://{host}/'
+
+                payload = {"profileArn": profile_arn}
+                payload_json = json.dumps(payload, separators=(',', ':'))
+
+                t = datetime.utcnow()
+                amz_date = t.strftime('%Y%m%dT%H%M%SZ')
+                date_stamp = t.strftime('%Y%m%d')
+
+                canonical_uri = '/'
+                canonical_querystring = ''
+                payload_hash = hashlib.sha256(payload_json.encode('utf-8')).hexdigest()
+
+                canonical_headers = f'host:{host}\n'
+                canonical_headers += f'x-amz-content-sha256:{payload_hash}\n'
+                canonical_headers += f'x-amz-date:{amz_date}\n'
+                canonical_headers += f'x-amz-security-token:{session_token}\n'
+                canonical_headers += f'x-amz-target:AWSCodeWhispererService.DeleteProfile\n'
+                canonical_headers += f'x-amz-user-agent:aws-sdk-js/2.1692.0 promise\n'
+
+                signed_headers = 'host;x-amz-content-sha256;x-amz-date;x-amz-security-token;x-amz-target;x-amz-user-agent'
+
+                canonical_request = f'{method}\n{canonical_uri}\n{canonical_querystring}\n{canonical_headers}\n{signed_headers}\n{payload_hash}'
+
+                algorithm = 'AWS4-HMAC-SHA256'
+                credential_scope = f'{date_stamp}/{region}/{service}/aws4_request'
+                string_to_sign = f'{algorithm}\n{amz_date}\n{credential_scope}\n{hashlib.sha256(canonical_request.encode("utf-8")).hexdigest()}'
+
+                signing_key = get_signature_key(secret_key, date_stamp, region, service)
+                signature = hmac.new(signing_key, string_to_sign.encode('utf-8'), hashlib.sha256).hexdigest()
+
+                authorization_header = f'{algorithm} Credential={access_key}/{credential_scope}, SignedHeaders={signed_headers}, Signature={signature}'
+
+                headers = {
+                    'Authorization': authorization_header,
+                    'Content-Type': 'application/x-amz-json-1.0',
+                    'X-Amz-Date': amz_date,
+                    'X-Amz-Security-Token': session_token,
+                    'X-Amz-Target': 'AWSCodeWhispererService.DeleteProfile',
+                    'X-Amz-User-Agent': 'aws-sdk-js/2.1692.0 promise',
+                    'X-Amz-Content-Sha256': payload_hash
+                }
+
+                http = urllib3.PoolManager()
+                response = http.request('POST', endpoint, headers=headers, body=payload_json)
+                logger.info(f'DeleteProfile response: {response.status}')
+                logger.info(f'DeleteProfile body: {response.data.decode("utf-8")}')
                 return response
 
             def update_sso_configuration(instance_arn, config_type, sso_config):
@@ -1629,18 +1696,19 @@ Resources:
                 if response.status == 200:
                     data = json.loads(response.data.decode('utf-8'))
                     profiles = data.get('profiles', [])
+                    logger.info(f'ListProfiles response: {json.dumps(profiles, default=str)}')
                     for profile in profiles:
                         if profile.get('status') == 'ACTIVE':
                             logger.info(f'Found active profile: {profile.get("profileName")}')
-                            return True
+                            return profile
                     logger.info('No active profiles found')
-                    return False
+                    return None
                 else:
                     logger.error(f'Failed to check profile status: {response.status}')
-                    return False
+                    return None
 
-            def create_assignment(user_id):
-                logger.info(f'Creating CodeWhisperer assignment for user: {user_id}')
+            def create_assignment(user_id, profile_arn=None):
+                logger.info(f'Creating CodeWhisperer assignment for user: {user_id}, profile: {profile_arn}')
                 session = boto3.Session()
                 credentials = session.get_credentials()
 
@@ -1659,6 +1727,8 @@ Resources:
                     "principalType": "USER",
                     "subscriptionType": "Q_DEVELOPER_STANDALONE_PRO"
                 }
+                if profile_arn:
+                    payload["profileArn"] = profile_arn
                 payload_json = json.dumps(payload, separators=(',', ':'))
 
                 t = datetime.utcnow()
@@ -1702,13 +1772,15 @@ Resources:
                 http = urllib3.PoolManager()
                 response = http.request('POST', endpoint, headers=headers, body=payload_json)
                 logger.info(f'Assignment creation response: {response.status}')
+                logger.info(f'Assignment creation body: {response.data.decode("utf-8")}')
                 return response
 
   IdentityCenterSetup:
     Type: AWS::CloudFormation::CustomResource
+    DependsOn: IdentityCenterInstance
     Properties:
-      InstanceArn: !GetAtt IdentityCenterInstance.InstanceArn
       ServiceToken: !GetAtt IdentityCenterLambda.Arn
+      InstanceArn: !GetAtt IdentityCenterInstance.InstanceArn
       IdentityStoreId: !GetAtt IdentityCenterInstance.IdentityStoreId
 
 Outputs:

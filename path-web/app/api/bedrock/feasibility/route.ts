@@ -8,6 +8,7 @@ export async function POST(req: NextRequest) {
   return invokeAgentCoreSSE(req, {
     schema: formSchema,
     actionType: "feasibility",
+    transformBody: (body) => ({ formData: body }),
     errorMessage: "Feasibility 평가 중 오류가 발생했습니다",
   });
 }

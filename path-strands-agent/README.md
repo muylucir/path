@@ -1,50 +1,57 @@
 # PATH Strands Agent Backend
 
-FastAPI + Strands Agents SDK 기반 P.A.T.H Agent Designer Backend
+Strands Agents SDK + Bedrock AgentCore Runtime 기반 P.A.T.H Agent Designer Backend
 
 ## 개요
 
-P.A.T.H Agent Designer의 **Backend 서버**로, Strands Agents SDK를 사용하여 AI Agent 아이디어 분석 및 명세서 생성을 담당합니다.
+P.A.T.H Agent Designer의 **Backend**로, Strands Agents SDK를 사용하여 AI Agent 아이디어 분석 및 명세서 생성을 담당합니다. **Bedrock AgentCore Runtime**에 서버리스로 배포되며, 단일 엔트리포인트에서 6개 액션을 dispatch합니다.
 
 **주요 역할**:
 - Step 2: 준비도 점검 (FeasibilityAgent)
 - Step 3: 패턴 분석 (PatternAnalyzerAgent)
 - Step 4: 4단계 명세서 생성 파이프라인 (MultiStageSpecAgent)
-- Server-Sent Events (SSE) 스트리밍
-- API Key 인증 및 Rate Limiting
+- AgentCore Runtime 기반 서버리스 실행
 
 ## 기술 스택
 
 | 항목 | 기술 |
 |------|------|
 | **Python** | 3.11+ |
-| **Framework** | FastAPI |
-| **LLM SDK** | Strands Agents SDK (strands-agents, strands-agents-tools) |
-| **LLM** | AWS Bedrock Claude Opus 4.6 (global.anthropic.claude-opus-4-6-v1) |
-| **Rate Limiting** | SlowAPI |
-| **Port** | 8001 |
+| **Runtime** | AWS Bedrock AgentCore Runtime (서버리스) |
+| **LLM SDK** | Strands Agents SDK (strands-agents >= 1.26.0, strands-agents-tools) |
+| **LLM** | AWS Bedrock Claude Opus 4.6 (`global.anthropic.claude-opus-4-6-v1`) |
+| **Entrypoint** | `BedrockAgentCoreApp` (bedrock-agentcore 패키지) |
 
 ## 아키텍처
 
-### P.A.T.H 단계별 Agent
+### 요청 흐름
 
 ```
-Step 2: 준비도 점검
-├── FeasibilityAgent          # 5개 항목 Feasibility 평가 (SSE)
-└── FeasibilityAgent.reevaluate()  # 개선 방안 반영 재평가 (JSON)
-
-Step 3: 패턴 분석
-├── PatternAnalyzerAgent.analyze_stream()  # 초기 패턴 분석 (SSE)
-├── PatternAnalyzerAgent.chat_stream()     # 대화형 분석 (SSE)
-└── PatternAnalyzerAgent.finalize()        # 최종 분석 (JSON)
-
-Step 4: 명세서 생성
-└── MultiStageSpecAgent (4단계 파이프라인)
-    ├── DesignAgent (0-40%)      # Agent 설계 패턴
-    ├── DiagramAgent (40-70%)    # Mermaid/ASCII 다이어그램
-    ├── DetailAgent (70-95%)     # 프롬프트 & 도구 정의
-    └── AssemblerAgent (95-100%) # 최종 Markdown 조립
+Next.js API Route
+  → @aws-sdk/client-bedrock-agentcore (InvokeAgentRuntimeCommand)
+  → AgentCore Runtime (agentcore_entrypoint.py)
+  → payload.type으로 액션 분기
+  → Strands Agent 실행
+  → yield 기반 SSE 스트리밍 / JSON 응답
 ```
+
+### 액션 디스패치 (agentcore_entrypoint.py)
+
+| Action Type | Agent | 응답 방식 | 설명 |
+|-------------|-------|----------|------|
+| `ping` | - | JSON (single yield) | 헬스 체크 |
+| `feasibility` | FeasibilityAgent | SSE 스트리밍 | 초기 Feasibility 평가 |
+| `feasibility_update` | FeasibilityAgent | JSON (single yield) | 개선 방안 반영 재평가 |
+| `pattern_analyze` | PatternAnalyzerAgent | SSE 스트리밍 | 초기 패턴 분석 |
+| `pattern_chat` | PatternAnalyzerAgent | SSE 스트리밍 | 대화형 분석 |
+| `pattern_finalize` | PatternAnalyzerAgent | JSON (single yield) | 최종 분석 |
+| `spec` | MultiStageSpecAgent | SSE 스트리밍 | 4단계 명세서 생성 |
+
+### 세션 관리
+
+- `PatternAnalyzerAgent` 인스턴스는 모듈 레벨 dict에 캐시
+- AgentCore의 `runtimeSessionId`로 동일 컨테이너 라우팅
+- 대화 히스토리 복원을 위한 stateless fallback 지원
 
 ### Skill System
 
@@ -65,7 +72,6 @@ skills/
 ```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
 ```
 
 ### 2. 의존성 설치
@@ -74,18 +80,14 @@ source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 ```
 
-**requirements.txt 내용**:
+**주요 의존성**:
 ```
-strands-agents
+bedrock-agentcore
+strands-agents>=1.26.0
 strands-agents-tools
 boto3
-fastapi
-uvicorn
 pyyaml
 strictyaml
-httpx
-aiohttp
-slowapi
 ```
 
 ### 3. AWS 자격증명 설정
@@ -93,86 +95,96 @@ slowapi
 ```bash
 aws configure
 # 또는 환경변수 설정
-export AWS_ACCESS_KEY_ID=your_key
-export AWS_SECRET_ACCESS_KEY=your_secret
 export AWS_DEFAULT_REGION=ap-northeast-2
 ```
 
-### 4. API Key 설정 (선택)
+### 4. 환경변수 설정
 
 ```bash
-export PATH_API_KEY=your-api-key
+# .env 파일
+AWS_DEFAULT_REGION=ap-northeast-2
+BEDROCK_MODEL_ID=global.anthropic.claude-opus-4-6-v1  # 선택 (기본값 동일)
 ```
 
-## 실행
+## 배포
 
-### FastAPI 서버 시작
+### AgentCore Runtime 배포
+
+Backend는 더 이상 독립 서버가 아니며, **Bedrock AgentCore Runtime**에 서버리스로 배포됩니다.
+
+#### 1. 배포 패키지 빌드
 
 ```bash
-python api_server.py
+bash build-agent.sh
 ```
 
-서버가 **http://localhost:8001**에서 실행됩니다.
+이 스크립트가 수행하는 작업:
+1. ARM64 종속성을 `deployment_package/`에 설치
+2. 핵심 Python 파일 및 skills/ 디렉토리 복사
+3. `deployment_package.zip` 생성
 
-**출력 예시**:
-```
-INFO:     Started server process [12345]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8001
-```
-
-### 헬스체크
+#### 2. S3 업로드 & CloudFormation 배포
 
 ```bash
-curl http://localhost:8001/health
-# {"status":"ok"}
+# ZIP을 S3에 업로드
+aws s3 cp deployment_package.zip s3://<bucket-name>/deployment_package.zip
+
+# CloudFormation으로 AgentCore Runtime 배포
+aws cloudformation deploy \
+  --template-file ../agent-building-workshop-stack.yaml \
+  --stack-name path-agent-designer \
+  --capabilities CAPABILITY_NAMED_IAM
+```
+
+### 로컬 실행
+
+AgentCore Runtime은 로컬에서도 실행 가능:
+
+```bash
+python agentcore_entrypoint.py
 ```
 
 ## 프로젝트 구조
 
 ```
 path-strands-agent/
-├── api_server.py              # FastAPI 엔트리포인트 (모든 엔드포인트, Rate Limiting, Auth)
-├── chat_agent.py              # Agent 정의
-│                              # - FeasibilityAgent (Step 2)
-│                              # - PatternAnalyzerAgent (Step 3)
-│                              # - AnalyzerAgent, ChatAgent, EvaluatorAgent (Legacy)
-├── multi_stage_spec_agent.py  # MultiStageSpecAgent (4단계 파이프라인)
-│                              # - DesignAgent, DiagramAgent, DetailAgent, AssemblerAgent
-├── prompts.py                 # 시스템 프롬프트 및 템플릿
-├── strands_utils.py           # Strands Agent 유틸리티 함수
-├── auth.py                    # API Key 인증 미들웨어
-├── rate_limiter.py            # SlowAPI Rate Limiting 설정
-├── validators.py              # 입력 검증 및 새니타이징
-├── session_manager.py         # SecureSessionManager (세션 관리)
-├── session_cleanup.py         # 세션 자동 정리 스케줄러
-├── agentskills/               # Skill 로딩 라이브러리
-│   ├── __init__.py            # discover_skills, generate_skills_prompt
-│   ├── discovery.py           # Skill 검색
-│   ├── loader.py              # Skill 로드
-│   └── skill_utils.py         # Skill 유틸리티
-├── skills/                    # Agent Skill 디렉토리
-│   ├── universal-agent-patterns/  # 프레임워크 독립적 패턴
-│   │   ├── SKILL.md
-│   │   └── references/
-│   ├── mermaid-diagrams/          # Mermaid 다이어그램
-│   │   ├── SKILL.md
-│   │   └── references/
-│   ├── ascii-diagram/             # ASCII 다이어그램
-│   │   ├── SKILL.md
-│   │   └── references/
-│   ├── prompt-engineering/        # 프롬프트 설계
-│   │   ├── SKILL.md
-│   │   └── references/
-│   ├── tool-schema/               # 도구 정의
-│   │   ├── SKILL.md
-│   │   └── references/
-│   └── feasibility-evaluation/    # Feasibility 평가
-│       ├── SKILL.md
-│       └── references/
-├── requirements.txt           # Python 의존성
-└── README.md                  # 이 파일
+├── agentcore_entrypoint.py       # AgentCore Runtime 엔트리포인트
+│                                 # - BedrockAgentCoreApp 기반 디스패처
+│                                 # - 7개 액션 (ping, feasibility, ...)
+├── chat_agent.py                 # Agent 정의
+│                                 # - FeasibilityAgent (Step 2)
+│                                 # - PatternAnalyzerAgent (Step 3)
+├── multi_stage_spec_agent.py     # MultiStageSpecAgent (4단계 파이프라인)
+│                                 # - DesignAgent, DiagramAgent, DetailAgent, AssemblerAgent
+├── prompts.py                    # 시스템 프롬프트 및 템플릿
+├── strands_utils.py              # Strands Agent 유틸리티 함수
+├── safe_tools.py                 # 안전한 도구 정의
+├── token_tracker.py              # 토큰 사용량 추적
+├── build-agent.sh                # ARM64 배포 패키지 빌더
+├── .env                          # 환경변수 (AWS_DEFAULT_REGION, BEDROCK_MODEL_ID)
+├── agentskills/                  # Skill 로딩 라이브러리
+│   ├── __init__.py
+│   ├── agent_model.py            # Agent 모델 설정
+│   ├── discovery.py              # Skill 검색
+│   ├── errors.py                 # 에러 정의
+│   ├── models.py                 # 데이터 모델
+│   ├── parser.py                 # Skill 파싱
+│   ├── prompt.py                 # Skill 프롬프트 생성
+│   ├── validator.py              # Skill 검증
+│   ├── tool_utils.py             # 도구 유틸리티
+│   └── tool/                     # Skill-as-Tool 지원
+│       ├── __init__.py
+│       ├── agent_skill.py
+│       └── skill.py
+├── skills/                       # Agent Skill 디렉토리
+│   ├── universal-agent-patterns/ # 프레임워크 독립적 패턴
+│   ├── mermaid-diagrams/         # Mermaid 다이어그램
+│   ├── ascii-diagram/            # ASCII 다이어그램
+│   ├── prompt-engineering/       # 프롬프트 설계
+│   ├── tool-schema/              # 도구 정의
+│   └── feasibility-evaluation/   # Feasibility 평가
+├── requirements.txt              # Python 의존성
+└── README.md                     # 이 파일
 ```
 
 ## Agent 구성
@@ -190,8 +202,8 @@ path-strands-agent/
 | `integration` | 통합 복잡도 | 연동 시스템 수, API 표준화 |
 
 **메서드**:
-- `evaluate_stream(form_data)`: 초기 평가 (SSE 스트리밍)
-- `reevaluate(form_data, previous, improvements)`: 개선 방안 반영 재평가 (JSON)
+- `evaluate_stream(form_data)`: 초기 평가 (async generator, SSE 스트리밍)
+- `reevaluate(form_data, previous, improvements)`: 개선 방안 반영 재평가 (sync, JSON)
 
 ### Step 3: PatternAnalyzerAgent (chat_agent.py)
 
@@ -199,8 +211,8 @@ Feasibility 평가 결과를 바탕으로 Agent 패턴을 분석합니다.
 
 **메서드**:
 - `analyze_stream(form_data, feasibility, improvements)`: 초기 패턴 분석 (SSE)
-- `chat_stream(user_message)`: 대화형 분석 (SSE)
-- `finalize(form_data, feasibility, conversation, improvements)`: 최종 분석 (JSON)
+- `chat_stream(user_message, stateful)`: 대화형 분석 (SSE)
+- `finalize(form_data, feasibility, improvements, stateful)`: 최종 분석 (JSON)
 
 **출력 필드**:
 - `pattern`: 추천 패턴 (ReAct, Reflection, Tool Use, Planning, Multi-Agent 등)
@@ -219,132 +231,46 @@ Feasibility 평가 결과를 바탕으로 Agent 패턴을 분석합니다.
 | 3 | DetailAgent | 70-95% | prompt-engineering, tool-schema | 프롬프트 & 도구 정의 |
 | 4 | AssemblerAgent | 95-100% | - | 최종 Markdown 조립 (LLM 미사용) |
 
-### Legacy Agents (chat_agent.py)
+## Payload 예시
 
-이전 버전 호환을 위한 Agent들:
-- `AnalyzerAgent`: 초기 분석 (deprecated)
-- `ChatAgent`: 대화형 분석 (deprecated)
-- `EvaluatorAgent`: 최종 평가 (deprecated)
+### feasibility
 
-## API 엔드포인트
-
-### Step 2: 준비도 점검
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/feasibility` | POST | 초기 Feasibility 평가 | SSE |
-| `/feasibility/update` | POST | 개선 방안 반영 재평가 | JSON |
-
-### Step 3: 패턴 분석
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/pattern/analyze` | POST | 초기 패턴 분석 | SSE |
-| `/pattern/chat` | POST | 대화형 분석 | SSE |
-| `/pattern/finalize` | POST | 최종 분석 | JSON |
-
-### Step 4: 명세서
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/spec` | POST | 명세서 생성 (4단계) | SSE + 진행률 |
-
-### Legacy (deprecated)
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/analyze` | POST | Legacy 초기 분석 | SSE |
-| `/chat` | POST | Legacy 대화 | SSE |
-| `/finalize` | POST | Legacy 최종 평가 | JSON |
-
-### System
-
-| 엔드포인트 | 메서드 | 설명 |
-|----------|--------|------|
-| `/health` | GET | 헬스체크 (인증 불필요) |
-
-## Request/Response 예시
-
-### POST /feasibility
-
-**Request**:
 ```json
 {
-  "painPoint": "고객 이메일 답변에 하루 2시간 소요",
-  "inputType": "Event-Driven (이벤트 발생 시)",
-  "processSteps": ["검색, API 조회, 문서 읽기 (정보 수집)", "문서, 코드, 응답 작성 (생성/작성)"],
-  "outputTypes": ["답변, 요약, 설명 (텍스트 응답)"],
-  "humanLoop": "실행 전 승인 필요 (Review)",
-  "errorTolerance": "사람이 검토 후 실행"
+  "type": "feasibility",
+  "formData": {
+    "painPoint": "고객 이메일 답변에 하루 2시간 소요",
+    "inputType": "Event-Driven (이벤트 발생 시)",
+    "processSteps": ["검색, API 조회, 문서 읽기 (정보 수집)"],
+    "outputTypes": ["답변, 요약, 설명 (텍스트 응답)"],
+    "humanLoop": "실행 전 승인 필요 (Review)",
+    "errorTolerance": "사람이 검토 후 실행"
+  }
 }
 ```
 
-**Response (SSE)**:
-```
-data: {"feasibility_breakdown": {"data_access": {"score": 7, "reason": "..."}, ...}}
+### pattern_finalize
 
-data: [DONE]
-```
-
-### POST /pattern/finalize
-
-**Response (JSON)**:
 ```json
 {
-  "pain_point": "고객 이메일 답변 자동화",
-  "pattern": "ReAct",
-  "pattern_reason": "...",
-  "recommended_architecture": "single-agent",
-  "multi_agent_pattern": null,
-  "feasibility_score": 35,
-  "feasibility_breakdown": {
-    "data_access": 7,
-    "decision_clarity": 7,
-    "error_tolerance": 7,
-    "latency": 7,
-    "integration": 7
-  },
-  "improved_feasibility": {
-    "score": 42,
-    "score_change": 7,
-    "breakdown": {
-      "data_access": {
-        "original_score": 7,
-        "improved_score": 9,
-        "improvement_reason": "S3 연동으로 데이터 접근성 향상"
-      }
-    },
-    "summary": "개선 방안 적용 시 7점 상승 예상"
-  },
-  "recommendation": "✅ 즉시 진행",
-  "risks": ["..."],
-  "next_steps": ["..."]
+  "type": "pattern_finalize",
+  "formData": { ... },
+  "feasibility": { ... },
+  "conversation": [{ "role": "user", "content": "..." }],
+  "improvementPlans": { "data_access": "S3 연동 예정" }
 }
 ```
 
-### POST /spec
+### spec
 
-**Request**:
 ```json
 {
+  "type": "spec",
   "analysis": { "pain_point": "...", "pattern": "ReAct", ... },
   "improvement_plans": { "data_access": "S3 연동 예정" },
   "chat_history": [{ "role": "user", "content": "..." }],
   "additional_context": { "sources": "...", "context": "..." }
 }
-```
-
-**Response (SSE)**:
-```
-data: {"progress": 10, "stage": "design"}
-
-data: {"text": "## 2. Agent Design Pattern\n\n..."}
-
-data: {"progress": 45, "stage": "diagram"}
-
-data: {"text": "```mermaid\ngraph TD\n..."}
-
-data: [DONE]
 ```
 
 ## Skill System
@@ -362,10 +288,7 @@ skills/<skill-name>/
 ```python
 from agentskills import discover_skills, generate_skills_prompt
 
-# 모든 스킬 검색
 skills = discover_skills("./skills")
-
-# 스킬 프롬프트 생성
 skill_prompt = generate_skills_prompt(skills)
 ```
 
@@ -380,149 +303,50 @@ skill_prompt = generate_skills_prompt(skills)
 | `tool-schema` | 도구 정의 스키마 | DetailAgent |
 | `feasibility-evaluation` | Feasibility 평가 기준 | FeasibilityAgent |
 
-## 보안
-
-### API Key 인증
-
-`auth.py`에서 API Key 인증 미들웨어 설정:
-- `PATH_API_KEY` 환경변수로 API Key 설정
-- `/health` 엔드포인트는 인증 불필요 (PUBLIC_ENDPOINTS)
-
-### Rate Limiting
-
-`rate_limiter.py`에서 SlowAPI 기반 Rate Limiting:
-```python
-RATE_LIMITS = {
-    "analyze": "10/minute",
-    "chat": "30/minute",
-    "finalize": "10/minute",
-    "spec": "5/minute",
-    "feasibility": "10/minute",
-    "feasibility_update": "10/minute",
-    "pattern_analyze": "10/minute",
-    "pattern_chat": "30/minute",
-    "pattern_finalize": "10/minute",
-}
-```
-
-### 입력 검증
-
-`validators.py`에서 입력 새니타이징:
-- `sanitize_input()`: XSS, SQL Injection 방지
-- `validate_conversation()`: 대화 히스토리 검증
-- 길이 제한: `MAX_PAIN_POINT_LENGTH`, `MAX_CONTEXT_LENGTH` 등
-
-### 세션 관리
-
-`session_manager.py`의 `SecureSessionManager`:
-- 메모리 내 세션 저장
-- 세션 타임아웃 관리
-- `session_cleanup.py`로 자동 정리 스케줄
-
 ## 개발 노트
 
-### CORS 설정
+### AgentCore 엔트리포인트 패턴
 
 ```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3009", "https://d21k0iabhuk0yx.cloudfront.net"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+from bedrock_agentcore.runtime import BedrockAgentCoreApp
+
+app = BedrockAgentCoreApp()
+
+@app.entrypoint
+async def invoke(payload, context):
+    action_type = payload.get("type")
+    session_id = getattr(context, "session_id", "")
+
+    if action_type == "feasibility":
+        async for event in _handle_feasibility(payload):
+            yield event  # SSE 스트리밍
+    elif action_type == "feasibility_update":
+        result = await asyncio.to_thread(_run_sync, payload)
+        yield result    # JSON 단일 응답
+
+if __name__ == "__main__":
+    app.run()
 ```
 
-### Agent 싱글톤
+### Lazy Import (Cold Start 최적화)
 
-모든 Agent는 모듈 레벨에서 생성되어 요청 간 재사용:
+무거운 모듈(strands, boto3 등)은 최초 요청 시 lazy import:
 ```python
-analyzer_agent = AnalyzerAgent()
-multi_stage_spec_agent = MultiStageSpecAgent()
-feasibility_agent = FeasibilityAgent()
+_chat_agent_module = None
+
+def _get_chat_agent_module():
+    global _chat_agent_module
+    if _chat_agent_module is None:
+        import chat_agent as mod
+        _chat_agent_module = mod
+    return _chat_agent_module
 ```
 
-### SSE 스트리밍 패턴
-
-```python
-from fastapi.responses import StreamingResponse
-
-async def generate():
-    async for chunk in agent.stream_async(prompt):
-        yield f"data: {json.dumps({'text': chunk})}\n\n"
-    yield "data: [DONE]\n\n"
-
-return StreamingResponse(
-    generate(),
-    media_type="text/event-stream",
-    headers={
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-    }
-)
-```
-
-### Lifespan 이벤트
-
-```python
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # 시작 시: 세션 정리 스케줄러 시작
-    scheduler = get_cleanup_scheduler()
-    scheduler.register_manager(chat_sessions)
-    scheduler.register_manager(pattern_sessions)
-    await scheduler.start()
-
-    yield
-
-    # 종료 시: 스케줄러 정지
-    await scheduler.stop()
-```
-
-## 테스트
-
-### 헬스체크
-
-```bash
-curl http://localhost:8001/health
-```
-
-### Feasibility 평가
-
-```bash
-curl -X POST http://localhost:8001/feasibility \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "painPoint": "고객 이메일 답변에 하루 2시간 소요",
-    "inputType": "Event-Driven (이벤트 발생 시)",
-    "processSteps": ["검색, API 조회, 문서 읽기 (정보 수집)"],
-    "outputTypes": ["답변, 요약, 설명 (텍스트 응답)"],
-    "humanLoop": "실행 전 승인 필요 (Review)",
-    "errorTolerance": "사람이 검토 후 실행"
-  }'
-```
-
-### 명세서 생성
-
-```bash
-curl -X POST http://localhost:8001/spec \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "analysis": {
-      "pain_point": "고객 이메일 답변 자동화",
-      "pattern": "ReAct",
-      "feasibility_score": 42
-    }
-  }'
-```
+AgentCore 초기화 타임아웃(30초) 내에 `app.run()`이 시작되어야 합니다.
 
 ## 참고
 
 - [CLAUDE.md](../CLAUDE.md) - 프로젝트 가이드
 - [Strands Agents SDK](https://strandsagents.com/)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [AWS Bedrock AgentCore](https://docs.aws.amazon.com/bedrock/latest/userguide/agentcore.html)
 - [AWS Bedrock](https://aws.amazon.com/bedrock/)
-- [SlowAPI Documentation](https://slowapi.readthedocs.io/)

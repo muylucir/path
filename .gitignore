@@ -91,3 +91,5 @@ CLAUDE.md
 spec/
 .mcp.json
 img/
+
+agent-building-workshop-stack.yaml
