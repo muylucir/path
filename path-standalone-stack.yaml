@@ -123,6 +123,7 @@ Resources:
         - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
         - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
         - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+        - arn:aws:iam::aws:policy/BedrockAgentCoreFullAccess
       Policies:
         - PolicyName: PathEC2Policy
           PolicyDocument:
@@ -212,7 +213,7 @@ Resources:
   PathSessionsTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: path-agent-sessions
+      TableName: path-agent-desigenr
       BillingMode: PAY_PER_REQUEST
       AttributeDefinitions:
         - AttributeName: session_id
