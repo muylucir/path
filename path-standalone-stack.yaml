@@ -1,0 +1,829 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'PATH Agent Designer - Standalone Stack'
+
+Mappings:
+  CidrMappings:
+    public-subnet-1: {CIDR: 10.3.1.0/24}
+    vpc: {CIDR: 10.3.0.0/16}
+  DomainNameMappings:
+    us-east-1: {Domain: ec2.internal}
+    ap-northeast-1: {Domain: ap-northeast-1.compute.internal}
+    ap-northeast-2: {Domain: ap-northeast-2.compute.internal}
+  AWSRegionsPrefixListID:
+    us-east-1: {PrefixList: pl-3b927c52}
+    ap-northeast-1: {PrefixList: pl-58a04531}
+    ap-northeast-2: {PrefixList: pl-22a6434b}
+
+Resources:
+  # ============================================================
+  # VPC & Networking (Single-AZ)
+  # ============================================================
+
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [CidrMappings, vpc, CIDR]
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - {Key: Name, Value: !Sub '${AWS::StackName}-VPC'}
+
+  DHCPOptions:
+    Type: AWS::EC2::DHCPOptions
+    Properties:
+      DomainName: !FindInMap [DomainNameMappings, !Ref 'AWS::Region', Domain]
+      DomainNameServers: [AmazonProvidedDNS]
+
+  VPCDHCPOptionsAssociation:
+    Type: AWS::EC2::VPCDHCPOptionsAssociation
+    Properties:
+      DhcpOptionsId: !Ref DHCPOptions
+      VpcId: !Ref VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    DependsOn: VPC
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    DependsOn: [VPC, InternetGateway]
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    DependsOn: [VPC, AttachGateway]
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - {Key: Name, Value: !Sub '${AWS::StackName}-PublicRT'}
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: [PublicRouteTable, AttachGateway]
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    DependsOn: AttachGateway
+    Properties:
+      AvailabilityZone: !Select ['0', !GetAZs '']
+      CidrBlock: !FindInMap [CidrMappings, public-subnet-1, CIDR]
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+        - {Key: Name, Value: !Sub '${AWS::StackName}-PublicSubnet1'}
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    DependsOn: [PublicRouteTable, PublicSubnet1, AttachGateway]
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+
+  # ============================================================
+  # Security Group - CloudFront only ingress
+  # ============================================================
+
+  PathSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub '${AWS::StackName} - Allow CloudFront ingress on port 3009'
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - Description: Allow HTTP from CloudFront (PATH Frontend port 3009)
+          IpProtocol: tcp
+          FromPort: 3009
+          ToPort: 3009
+          SourcePrefixListId: !FindInMap [AWSRegionsPrefixListID, !Ref 'AWS::Region', PrefixList]
+
+  # ============================================================
+  # IAM Roles
+  # ============================================================
+
+  # EC2 Instance Role
+  PathEC2Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-ec2-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+                - ssm.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+      Policies:
+        - PolicyName: PathEC2Policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${PathCodeBucket}'
+                  - !Sub 'arn:aws:s3:::${PathCodeBucket}/*'
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                  - dynamodb:DeleteItem
+                  - dynamodb:UpdateItem
+                Resource: !GetAtt PathSessionsTable.Arn
+              - Effect: Allow
+                Action:
+                  - bedrock-agentcore:InvokeAgent
+                Resource: '*'
+
+  PathEC2InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+        - !Ref PathEC2Role
+
+  # AgentCore Runtime Role
+  PathAgentCoreRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${AWS::StackName}-agentcore-role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: bedrock-agentcore.amazonaws.com
+            Action: sts:AssumeRole
+
+  PathAgentCoreRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PathAgentCorePolicy
+      Roles:
+        - !Ref PathAgentCoreRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - bedrock:InvokeModel
+              - bedrock:InvokeModelWithResponseStream
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: !Sub 'arn:aws:s3:::${PathCodeBucket}/*'
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - xray:PutTraceSegments
+              - xray:PutTelemetryRecords
+            Resource: '*'
+
+  # ============================================================
+  # S3 Bucket for Agent deployment package
+  # ============================================================
+
+  PathCodeBucket:
+    Type: AWS::S3::Bucket
+
+  # ============================================================
+  # DynamoDB Table for session management
+  # ============================================================
+
+  PathSessionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: path-agent-sessions
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: session_id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: session_id
+          KeyType: HASH
+
+  # ============================================================
+  # EC2 Instance (ARM64 Graviton, m7g.medium, 30GB)
+  # ============================================================
+
+  PathInstance:
+    Type: AWS::EC2::Instance
+    DependsOn: [PathSecurityGroup]
+    Properties:
+      ImageId: resolve:ssm:/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64
+      InstanceType: m7g.medium
+      IamInstanceProfile: !Ref PathEC2InstanceProfile
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroupIds:
+        - !Ref PathSecurityGroup
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeSize: 30
+            VolumeType: gp3
+            DeleteOnTermination: true
+            Encrypted: true
+      Monitoring: true
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-Instance'
+
+  # ============================================================
+  # Lambda functions for SSM Document orchestration
+  # ============================================================
+
+  SSMDocLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SSMDocOnEC2
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:SendCommand
+                Resource:
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${PathBuildSSMDoc}'
+                  - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${PathFrontendSSMDoc}'
+                  - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${PathInstance}'
+              - Effect: Allow
+                Action:
+                  - ssm:ListCommandInvocations
+                  - ssm:GetCommandInvocation
+                Resource: '*'
+
+  RunSSMDocLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Run SSM document on EC2 instance
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 600
+      Environment:
+        Variables:
+          RetrySleep: 2900
+          AbortTimeRemaining: 3200
+      Role: !GetAtt SSMDocLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          import time
+          import os
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              if event['RequestType'] != 'Create':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+              else:
+                  sleep_ms = int(os.environ.get('RetrySleep'))
+                  abort_time_remaining_ms = int(os.environ.get('AbortTimeRemaining'))
+                  resource_properties = event['ResourceProperties']
+                  instance_id = resource_properties['InstanceId']
+                  document_name = resource_properties['DocumentName']
+                  cloudwatch_log_group_name = resource_properties['CloudWatchLogGroupName']
+
+                  logger.info(f'Running SSM Document {document_name} on EC2 instance {instance_id}')
+
+                  del resource_properties['ServiceToken']
+                  if 'ServiceTimeout' in resource_properties:
+                      del resource_properties['ServiceTimeout']
+                  del resource_properties['InstanceId']
+                  del resource_properties['DocumentName']
+                  del resource_properties['CloudWatchLogGroupName']
+
+                  parameters = {}
+                  for key, value in resource_properties.items():
+                      parameters[key] = [value]
+
+                  retry = True
+                  attempt_no = 0
+                  time_remaining_ms = context.get_remaining_time_in_millis()
+                  ssm = boto3.client('ssm')
+
+                  while (retry == True):
+                      attempt_no += 1
+                      logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining_ms/1000}s')
+                      try:
+                          response = ssm.send_command(
+                              InstanceIds = [instance_id],
+                              DocumentName = document_name,
+                              CloudWatchOutputConfig = {'CloudWatchLogGroupName': cloudwatch_log_group_name, 'CloudWatchOutputEnabled': True},
+                              Parameters = parameters
+                          )
+                          command_id = response['Command']['CommandId']
+                          responseData = {'CommandId': command_id}
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData, reason='OK')
+                          retry = False
+
+                      except ssm.exceptions.InvalidInstanceId as e:
+                          time_remaining_ms = context.get_remaining_time_in_millis()
+                          if (time_remaining_ms > abort_time_remaining_ms):
+                              logger.info(f'Instance {instance_id} not ready. Sleeping: {sleep_ms/1000}s')
+                              time.sleep(sleep_ms/1000)
+                              retry = True
+                          else:
+                              logger.error(e, exc_info=True)
+                              cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Timed out')
+                              retry = False
+                      except Exception as e:
+                          logger.error(e, exc_info=True)
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+                          retry = False
+
+  CheckSSMDocLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Check SSM document completion on EC2 instance
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 600
+      Environment:
+        Variables:
+          RetrySleep: 2900
+          AbortTimeRemaining: 5000
+      Role: !GetAtt SSMDocLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+          import time
+          import os
+          import re
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def sanitize(text):
+              """Strip ANSI escape codes and control characters for CloudFormation response"""
+              text = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', text)
+              text = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', text)
+              return text
+
+          def lambda_handler(event, context):
+              if event['RequestType'] != 'Create':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+              else:
+                  sleep_ms = int(os.environ.get('RetrySleep'))
+                  abort_time_remaining_ms = int(os.environ.get('AbortTimeRemaining'))
+                  resource_properties = event['ResourceProperties']
+                  instance_id = resource_properties['InstanceId']
+                  document_name = resource_properties['DocumentName']
+
+                  logger.info(f'Checking SSM Document {document_name} on EC2 instance {instance_id}')
+
+                  retry = True
+                  attempt_no = 0
+                  time_remaining_ms = context.get_remaining_time_in_millis()
+                  ssm = boto3.client('ssm')
+
+                  while (retry == True):
+                      attempt_no += 1
+                      logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining_ms/1000}s')
+                      try:
+                          response = ssm.list_command_invocations(
+                              InstanceId=instance_id,
+                              Details=True
+                          )
+
+                          for invocation in response['CommandInvocations']:
+                              if invocation['DocumentName'] == document_name:
+                                  invocation_status = invocation['Status']
+                                  if invocation_status == 'Success':
+                                      logger.info(f'SSM Document completed successfully')
+                                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='OK')
+                                      retry = False
+                                  elif invocation_status in ['Failed', 'Cancelled', 'TimedOut']:
+                                      reason = f'SSM Document failed with status: {invocation_status}'
+                                      for step in invocation['CommandPlugins']:
+                                          step_name = step['Name']
+                                          step_status = step['Status']
+                                          if step_status != 'Success':
+                                              step_output = step.get('Output', 'No output available')
+                                              clean_output = sanitize(step_output[-2000:])
+                                              reason += f'\nStep {step_name} {step_status}: {clean_output}'
+                                      logger.error(reason)
+                                      cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=reason)
+                                      retry = False
+                                  else:
+                                      logger.info(f'SSM Document still running. Status: {invocation_status}')
+                                      retry = True
+
+                          if retry == True:
+                              if (time_remaining_ms > abort_time_remaining_ms):
+                                  time.sleep(sleep_ms/1000)
+                                  time_remaining_ms = context.get_remaining_time_in_millis()
+                              else:
+                                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Timeout waiting for SSM document completion')
+                                  retry = False
+                      except Exception as e:
+                          logger.error(e, exc_info=True)
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+                          retry = False
+
+  # Health Check Lambda
+  PathHealthCheckLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  PathHealthCheckLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Run health check on PATH frontend
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 600
+      Environment:
+        Variables:
+          RetrySleep: 2900
+          AbortTimeRemaining: 5000
+      Role: !GetAtt PathHealthCheckLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import cfnresponse
+          import logging
+          import time
+          import os
+          import http.client
+          from urllib.parse import urlparse
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def healthURLOk(url):
+              try:
+                  parsed_url = urlparse(url)
+                  if parsed_url.scheme == 'https':
+                      conn = http.client.HTTPSConnection(parsed_url.netloc)
+                  else:
+                      conn = http.client.HTTPConnection(parsed_url.netloc)
+                  conn.request("GET", parsed_url.path or "/")
+                  response = conn.getresponse()
+                  content = response.read()
+
+                  if 200 <= response.status < 400:
+                      try:
+                          response_dict = json.loads(content.decode('utf-8'))
+                          if 'status' in response_dict and response_dict['status'].lower() in ['alive', 'expired']:
+                              logger.info(f'Health check OK. Status: {response_dict["status"]}')
+                              return True
+                      except json.JSONDecodeError:
+                          pass
+                      logger.info(f'Health check OK with status code: {response.status}')
+                      return True
+                  else:
+                      logger.info(f'Health check failed with status: {response.status}')
+                      return False
+
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  return False
+              finally:
+                  if 'conn' in locals():
+                      conn.close()
+
+          def lambda_handler(event, context):
+              try:
+                  if event['RequestType'] != 'Create':
+                      cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='No action to take')
+                  else:
+                      sleep_ms = int(os.environ.get('RetrySleep'))
+                      abort_time_remaining_ms = int(os.environ.get('AbortTimeRemaining'))
+                      resource_properties = event['ResourceProperties']
+                      url = resource_properties['Url']
+
+                      logger.info(f'Testing url: {url}')
+
+                      time_remaining_ms = context.get_remaining_time_in_millis()
+                      attempt_no = 0
+                      health_check = False
+
+                      while (attempt_no == 0 or (time_remaining_ms > abort_time_remaining_ms and not health_check)):
+                          attempt_no += 1
+                          logger.info(f'Attempt: {attempt_no}. Time Remaining: {time_remaining_ms/1000}s')
+                          health_check = healthURLOk(url)
+                          if not health_check:
+                              time.sleep(sleep_ms/1000)
+                          time_remaining_ms = context.get_remaining_time_in_millis()
+
+                      if health_check:
+                          logger.info(f'Health check successful after {attempt_no} attempts')
+                          cfnresponse.send(event, context, cfnresponse.SUCCESS, responseData={}, reason='Health check successful')
+                      else:
+                          logger.info(f'Health check failed after {attempt_no} attempts')
+                          cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason='Health check failed')
+
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, responseData={}, reason=str(e))
+
+  # ============================================================
+  # SSM Document: Build PATH Agent deployment package
+  # ============================================================
+
+  PathBuildSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Build PATH Agent deployment package and upload to S3
+        parameters:
+          S3Bucket:
+            type: String
+          S3Key:
+            type: String
+        mainSteps:
+          - name: BuildAndUpload
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 900
+              runCommand:
+                - '#!/bin/bash'
+                - set -e
+                - echo "=== Installing Python 3.11 ==="
+                - dnf install -y -q python3.11 python3.11-pip git
+                - python3.11 --version
+                - echo "=== Building PATH Agent deployment package ==="
+                - python3.11 -m pip install --upgrade pip
+                - cd /tmp && rm -rf path-build
+                - git clone https://github.com/muylucir/path.git path-build
+                - cd /tmp/path-build/path-strands-agent
+                - PACKAGE_DIR=deployment_package
+                - rm -rf $PACKAGE_DIR deployment_package.zip && mkdir -p $PACKAGE_DIR
+                - 'python3.11 -m pip install --platform manylinux2014_aarch64 --target=$PACKAGE_DIR --only-binary=:all: --python-version 3.11 -r requirements.txt'
+                - cp agentcore_entrypoint.py chat_agent.py multi_stage_spec_agent.py prompts.py strands_utils.py safe_tools.py token_tracker.py $PACKAGE_DIR/
+                - cp -r agentskills/ $PACKAGE_DIR/agentskills/
+                - cp -r skills/ $PACKAGE_DIR/skills/
+                - cd $PACKAGE_DIR && zip -r ../deployment_package.zip . -x "*.pyc" "__pycache__/*" > /dev/null && cd ..
+                - 'aws s3 cp deployment_package.zip "s3://{{ S3Bucket }}/{{ S3Key }}"'
+                - echo "=== Upload complete ==="
+
+  # ============================================================
+  # SSM Document: Deploy PATH Frontend
+  # ============================================================
+
+  PathFrontendSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Build and deploy PATH Agent Designer frontend
+        parameters:
+          AgentRuntimeArn:
+            type: String
+          DynamoDBTableName:
+            type: String
+          AwsRegion:
+            type: String
+        mainSteps:
+          - name: InstallNodeAndDeploy
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 900
+              runCommand:
+                - '#!/bin/bash'
+                - set -e
+                - echo "=== Installing Node.js 22 ==="
+                - curl -fsSL https://rpm.nodesource.com/setup_22.x | bash -
+                - dnf install -y nodejs
+                - node --version && npm --version
+                - echo "=== Building PATH frontend ==="
+                - cd /tmp/path-build/path-web
+                - npm ci
+                - npm run build
+                - echo "=== Deploying standalone output ==="
+                - rm -rf /opt/path-web
+                - mkdir -p /opt/path-web
+                - cp -r .next/standalone/. /opt/path-web/
+                - cp -r .next/static /opt/path-web/.next/static
+                - cp -r public /opt/path-web/public 2>/dev/null || true
+                - echo "=== Creating systemd service ==="
+                - |
+                  cat > /etc/systemd/system/path-web.service <<UNIT
+                  [Unit]
+                  Description=PATH Agent Designer Frontend
+                  After=network.target
+
+                  [Service]
+                  Type=simple
+                  User=ec2-user
+                  WorkingDirectory=/opt/path-web
+                  ExecStart=/usr/bin/node server.js
+                  Restart=always
+                  RestartSec=5
+                  Environment=NODE_ENV=production
+                  Environment=PORT=3009
+                  Environment=HOSTNAME=0.0.0.0
+                  Environment=AGENT_RUNTIME_ARN={{ AgentRuntimeArn }}
+                  Environment=AWS_DEFAULT_REGION={{ AwsRegion }}
+                  Environment=DYNAMODB_TABLE_NAME={{ DynamoDBTableName }}
+
+                  [Install]
+                  WantedBy=multi-user.target
+                  UNIT
+                - chown -R ec2-user:ec2-user /opt/path-web
+                - systemctl daemon-reload
+                - systemctl enable path-web
+                - systemctl start path-web
+                - echo "=== Waiting for health check ==="
+                - set +e
+                - 'for i in $(seq 1 30); do curl -sf http://localhost:3009/api/health > /dev/null 2>&1 && echo "Health check passed" && break; sleep 2; done'
+                - echo "PATH frontend deployment complete"
+
+  # ============================================================
+  # Orchestration: Build Agent → Deploy AgentCore → Deploy Frontend
+  # ============================================================
+
+  # Step 1: Run PATH Build SSM Document
+  RunPathBuildSSMDoc:
+    Type: Custom::RunSSMDocLambda
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 305
+      InstanceId: !Ref PathInstance
+      DocumentName: !Ref PathBuildSSMDoc
+      CloudWatchLogGroupName: !Sub '/aws/ssm/${PathBuildSSMDoc}'
+      S3Bucket: !Ref PathCodeBucket
+      S3Key: deployment_package.zip
+
+  # Step 2: Check PATH Build completion
+  CheckPathBuildSSMDoc:
+    Type: Custom::CheckSSMDocLambda
+    DependsOn: RunPathBuildSSMDoc
+    Properties:
+      ServiceToken: !GetAtt CheckSSMDocLambda.Arn
+      ServiceTimeout: 610
+      InstanceId: !Ref PathInstance
+      DocumentName: !Ref PathBuildSSMDoc
+
+  # Step 3: AgentCore Runtime (after build completes)
+  PathAgentCoreRuntime:
+    Type: AWS::BedrockAgentCore::Runtime
+    DependsOn:
+      - CheckPathBuildSSMDoc
+      - PathAgentCoreRolePolicy
+    Properties:
+      AgentRuntimeName: PathAgentDesigner
+      Description: PATH Agent Designer - AI Agent validation and specification generator
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3:
+              Bucket: !Ref PathCodeBucket
+              Prefix: deployment_package.zip
+          EntryPoint:
+            - agentcore_entrypoint.py
+          Runtime: PYTHON_3_11
+      RoleArn: !GetAtt PathAgentCoreRole.Arn
+      NetworkConfiguration:
+        NetworkMode: PUBLIC
+      EnvironmentVariables:
+        AWS_DEFAULT_REGION: !Ref 'AWS::Region'
+        BEDROCK_MODEL_ID: 'global.anthropic.claude-opus-4-6-v1'
+
+  # Step 4: AgentCore Runtime Endpoint
+  PathAgentCoreEndpoint:
+    Type: AWS::BedrockAgentCore::RuntimeEndpoint
+    DependsOn: PathAgentCoreRuntime
+    Properties:
+      AgentRuntimeId: !GetAtt PathAgentCoreRuntime.AgentRuntimeId
+      Name: PathAgentDesignerEndpoint
+      Description: PATH Agent Designer Runtime Endpoint
+
+  # Step 5: Run PATH Frontend SSM Document (after AgentCore endpoint ready)
+  RunPathFrontendSSMDoc:
+    Type: Custom::RunSSMDocLambda
+    DependsOn: PathAgentCoreEndpoint
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 305
+      InstanceId: !Ref PathInstance
+      DocumentName: !Ref PathFrontendSSMDoc
+      CloudWatchLogGroupName: !Sub '/aws/ssm/${PathFrontendSSMDoc}'
+      AgentRuntimeArn: !GetAtt PathAgentCoreRuntime.AgentRuntimeArn
+      DynamoDBTableName: !Ref PathSessionsTable
+      AwsRegion: !Ref 'AWS::Region'
+
+  # Step 6: Check PATH Frontend completion
+  CheckPathFrontendSSMDoc:
+    Type: Custom::CheckSSMDocLambda
+    DependsOn: RunPathFrontendSSMDoc
+    Properties:
+      ServiceToken: !GetAtt CheckSSMDocLambda.Arn
+      ServiceTimeout: 610
+      InstanceId: !Ref PathInstance
+      DocumentName: !Ref PathFrontendSSMDoc
+
+  # ============================================================
+  # CloudFront Distribution
+  # ============================================================
+
+  PathCloudFrontDistribution:
+    Type: AWS::CloudFront::Distribution
+    DependsOn: CheckPathFrontendSSMDoc
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2and3
+        DefaultCacheBehavior:
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+            - PUT
+            - PATCH
+            - POST
+            - DELETE
+          CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+          OriginRequestPolicyId: 216adef6-5c7f-47e4-b989-5492eafa07d3
+          TargetOriginId: !Sub 'PathFrontend-${AWS::StackName}'
+          ViewerProtocolPolicy: redirect-to-https
+        Origins:
+          - DomainName: !GetAtt PathInstance.PublicDnsName
+            Id: !Sub 'PathFrontend-${AWS::StackName}'
+            CustomOriginConfig:
+              HTTPPort: 3009
+              OriginProtocolPolicy: http-only
+              OriginReadTimeout: 120
+              OriginKeepaliveTimeout: 120
+
+Outputs:
+  PathCloudFrontURL:
+    Description: PATH Agent Designer URL
+    Value: !Sub 'https://${PathCloudFrontDistribution.DomainName}'
+
+  PathAgentCoreRuntimeArn:
+    Description: PATH AgentCore Runtime ARN
+    Value: !GetAtt PathAgentCoreRuntime.AgentRuntimeArn
+
+  PathAgentCoreRuntimeId:
+    Description: PATH AgentCore Runtime ID
+    Value: !GetAtt PathAgentCoreRuntime.AgentRuntimeId
+
+  PathAgentCoreEndpointArn:
+    Description: PATH AgentCore Runtime Endpoint ARN
+    Value: !GetAtt PathAgentCoreEndpoint.AgentRuntimeEndpointArn
+
+  PathSessionsTableName:
+    Description: PATH DynamoDB Sessions Table Name
+    Value: !Ref PathSessionsTable
+
+  PathCodeBucketName:
+    Description: S3 Bucket for agent deployment package
+    Value: !Ref PathCodeBucket
+
+  PathInstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref PathInstance
+
+  VpcId:
+    Description: VPC ID
+    Value: !Ref VPC
