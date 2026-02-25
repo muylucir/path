@@ -1,6 +1,6 @@
-# P.A.T.H Agent Designer
+# P.A.T.H Agent Designer — Frontend
 
-AI Agent 아이디어를 **검증**하고 **명세서를 자동 생성**하는 웹 애플리케이션
+Next.js 16.1.0 + Cloudscape Design System 기반 P.A.T.H Agent Designer Frontend
 
 ## 개요
 
@@ -13,38 +13,25 @@ P.A.T.H (Problem → Technical → Agent Pattern → Handoff) 프레임워크를
 ## 아키텍처
 
 ```
-Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude Opus 4.6
-                              ↘ DynamoDB (sessions)
+Browser → Next.js API Routes (agentcore-client.ts)
+            → @aws-sdk/client-bedrock-agentcore → AgentCore Runtime → Bedrock
+            → @aws-sdk/lib-dynamodb             → DynamoDB (sessions)
 ```
+
+- Frontend에서 **AWS SDK로 AgentCore Runtime을 직접 호출** (IAM 인증)
+- Backend FastAPI 서버 없이 서버리스 아키텍처로 동작
+- SSE 스트리밍은 AgentCore 응답을 브라우저로 릴레이
 
 ## 기술 스택
 
 | 영역 | 기술 |
 |------|------|
-| **Frontend** | Next.js 16.1.0, React 19.2.3, TypeScript 5, Tailwind CSS 4, shadcn/ui |
-| **Backend** | Python 3.11+, FastAPI, Strands Agents SDK, uvicorn, SlowAPI |
-| **LLM** | AWS Bedrock Claude Opus 4.6 (global.anthropic.claude-opus-4-6-v1) |
-| **Storage** | AWS DynamoDB |
+| **Framework** | Next.js 16.1.0 (standalone), React 19.2.3, TypeScript 5 |
+| **UI** | Cloudscape Design System (`@cloudscape-design/components`, `chat-components`) |
+| **Forms** | react-hook-form, Zod (validation) |
 | **Visualization** | Mermaid, react-markdown, react-syntax-highlighter |
-
-## P.A.T.H 단계
-
-| 단계 | 약자 | 한글명 | 설명 |
-|------|------|--------|------|
-| Step 1 | **P** (Problem) | 기본 정보 | Pain Point, 입력/처리/출력 유형, Human Loop, 오류 허용도 입력 |
-| Step 2 | **T** (Technical) | 준비도 점검 | 5개 항목 Feasibility 평가 + 개선 방안 입력 |
-| Step 3 | **A** (Agent Pattern) | 패턴 분석 | 대화형 분석 + Agent 패턴/아키텍처 추천 |
-| Step 4 | **H** (Handoff) | 명세서 | 4단계 파이프라인으로 상세 명세서 생성 |
-
-## 주요 기능
-
-| 기능 | 설명 |
-|------|------|
-| 🤖 **AI 분석** | Claude Opus 4.6로 아이디어 검증 및 대화형 분석 |
-| 📊 **준비도 점검** | 5개 항목 50점 만점 평가 + 개선 방안 반영 재평가 |
-| 💬 **대화형 분석** | 패턴 분석 단계에서 채팅으로 요구사항 구체화 |
-| 📋 **명세서 생성** | 4단계 파이프라인으로 프레임워크 독립적 명세서 자동 생성 |
-| 💾 **세션 관리** | DynamoDB 기반 이력 관리 |
+| **AWS SDK** | `@aws-sdk/client-bedrock-agentcore`, `@aws-sdk/client-dynamodb`, `@aws-sdk/lib-dynamodb` |
+| **Node.js** | >= 22.0.0 |
 
 ## 페이지 구성
 
@@ -55,91 +42,82 @@ Browser → Next.js (port 3009) → FastAPI (port 8001) → AWS Bedrock Claude O
 | **Step 3** | `/analyze` | 패턴 분석 (대화형) |
 | **Step 4** | `/results` | 결과 확인 (분석, 대화 이력, 명세서 탭) |
 | **Sessions** | `/sessions` | 세션 이력 관리 |
-| **Framework** | `/framework` | P.A.T.H 프레임워크 문서 |
+| **Intro** | `/intro` | P.A.T.H 소개 (내러티브) |
+| **Guide** | `/guide` | P.A.T.H 가이드 (구조화) |
 
 ## 설치 및 실행
 
 ### 사전 요구사항
 
 - Node.js 22+
-- Python 3.11+
-- AWS 자격 증명 (bedrock, dynamodb)
+- AWS 자격 증명 (AgentCore, DynamoDB)
+- AgentCore Runtime ARN
 
-### Frontend (path-web/)
+### 개발 서버
 
 ```bash
-cd path-web
 npm install
 npm run dev  # http://localhost:3009
 ```
 
-### Backend (path-strands-agent/)
+### 환경변수
+
+`.env.local` 파일 생성:
 
 ```bash
-cd path-strands-agent
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python api_server.py  # http://localhost:8001
+# 필수
+AGENT_RUNTIME_ARN=arn:aws:bedrock-agentcore:...  # AgentCore Runtime ARN
+
+# AWS 설정
+AWS_DEFAULT_REGION=ap-northeast-2
+
+# 선택
+DYNAMODB_TABLE_NAME=path-agent-sessions
 ```
 
-### Docker (통합 실행)
+### 프로덕션 빌드
 
 ```bash
-docker build -t path-agent-designer .
-docker run -p 3009:3009 --name path-agent-designer path-agent-designer
+npm run build
+npm start
 ```
 
-### 헬스 체크
+### Docker
 
 ```bash
-curl http://localhost:8001/health
+docker build -t path-web .
+docker run -p 3009:3009 path-web
+```
+
+### CodeBuild (ECR 푸시)
+
+`buildspec.yml`이 포함되어 있으며, CodeBuild에서 ECR로 자동 빌드/푸시:
+
+```bash
+# CodeBuild가 자동 수행:
+# 1. Docker 이미지 빌드
+# 2. ECR 로그인
+# 3. ECR 푸시
 ```
 
 ## API 엔드포인트
 
-### FastAPI Backend (port 8001)
+### Next.js API Routes (AgentCore 프록시)
 
-#### Step 2: 준비도 점검
+| 엔드포인트 | 설명 | AgentCore Action |
+|----------|------|-----------------|
+| `POST /api/bedrock/feasibility` | 초기 Feasibility 평가 (SSE) | `feasibility` |
+| `POST /api/bedrock/feasibility/update` | 개선 방안 반영 재평가 (JSON) | `feasibility_update` |
+| `POST /api/bedrock/pattern/analyze` | 초기 패턴 분석 (SSE) | `pattern_analyze` |
+| `POST /api/bedrock/pattern/chat` | 대화형 분석 (SSE) | `pattern_chat` |
+| `POST /api/bedrock/pattern/finalize` | 최종 분석 (JSON) | `pattern_finalize` |
+| `POST /api/bedrock/spec` | 명세서 생성 (SSE + 진행률) | `spec` |
 
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/feasibility` | POST | 초기 Feasibility 평가 | SSE 스트리밍 |
-| `/feasibility/update` | POST | 개선 방안 반영 재평가 | JSON |
-
-#### Step 3: 패턴 분석
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/pattern/analyze` | POST | 초기 패턴 분석 | SSE 스트리밍 |
-| `/pattern/chat` | POST | 대화형 분석 | SSE 스트리밍 |
-| `/pattern/finalize` | POST | 최종 분석 (improved_feasibility 포함) | JSON |
-
-#### Step 4: 명세서
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/spec` | POST | 명세서 생성 (4단계 파이프라인) | SSE 스트리밍 + 진행률 |
-
-#### Legacy (deprecated)
-
-| 엔드포인트 | 메서드 | 설명 | 응답 |
-|----------|--------|------|------|
-| `/analyze` | POST | Legacy 초기 분석 | SSE |
-| `/chat` | POST | Legacy 대화 | SSE |
-| `/finalize` | POST | Legacy 최종 평가 | JSON |
-
-#### System
-
-| 엔드포인트 | 메서드 | 설명 |
-|----------|--------|------|
-| `/health` | GET | 헬스 체크 (인증 불필요) |
-
-### Next.js API Routes (port 3009)
+### 세션 & 시스템
 
 | 엔드포인트 | 설명 |
 |----------|------|
-| `/api/bedrock/*` | FastAPI 백엔드 프록시 |
-| `/api/sessions` | 세션 CRUD (DynamoDB) |
+| `/api/sessions` | 세션 CRUD (DynamoDB 직접 연동) |
 | `/api/health` | Frontend 헬스 체크 |
 
 ## 준비도 점검 (Feasibility)
@@ -163,154 +141,117 @@ curl http://localhost:8001/health
 | NEEDS_WORK | 🟡 | 4 | 추가 준비 권장 |
 | PREPARE | 🟠 | 0 | 상당한 준비 필요 |
 
-### 판정 기준 (총점 기준)
-
-| 점수 | 판정 | 권장 액션 |
-|------|------|----------|
-| 40-50점 | ✅ 즉시 진행 | 바로 프로토타입 시작 |
-| 30-40점 | ⚠️ 조건부 진행 | 취약 항목 보완 후 진행 |
-| 20-30점 | 🔄 재평가 필요 | 개선 방안 수립 후 재평가 |
-| 20점 미만 | ❌ 대안 모색 | 근본적 재검토 필요 |
-
-## 명세서 생성 파이프라인
-
-4단계 Multi-Agent 파이프라인으로 프레임워크 독립적 명세서 생성:
-
-```
-DesignAgent (0-40%)      → Agent 설계 패턴 분석 (universal-agent-patterns 스킬)
-DiagramAgent (40-70%)    → Mermaid/ASCII 다이어그램 (mermaid-diagrams, ascii-diagram 스킬)
-DetailAgent (70-95%)     → 프롬프트 & 도구 정의 (prompt-engineering, tool-schema 스킬)
-AssemblerAgent (95-100%) → 최종 Markdown 조립 (LLM 미사용)
-```
-
 ## 프로젝트 구조
 
 ```
-path-web/                          # Frontend (Next.js 16.1.0)
+path-web/
 ├── app/
-│   ├── page.tsx                   # Step 1: 기본 정보 입력
-│   ├── feasibility/               # Step 2: 준비도 점검
-│   ├── analyze/                   # Step 3: 패턴 분석
-│   ├── results/                   # Step 4: 결과 (명세서)
-│   ├── sessions/                  # 세션 관리
-│   ├── framework/                 # P.A.T.H 문서
-│   └── api/                       # API Routes
-│       ├── bedrock/               # Backend 프록시
-│       │   ├── feasibility/       # 준비도 점검 API
-│       │   ├── pattern/           # 패턴 분석 API
-│       │   └── spec/              # 명세서 생성 API
-│       ├── sessions/              # 세션 CRUD
-│       └── health/                # 헬스 체크
+│   ├── page.tsx                      # Step 1: 기본 정보 입력
+│   ├── feasibility/page.tsx          # Step 2: 준비도 점검
+│   ├── analyze/page.tsx              # Step 3: 패턴 분석
+│   ├── results/page.tsx              # Step 4: 결과 (명세서)
+│   ├── sessions/page.tsx             # 세션 관리
+│   ├── intro/                        # P.A.T.H 소개
+│   ├── guide/                        # P.A.T.H 가이드
+│   ├── error.tsx                     # Error boundary
+│   ├── not-found.tsx                 # 404 페이지
+│   ├── layout.tsx                    # Root layout
+│   └── api/                          # API Routes
+│       ├── bedrock/                  # AgentCore 프록시
+│       │   ├── _shared/
+│       │   │   └── agentcore-client.ts  # AgentCore SDK 클라이언트
+│       │   ├── feasibility/          # 준비도 점검 API
+│       │   │   ├── route.ts          # POST /feasibility (SSE)
+│       │   │   └── update/route.ts   # POST /feasibility/update (JSON)
+│       │   ├── pattern/              # 패턴 분석 API
+│       │   │   ├── analyze/route.ts  # POST /pattern/analyze (SSE)
+│       │   │   ├── chat/route.ts     # POST /pattern/chat (SSE)
+│       │   │   └── finalize/route.ts # POST /pattern/finalize (JSON)
+│       │   └── spec/route.ts         # POST /spec (SSE)
+│       ├── sessions/                 # 세션 CRUD
+│       └── health/                   # 헬스 체크
 ├── components/
-│   ├── steps/                     # Step1Form, Step2Readiness, Step3PatternAnalysis, Step3Results
-│   ├── analysis/                  # MDXRenderer
-│   ├── layout/                    # 레이아웃 컴포넌트
-│   └── ui/                        # shadcn/ui
-└── lib/
-    ├── types.ts                   # TypeScript 타입
-    ├── schema.ts                  # Zod 스키마
-    ├── constants.ts               # 상수 (STEPS, READINESS_LEVELS 등)
-    ├── utils.ts                   # 유틸리티
-    └── aws/                       # AWS SDK 설정
-
-path-strands-agent/                # Backend (FastAPI)
-├── api_server.py                  # 메인 서버 (port 8001)
-├── chat_agent.py                  # Agent 정의 (Feasibility, PatternAnalyzer)
-├── multi_stage_spec_agent.py      # 명세서 생성 파이프라인
-├── prompts.py                     # 시스템 프롬프트
-├── strands_utils.py               # Strands 유틸리티
-├── auth.py                        # API Key 인증
-├── rate_limiter.py                # Rate Limiting (SlowAPI)
-├── validators.py                  # 입력 검증
-├── session_manager.py             # 세션 관리
-├── session_cleanup.py             # 세션 정리 스케줄러
-└── skills/                        # Agent 스킬
-    ├── universal-agent-patterns/  # 프레임워크 독립적 패턴 분석
-    ├── mermaid-diagrams/          # Mermaid 다이어그램 템플릿
-    ├── ascii-diagram/             # ASCII 다이어그램 템플릿
-    ├── prompt-engineering/        # 프롬프트 설계 가이드
-    ├── tool-schema/               # 도구 정의 가이드
-    └── feasibility-evaluation/    # Feasibility 평가 기준
+│   ├── cloudscape/                   # Cloudscape 프로바이더
+│   │   ├── CloudscapeProvider.tsx    # Cloudscape 테마/모드 제공
+│   │   └── FlashbarProvider.tsx      # 알림 메시지 제공
+│   ├── steps/                        # 단계별 컴포넌트
+│   │   ├── Step1Form.tsx             # 기본 정보 입력 폼
+│   │   ├── Step2Readiness.tsx        # 준비도 점검 UI
+│   │   ├── Step3PatternAnalysis.tsx  # 패턴 분석 + 채팅
+│   │   ├── Step3Results.tsx          # 결과 요약
+│   │   └── results/                  # 결과 페이지 탭
+│   │       ├── AnalysisTab.tsx
+│   │       ├── ChatHistoryTab.tsx
+│   │       └── SpecificationTab.tsx
+│   ├── analysis/
+│   │   └── MDXRenderer.tsx           # Markdown/Mermaid 렌더러
+│   └── layout/
+│       ├── AppLayoutShell.tsx        # Cloudscape AppLayout 셸
+│       ├── Header.tsx                # 헤더
+│       └── TokenUsageBadge.tsx       # 토큰 사용량 배지
+├── lib/
+│   ├── types.ts                      # TypeScript 타입 정의
+│   ├── schema.ts                     # Zod 유효성 검증 스키마
+│   ├── constants.ts                  # 상수 (STEPS, READINESS_LEVELS 등)
+│   ├── utils.ts                      # 유틸리티 함수
+│   ├── readiness.ts                  # 준비도 레벨 로직
+│   ├── hooks/                        # 커스텀 훅
+│   │   ├── index.ts
+│   │   ├── useSSEStream.ts           # SSE 스트리밍 훅
+│   │   └── useTokenUsage.ts          # 토큰 사용량 훅
+│   └── aws/
+│       └── dynamodb.ts               # DynamoDB 클라이언트 설정
+├── Dockerfile                        # Multi-stage Node.js Alpine 빌드
+├── buildspec.yml                     # CodeBuild 스펙 (ECR 푸시)
+├── .dockerignore
+├── .env.example                      # 환경변수 예시
+├── next.config.ts                    # Next.js 설정 (standalone, redirects)
+├── package.json
+├── tsconfig.json
+└── README.md                         # 이 파일
 ```
 
-## AWS 요구사항
+## 주요 컴포넌트
 
-### 권한
+### AgentCore Client (`app/api/bedrock/_shared/agentcore-client.ts`)
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "bedrock:InvokeModel",
-        "bedrock:InvokeModelWithResponseStream"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "dynamodb:PutItem",
-        "dynamodb:GetItem",
-        "dynamodb:Scan",
-        "dynamodb:DeleteItem",
-        "dynamodb:UpdateItem"
-      ],
-      "Resource": "arn:aws:dynamodb:*:*:table/path-agent-sessions"
-    }
-  ]
-}
-```
+모든 API Route에서 공유하는 AgentCore 호출 클라이언트:
 
-### DynamoDB 테이블
+- `invokeAgentCoreSSE()`: SSE 스트리밍 응답 (feasibility, pattern_analyze, pattern_chat, spec)
+- `invokeAgentCoreJSON()`: JSON 응답 (feasibility_update, pattern_finalize)
+- Zod 스키마 기반 요청 검증
+- `runtimeSessionId`로 세션 라우팅
 
-| 테이블명 | Partition Key | 설명 |
-|---------|---------------|------|
-| `path-agent-sessions` | `id` (String) | 세션 저장 |
+### Cloudscape Provider (`components/cloudscape/`)
 
-### 환경 변수
+- `CloudscapeProvider`: Cloudscape 테마 및 다크/라이트 모드 제공
+- `FlashbarProvider`: 전역 알림 메시지 관리
 
-```bash
-# Backend
-AWS_DEFAULT_REGION=ap-northeast-2
-PATH_API_KEY=your-api-key          # API 인증 키
-```
+### Custom Hooks (`lib/hooks/`)
 
-### CORS 설정
-
-```python
-allow_origins=["http://localhost:3009", "https://d21k0iabhuk0yx.cloudfront.net"]
-```
+- `useSSEStream`: SSE 이벤트 스트림을 React state로 변환
+- `useTokenUsage`: LLM 토큰 사용량 추적 및 표시
 
 ## 개발
 
 ### 코드 린팅
 
 ```bash
-# Frontend
-cd path-web
 npm run lint
 ```
 
-### 프로덕션 빌드
+### 환경변수 참조
 
-```bash
-# Frontend (standalone)
-cd path-web
-npm run build
-npm start
-
-# Docker (통합)
-docker build -t path-agent-designer .
-docker run -p 3009:3009 path-agent-designer
-```
+| 변수 | 필수 | 설명 |
+|------|------|------|
+| `AGENT_RUNTIME_ARN` | Yes | AgentCore Runtime ARN |
+| `AWS_DEFAULT_REGION` | No | AWS 리전 (기본: ap-northeast-2) |
+| `DYNAMODB_TABLE_NAME` | No | DynamoDB 테이블명 (기본: path-agent-sessions) |
 
 ## 참고
 
 - [P.A.T.H 프레임워크 문서](../PATH.md)
 - [CLAUDE.md](../CLAUDE.md) - 프로젝트 가이드
-- [Strands Agents SDK](https://strandsagents.com/)
+- [Cloudscape Design System](https://cloudscape.design/)
 - [Next.js Documentation](https://nextjs.org/docs)
-- [FastAPI Documentation](https://fastapi.tiangolo.com/)
+- [AWS SDK for JavaScript v3](https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/)
