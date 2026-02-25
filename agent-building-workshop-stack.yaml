@@ -1133,6 +1133,8 @@ Resources:
             CustomOriginConfig:
               HTTPPort: 3009
               OriginProtocolPolicy: http-only
+              OriginReadTimeout: 120
+              OriginKeepaliveTimeout: 120
 
   # IAM Identity Center Resources
   # Ensures at least one Identity Center instance exists (no-op if already present)

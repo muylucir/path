@@ -60,6 +60,8 @@ export function MDXRenderer({ content }: MDXRendererProps) {
 
     const container = contentRef.current;
     let observer: MutationObserver | null = null;
+    let isRunning = false;
+    let pendingRun = false;
 
     const initMermaid = async () => {
       // Only import mermaid if there are mermaid blocks in the content
@@ -76,14 +78,34 @@ export function MDXRenderer({ content }: MDXRendererProps) {
         mermaidInitialized.current = true;
       }
 
-      const runMermaid = () => {
+      const runMermaid = async () => {
+        if (isRunning) {
+          pendingRun = true;
+          return;
+        }
+
         const nodes = container.querySelectorAll(".mermaid:not([data-processed])");
-        if (nodes.length > 0) {
-          mermaid.run({ nodes: nodes as NodeListOf<HTMLElement> });
+        if (nodes.length === 0) return;
+
+        isRunning = true;
+        // Pause observer while mermaid mutates the DOM
+        observer?.disconnect();
+        try {
+          await mermaid.run({ nodes: nodes as NodeListOf<HTMLElement> });
+        } catch (e) {
+          console.warn("Mermaid render error:", e);
+        } finally {
+          isRunning = false;
+          // Resume observer
+          observer?.observe(container, { childList: true, subtree: true });
+          if (pendingRun) {
+            pendingRun = false;
+            runMermaid();
+          }
         }
       };
 
-      runMermaid();
+      await runMermaid();
 
       observer = new MutationObserver(() => {
         runMermaid();

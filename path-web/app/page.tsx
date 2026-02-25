@@ -206,6 +206,8 @@ export default function DesignWizardPage() {
         pattern_reason: a.pattern_reason,
         recommended_architecture: a.recommended_architecture ?? null,
         multi_agent_pattern: a.multi_agent_pattern ?? null,
+        automation_level: a.automation_level ?? null,
+        automation_level_reason: a.automation_level_reason ?? null,
         architecture_reason: a.architecture_reason ?? null,
         feasibility_breakdown: a.feasibility_breakdown,
         feasibility_score: a.feasibility_score,
