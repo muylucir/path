@@ -5,14 +5,7 @@ import { formSchema } from "@/lib/schema";
 
 const patternAnalyzeSchema = z.object({
   formData: formSchema,
-  feasibility: z.object({
-    feasibility_score: z.number(),
-    feasibility_breakdown: z.record(z.string(), z.unknown()),
-    judgment: z.string(),
-    summary: z.string(),
-    weak_items: z.array(z.unknown()),
-    risks: z.array(z.string()),
-  }),
+  feasibility: z.record(z.string(), z.unknown()),
   improvementPlans: z.record(z.string(), z.string()).optional(),
 });
 

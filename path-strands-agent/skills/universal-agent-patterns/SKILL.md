@@ -1,6 +1,6 @@
 ---
 name: universal-agent-patterns
-description: 프레임워크 독립적 Agent 설계 패턴 가이드. Strands Agents 멀티 에이전트 협업 패턴(Agents as Tools, Swarm, Graph, Workflow) 포함.
+description: 프레임워크 독립적 Agent 설계 패턴 가이드. 자동화 수준(AI-Assisted Workflow / Agentic AI) 판단 및 Strands Agents 멀티 에이전트 협업 패턴(Agents as Tools, Swarm, Graph, Workflow) 포함.
 license: Apache-2.0
 metadata:
   version: "3.0"
@@ -13,9 +13,48 @@ metadata:
 프레임워크에 독립적인 AI Agent 설계 패턴 가이드입니다.
 Strands Agents SDK의 멀티 에이전트 협업 패턴을 포함합니다.
 
-## 아키텍처 선택 가이드
+## 자동화 수준 선택 (최우선 판단)
 
-문제의 특성에 따라 싱글/멀티 에이전트 아키텍처를 선택하세요:
+패턴 선택 전에, Feasibility 평가의 **자율성 요구도 점수**를 기반으로 자동화 수준을 먼저 결정하세요:
+
+| 자율성 점수 | 자동화 수준 | 설명 | 구현 방향 |
+|:-----------:|:----------:|------|----------|
+| **≤5** | AI-Assisted Workflow | 결정적 파이프라인 + 특정 단계에서 AI 활용 | 워크플로우 엔진이 전체 흐름 제어, AI는 보조 역할 |
+| **≥6** | Agentic AI | 에이전트가 자율적으로 도구 선택, 판단, 반복 | LLM 기반 에이전트가 동적으로 경로 결정 |
+
+### AI-Assisted Workflow (자율성 ≤5)
+- **핵심**: 전체 흐름은 코드/워크플로우 엔진이 제어, AI는 개별 단계에서만 활용
+- **적합 패턴**: Workflow, 단순 Tool Use, 단순 Planning
+- **구현**: Step Functions, Airflow, 또는 코드 기반 파이프라인 + LLM API 호출
+- **예시**: 데이터 추출 → AI 요약 → 포맷 변환 → 저장 (각 단계가 결정적)
+
+### Agentic AI (자율성 ≥6)
+- **핵심**: 에이전트가 상황에 따라 도구와 경로를 동적으로 선택
+- **적합 패턴**: ReAct, Reflection, Multi-Agent, Planning + Tool Use 조합
+- **구현**: Strands Agents 등 에이전트 프레임워크 활용
+- **예시**: 고객 문의 분석 → 필요한 정보 자율 검색 → 판단 → 응답 생성 (동적 흐름)
+
+### 자동화 수준 → 패턴 선택 흐름
+
+```
+자율성 요구도 점수
+    │
+    ├─ ≤5 (AI-Assisted Workflow)
+    │       ├─ 단순 파이프라인 → Workflow
+    │       ├─ AI 보조 단계 필요 → Tool Use (단순)
+    │       └─ 조건 분기 필요 → Planning (결정적)
+    │
+    └─ ≥6 (Agentic AI)
+            └─ 아래 "아키텍처 선택 가이드" 참조
+                ├─ 🔵 싱글 에이전트
+                └─ 🟣 멀티 에이전트
+```
+
+> **중요**: AI-Assisted Workflow는 "열등한" 선택이 아닙니다. 예측 가능성, 디버깅 용이성, 낮은 운영 리스크 측면에서 Agentic AI보다 유리할 수 있습니다.
+
+## 아키텍처 선택 가이드 (Agentic AI인 경우)
+
+자동화 수준이 Agentic AI로 결정된 후, 문제의 특성에 따라 싱글/멀티 에이전트 아키텍처를 선택하세요:
 
 ### 🔵 싱글 에이전트 권장
 
@@ -120,21 +159,28 @@ Step1 → Step2 → Step3 → Step4 (DAG)
 | 병렬 처리 | 불필요 | 일부 | 높음 | 중간 | 낮음 |
 | 전문성 분리 | 불필요 | 필요 | 일부 | 필요 | 일부 |
 
-## 패턴 선택 흐름
+## 패턴 선택 흐름 (자동화 수준 포함)
 
 ```
-문제 분석
+자율성 요구도 확인
     │
-    ├─ PROCESS ≤3, 도구 1-2개
-    │       └─→ 🔵 싱글 에이전트
-    │              └─→ ReAct / Tool Use / Planning
+    ├─ ≤5: AI-Assisted Workflow
+    │       ├─ 단순 순차 → Workflow (코드 제어)
+    │       ├─ AI 변환/생성 단계 → Tool Use (단순)
+    │       └─ 조건 분기 → Planning (결정적)
     │
-    └─ PROCESS 4+, 도구 3+, 전문성 분리
+    └─ ≥6: Agentic AI
             │
-            ├─ 독립적 서브태스크 → Agents as Tools
-            ├─ 협업/반복 개선 → Swarm
-            ├─ 계층적/조건부 흐름 → Graph
-            └─ 순차 파이프라인 → Workflow
+            ├─ PROCESS ≤3, 도구 1-2개
+            │       └─→ 🔵 싱글 에이전트
+            │              └─→ ReAct / Tool Use / Planning
+            │
+            └─ PROCESS 4+, 도구 3+, 전문성 분리
+                    │
+                    ├─ 독립적 서브태스크 → Agents as Tools
+                    ├─ 협업/반복 개선 → Swarm
+                    ├─ 계층적/조건부 흐름 → Graph
+                    └─ 순차 파이프라인 → Workflow
 ```
 
 ## 기본 Agent Design Patterns
@@ -183,24 +229,23 @@ Step1 → Step2 → Step3 → Step4 (DAG)
 
 ## Quick Reference
 
-### 단순 작업 -> 복잡한 작업
+### 자동화 수준별
 
 ```
-🔵 단일 Agent (Tool Use)
-    │
-    v
-🔵 ReAct (추론 + 도구)
-    │
-    v
-🔵/🟣 Planning (작업 분해)
-    │
-    v
-🟣 Multi-Agent (전문가 협업)
-    │
-    ├─→ Agents as Tools (독립적 서브태스크)
-    ├─→ Swarm (협업/반복)
-    ├─→ Graph (계층적 흐름)
-    └─→ Workflow (순차 파이프라인)
+AI-Assisted Workflow (자율성 ≤5)
+    ├─ Workflow (순차 파이프라인)
+    ├─ Tool Use (AI 보조 단계)
+    └─ Planning (결정적 분해)
+
+Agentic AI (자율성 ≥6)
+    ├─ 🔵 단일 Agent (Tool Use / ReAct)
+    ├─ 🔵 ReAct (추론 + 도구)
+    ├─ 🔵/🟣 Planning (작업 분해)
+    └─ 🟣 Multi-Agent (전문가 협업)
+        ├─→ Agents as Tools
+        ├─→ Swarm
+        ├─→ Graph
+        └─→ Workflow
 ```
 
 ### 품질 요구사항별
@@ -230,13 +275,15 @@ skill_tool(skill_name="universal-agent-patterns", reference="react-pattern.md")
 
 ## Best Practices
 
-1. **단순함 우선**: 가장 단순한 패턴(싱글 에이전트)으로 시작, 필요시 복잡한 패턴 적용
-2. **명확한 역할 정의**: 각 Agent의 역할과 책임을 명확히 정의
-3. **상태 최소화**: Agent 간 공유 상태를 최소화하여 복잡도 감소
-4. **실패 처리**: 각 단계의 실패 시 대응 전략 수립
-5. **테스트 가능성**: 개별 Agent 단위로 테스트 가능하도록 설계
-6. **점진적 복잡화**: 싱글로 시작하여 필요에 따라 멀티로 확장
-7. **협업 패턴 선택**: 문제 특성에 맞는 멀티 에이전트 협업 패턴 선택
+1. **자동화 수준 먼저**: 자율성 요구도를 먼저 판단하여 AI-Assisted Workflow vs Agentic AI 결정
+2. **단순함 우선**: 가장 단순한 패턴으로 시작, 필요시 복잡한 패턴 적용
+3. **명확한 역할 정의**: 각 Agent의 역할과 책임을 명확히 정의
+4. **상태 최소화**: Agent 간 공유 상태를 최소화하여 복잡도 감소
+5. **실패 처리**: 각 단계의 실패 시 대응 전략 수립
+6. **테스트 가능성**: 개별 Agent 단위로 테스트 가능하도록 설계
+7. **점진적 복잡화**: AI-Assisted Workflow → 싱글 에이전트 → 멀티 에이전트 순으로 확장
+8. **협업 패턴 선택**: 문제 특성에 맞는 멀티 에이전트 협업 패턴 선택
+9. **과도한 자율성 지양**: 업무가 결정적이면 Agentic AI 대신 Workflow가 더 안정적
 
 ## 참고 자료
 

@@ -12,7 +12,7 @@ import { AnalysisTab } from "@/components/steps/results/AnalysisTab";
 import { ChatHistoryTab } from "@/components/steps/results/ChatHistoryTab";
 import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
 import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, TokenUsage } from "@/lib/types";
-import { MULTI_AGENT_PATTERN_LABELS } from "@/lib/constants";
+import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS } from "@/lib/constants";
 
 interface Step3ResultsProps {
   analysis: Analysis;
@@ -57,6 +57,11 @@ export function Step3Results({
               )}
               {analysis.multi_agent_pattern && (
                 <Badge color="blue">{MULTI_AGENT_PATTERN_LABELS[analysis.multi_agent_pattern]}</Badge>
+              )}
+              {analysis.automation_level && (
+                <Badge color={analysis.automation_level === "agentic-ai" ? "blue" : "grey"}>
+                  {AUTOMATION_LEVEL_LABELS[analysis.automation_level]}
+                </Badge>
               )}
             </SpaceBetween>
             <Box variant="h2">{pattern}</Box>

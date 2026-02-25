@@ -63,6 +63,33 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 - **0점**: 미공개 시스템
 </evaluation_criteria>
 
+<autonomy_evaluation>
+## 자율성 요구도 (Autonomy Requirement) — 별도 평가 축 (0-10점)
+
+**이 평가는 위의 5개 준비도 항목(총 50점)과는 완전히 별도의 독립 축입니다.**
+준비도 총점에 포함되지 않으며, "이 업무가 에이전트의 자율적 판단을 얼마나 필요로 하는가"를 측정합니다.
+
+### 점수 기준
+| 점수 | 수준 | 설명 | 예시 |
+|------|------|------|------|
+| **9-10** | 완전 자율 | 예측 불가능한 상황에서 독립적 판단/도구 선택 필수 | 자유형 리서치, 복잡한 문제 해결, 창의적 작업 |
+| **7-8** | 높은 자율 | 다양한 경로 중 상황별 최적 경로 선택 필요 | 다변량 분석 후 의사결정, 동적 워크플로우 |
+| **5-6** | 중간 | 일부 판단 필요하나 대부분 정해진 흐름 | 예외 처리 포함 파이프라인, 조건 분기 |
+| **3-4** | 낮은 자율 | 거의 결정적 프로세스, AI는 특정 단계만 보조 | 템플릿 기반 생성, 정해진 규칙 적용 |
+| **0-2** | 자율 불필요 | 완전히 결정적 파이프라인, AI는 단순 변환/요약 | 포맷 변환, 단순 요약, 데이터 추출 |
+
+### 판단 고려사항
+- **PROCESS 단계의 성격**: 단계 간 동적 전환이 필요한가, 순차 실행으로 충분한가?
+- **Human-in-Loop 수준**: "완전 자동"은 높은 자율, "실행 전 승인"은 낮은 자율 경향
+- **판단 명확성 역관계**: 판단 기준이 매우 명확하면 자율성 요구가 낮아짐
+- **예외 처리 복잡도**: 예외 상황이 많고 다양할수록 높은 자율 필요
+- **출력의 구조화 정도**: 구조화된 출력(JSON, 분류)은 낮은 자율, 자유형 출력(보고서, 전략)은 높은 자율
+
+### 중요: 낮은 자율성 점수는 "나쁜" 것이 아닙니다
+- 자율성이 낮으면 → 단순하고 예측 가능한 AI-Assisted Workflow로 더 안정적 구현 가능
+- 자율성이 높으면 → Agentic AI가 필요하며 더 복잡하지만 유연한 시스템 구축
+</autonomy_evaluation>
+
 <judgment_criteria>
 ## 판정 기준
 - **40-50점**: ✅ 즉시 프로토타입 시작
@@ -150,7 +177,12 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
       "current_state": "현재 통합 상황. 어떤 시스템들과 연동이 필요한지, 각각의 연동 복잡도는 어떤지"
     }}
   }},
-  "feasibility_score": 35,
+  "autonomy_requirement": {{
+    "score": 7,
+    "reason": "이 업무의 자율성 요구도에 대한 근거. 동적 판단, 예측 불가 상황, 결정적 프로세스 여부 등을 분석하여 2-3문장으로 설명",
+    "current_state": "자율성 특성 분석. PROCESS 단계의 동적/결정적 성격, 예외 처리 복잡도, 출력 자유도 등"
+  }},
+  "feasibility_score": 35,  // 주의: 위 5개 항목(data_access~integration)만의 합계. autonomy_requirement는 별도 축이므로 포함하지 않음
   "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
   "weak_items": [
     {{
@@ -193,6 +225,11 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
       "reason": "연동 대상 시스템 수와 각 시스템의 API 표준화 정도를 분석한 결과입니다. 레거시 시스템 존재 여부와 프로토콜 호환성도 고려했습니다.",
       "current_state": "현재 통합 상황에 대한 상세 분석"
     }}
+  }},
+  "autonomy_requirement": {{
+    "score": "[자율성 요구도 0-10 산정]",
+    "reason": "이 업무가 에이전트의 자율적 판단을 얼마나 필요로 하는지 분석한 결과입니다. PROCESS 단계의 동적 성격과 예외 처리 복잡도를 종합적으로 검토했습니다.",
+    "current_state": "자율성 특성에 대한 상세 분석"
   }},
   "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
   "summary": "전체 평가를 요약합니다. 각 항목의 강점과 약점을 균형있게 설명합니다. 특히 취약한 영역에서 필요한 개선 사항을 구체적으로 안내합니다. 다음 단계를 위한 조언도 포함합니다.",
@@ -237,6 +274,9 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
 - 오류 허용도: {prev_breakdown.get('error_tolerance', {}).get('score', 0)}/10 - {prev_breakdown.get('error_tolerance', {}).get('current_state', '')}
 - 지연 요구사항: {prev_breakdown.get('latency', {}).get('score', 0)}/10 - {prev_breakdown.get('latency', {}).get('current_state', '')}
 - 통합 복잡도: {prev_breakdown.get('integration', {}).get('score', 0)}/10 - {prev_breakdown.get('integration', {}).get('current_state', '')}
+
+**이전 자율성 요구도 (별도 축)**:
+- 자율성 요구도: {previous_evaluation.get('autonomy_requirement', {}).get('score', 'N/A')}/10 - {previous_evaluation.get('autonomy_requirement', {}).get('current_state', '')}
 </previous_evaluation>
 
 <improvement_plans>
@@ -254,6 +294,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
 - 막연한 계획은 점수에 반영하지 마세요
 - 변경된 항목과 변경 근거를 상세히 명시하세요
 - 각 항목의 reason과 current_state는 상세하게 작성하세요 (2-3문장)
+- autonomy_requirement 점수는 개선 계획에 따라 상향 또는 하향 모두 가능합니다 (예: 자동화 범위가 좁아지면 자율성 요구도 하향)
+- feasibility_score는 5개 준비도 항목만의 합계입니다 (autonomy_requirement 미포함)
 
 다음 JSON 형식으로 출력:
 {{
@@ -293,6 +335,13 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
       "changed": true/false,
       "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }}
+  }},
+  "autonomy_requirement": {{
+    "score": 0-10,
+    "reason": "자율성 요구도에 대한 근거 (2-3문장). 개선 계획에 따라 자율성 요구가 변했는지 분석",
+    "current_state": "자율성 특성 분석",
+    "changed": true/false,
+    "change_reason": "변경된 경우: 개선 계획이 자율성 요구도에 미친 영향 설명"
   }},
   "feasibility_score": 0-50,
   "previous_score": 이전점수,
@@ -382,6 +431,31 @@ Feasibility 결과의 강점과 약점을 고려하여,
 | 병렬 처리 | 불필요 | 일부 | 높음 | 중간 | 낮음 |
 | 전문성 분리 | 불필요 | 필요 | 일부 | 필요 | 일부 |
 </architecture_guide>
+
+<automation_level_guide>
+## 자동화 수준 판단 기준 (autonomy_requirement 기반)
+
+Feasibility 평가에서 산출된 **자율성 요구도 점수**를 참고하여 자동화 수준을 판단하세요.
+
+### AI-Assisted Workflow (자율성 ≤5)
+- **특징**: 결정적 파이프라인 + 특정 단계에서 AI 활용
+- **구현**: 워크플로우 엔진(Step Functions, Airflow 등)이 전체 흐름 제어, AI는 요약/분류/생성 등 특정 단계만 담당
+- **장점**: 예측 가능, 디버깅 용이, 낮은 운영 리스크
+- **적합 상황**: 명확한 규칙, 순차 처리, 구조화된 입출력, 높은 정확도 요구
+
+### Agentic AI (자율성 ≥6)
+- **특징**: 에이전트가 자율적으로 도구 선택, 판단, 반복 수행
+- **구현**: LLM 기반 에이전트가 상황에 따라 도구와 경로를 동적으로 결정
+- **장점**: 유연성, 복잡한 상황 대응, 예외 처리 능력
+- **적합 상황**: 예측 불가 입력, 동적 판단, 자유형 출력, 다양한 도구 조합
+
+### 경계 영역 (자율성 5-6)
+경계에 해당하는 경우 다음을 추가로 고려하세요:
+- 오류 허용도가 낮으면 (≤5) → AI-Assisted Workflow 선호 (안정성 우선)
+- PROCESS 단계가 4개 이상이고 동적 분기가 있으면 → Agentic AI 선호
+- Human-in-Loop이 "완전 자동"이면 → Agentic AI 선호 (자율 판단 필요)
+- 출력이 구조화된 데이터면 → AI-Assisted Workflow 선호
+</automation_level_guide>
 
 <patterns>
 ## 기본 Agent Design Patterns
@@ -476,6 +550,9 @@ def get_pattern_analysis_prompt(form_data: dict, feasibility: dict, improvement_
 - 지연 요구사항: {breakdown.get('latency', {}).get('score', 0)}/10
 - 통합 복잡도: {breakdown.get('integration', {}).get('score', 0)}/10
 
+**자율성 요구도 (별도 축)**: {feasibility.get('autonomy_requirement', {}).get('score', 'N/A')}/10
+- {feasibility.get('autonomy_requirement', {}).get('reason', '')}
+
 **취약 항목**: {', '.join([item.get('item', '') for item in feasibility.get('weak_items', [])])}
 **주요 리스크**: {', '.join(feasibility.get('risks', []))}
 </feasibility_summary>
@@ -505,6 +582,7 @@ Feasibility 결과와 사용자가 제출한 개선 방안을 바탕으로 최�
 - **주요 패턴**: [ReAct / Reflection / Tool Use / Planning / Multi-Agent / Human-in-the-Loop 또는 조합]
 - **권장 아키텍처**: 🔵 싱글 에이전트 또는 🟣 멀티 에이전트 (반드시 둘 중 하나만 선택)
 - **협업 패턴** (멀티 에이전트인 경우만): Agents as Tools / Swarm / Graph / Workflow 중 하나
+- **권장 자동화 수준**: AI-Assisted Workflow 또는 Agentic AI (자율성 요구도 점수 기반)
 - **권장 이유**: [문제의 특성을 기반으로 왜 이 아키텍처가 적합한지 설명]
 - **패턴 선택 이유**: [Feasibility 점수와 연계하여 설명]
 - **보완 패턴**: [취약 항목 보완을 위한 추가 패턴]
@@ -634,6 +712,7 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
 **Feasibility 정보**:
 - 총점: {feasibility.get('feasibility_score', 0)}/50
 - 판정: {feasibility.get('judgment', '')}
+- 자율성 요구도: {feasibility.get('autonomy_requirement', {}).get('score', 'N/A')}/10
 {improvement_section}
 
 **아키텍처 권장 판단 정보**:
@@ -658,6 +737,8 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
   "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
   "recommended_architecture": "single-agent 또는 multi-agent (위 기준에 따라 판단)",
   "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",
+  "automation_level": "ai-assisted-workflow 또는 agentic-ai (자율성 요구도 기반 판단)",
+  "automation_level_reason": "자동화 수준 판단 근거. 자율성 요구도 점수, 프로세스 특성, 오류 허용도 등을 종합하여 설명",
   "architecture_reason": "권장 아키텍처 이유 (문제의 특성 - 프로세스 단계 수, 도구 수, 협업 방식 기반으로 설명. 멀티 에이전트인 경우 선택한 협업 패턴의 적합성도 설명)",
   "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
   "feasibility_breakdown": {json.dumps(simple_breakdown)},
@@ -677,5 +758,6 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
 - recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나로 출력하세요.
 - multi_agent_pattern은 멀티 에이전트인 경우 반드시 "agents-as-tools", "swarm", "graph", "workflow" 중 하나로 출력하세요. 싱글 에이전트인 경우 null.
 - architecture_reason은 왜 해당 아키텍처를 권장하는지 문제 특성을 기반으로 설명하세요. 멀티 에이전트인 경우 협업 패턴 선택 이유도 포함하세요.
+- automation_level은 반드시 "ai-assisted-workflow" 또는 "agentic-ai" 중 하나로 출력하세요. 자율성 요구도 ≤5이면 "ai-assisted-workflow", ≥6이면 "agentic-ai"를 기본으로 하되, 경계 영역(5-6)은 오류 허용도, 프로세스 복잡도 등을 추가 고려하세요.
 - {improved_feasibility_instruction}
 - JSON만 출력하세요."""

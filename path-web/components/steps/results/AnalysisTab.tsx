@@ -13,7 +13,7 @@ import Icon from "@cloudscape-design/components/icon";
 import Button from "@cloudscape-design/components/button";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import type { Analysis, FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
-import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, MULTI_AGENT_PATTERN_LABELS } from "@/lib/constants";
+import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, MULTI_AGENT_PATTERN_LABELS, AUTONOMY_REQUIREMENT_INFO } from "@/lib/constants";
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
@@ -216,6 +216,27 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
               </Container>
             );
           })}
+
+          {/* Autonomy Requirement (별도 축) */}
+          {feasibility.autonomy_requirement && (
+            <Container
+              header={
+                <Header variant="h3">
+                  <SpaceBetween direction="horizontal" size="xs">
+                    <span>{AUTONOMY_REQUIREMENT_INFO.name}</span>
+                    <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
+                      {feasibility.autonomy_requirement.score >= 6 ? "Agentic AI" : "AI-Assisted Workflow"}
+                    </Badge>
+                    <Box variant="small" color="text-body-secondary">{feasibility.autonomy_requirement.score}/10</Box>
+                  </SpaceBetween>
+                </Header>
+              }
+            >
+              <SpaceBetween size="s">
+                <Box variant="p" color="text-body-secondary">{feasibility.autonomy_requirement.reason}</Box>
+              </SpaceBetween>
+            </Container>
+          )}
 
           {feasibility.risks && feasibility.risks.length > 0 && (
             <Alert type="warning" header="준비도 리스크">

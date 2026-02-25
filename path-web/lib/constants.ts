@@ -100,6 +100,25 @@ export const READINESS_ITEM_DETAILS = {
   },
 } as const;
 
+// 자율성 요구도 정보 (별도 평가 축)
+export const AUTONOMY_REQUIREMENT_INFO = {
+  name: "자율성 요구도",
+  description: "이 작업이 에이전트의 자율적 판단을 얼마나 필요로 하는가",
+  criteria: "예측 불가능한 상황 대응, 동적 판단, 결정적 프로세스 여부",
+} as const;
+
+// 자동화 수준 라벨
+export const AUTOMATION_LEVEL_LABELS = {
+  'ai-assisted-workflow': 'AI-Assisted Workflow',
+  'agentic-ai': 'Agentic AI',
+} as const;
+
+// 자동화 수준 설명
+export const AUTOMATION_LEVEL_DESCRIPTIONS = {
+  'ai-assisted-workflow': '결정적 파이프라인 + 특정 단계에서 AI 활용',
+  'agentic-ai': '에이전트가 자율적으로 도구 선택, 판단, 반복 수행',
+} as const;
+
 // Feasibility 판정 기준 (하위 호환성 유지)
 export const FEASIBILITY_JUDGMENT = {
   PROCEED: { min: 40, label: "즉시 진행", emoji: "✅" },

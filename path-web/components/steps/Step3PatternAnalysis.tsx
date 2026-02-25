@@ -7,6 +7,7 @@ import SpaceBetween from "@cloudscape-design/components/space-between";
 import Button from "@cloudscape-design/components/button";
 import Spinner from "@cloudscape-design/components/spinner";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
+import Badge from "@cloudscape-design/components/badge";
 import PromptInput from "@cloudscape-design/components/prompt-input";
 import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
 import Avatar from "@cloudscape-design/chat-components/avatar";
@@ -303,6 +304,11 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
               {FEASIBILITY_ITEM_NAMES[key]}: {item.score}
             </StatusIndicator>
           ))}
+          {feasibility.autonomy_requirement && (
+            <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
+              자율성: {feasibility.autonomy_requirement.score}/10
+            </Badge>
+          )}
         </SpaceBetween>
       </Container>
 

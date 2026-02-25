@@ -20,6 +20,46 @@ from chat_agent import DEFAULT_MODEL_ID
 logger = logging.getLogger(__name__)
 
 
+def _extract_final_text(result) -> str:
+    """LLM 결과에서 최종 텍스트를 추출.
+
+    Tool 사용 시 content 배열에 여러 블록이 포함됨:
+      [text(meta), toolUse, toolResult, text(meta), toolUse, toolResult, text(actual)]
+    마지막 text 블록이 실제 응답이므로 이를 추출한다.
+    Tool 미사용 시 전체 text를 합쳐서 반환.
+    """
+    content = result.message.get('content', [])
+    if not content:
+        return ''
+
+    # text 블록만 추출
+    text_blocks = [
+        block.get('text', '')
+        for block in content
+        if isinstance(block, dict) and block.get('type') == 'text' and block.get('text', '').strip()
+    ]
+
+    if not text_blocks:
+        # type 키 없이 text만 있는 경우 (단순 응답)
+        for block in content:
+            if isinstance(block, dict) and 'text' in block:
+                text_blocks.append(block['text'])
+
+    if not text_blocks:
+        return ''
+
+    # toolUse 블록이 있으면 마지막 text만 사용 (그 이전은 메타 코멘터리)
+    has_tool_use = any(
+        isinstance(block, dict) and block.get('type') == 'toolUse'
+        for block in content
+    )
+
+    if has_tool_use and len(text_blocks) > 1:
+        return text_blocks[-1]
+
+    return '\n'.join(text_blocks)
+
+
 class MermaidValidator:
     """Mermaid 다이어그램 문법 검증기 (Python only, Node.js 의존 없음)"""
 
@@ -304,9 +344,29 @@ class DesignAgent:
                 '"./skills/universal-agent-patterns/references/state-management.md"를 읽으세요.'
             )
 
+        # 자동화 수준 안내
+        automation_level = analysis.get('automation_level', '')
+        automation_guidance = ""
+        if automation_level == 'ai-assisted-workflow':
+            automation_guidance = """
+**자동화 수준: AI-Assisted Workflow**
+이 프로젝트는 결정적 파이프라인 + 특정 단계에서 AI를 활용하는 방식입니다.
+- 전체 흐름은 워크플로우 엔진/코드가 제어하고, AI는 개별 단계(요약, 분류, 생성 등)에서만 활용
+- Agent의 자율적 판단보다는 명시적 파이프라인 설계에 집중하세요
+- "Agent"보다는 "AI Step" 또는 "AI-Powered Stage"로 표현이 더 적합할 수 있습니다
+"""
+        elif automation_level == 'agentic-ai':
+            automation_guidance = """
+**자동화 수준: Agentic AI**
+이 프로젝트는 에이전트가 자율적으로 도구를 선택하고 판단하는 방식입니다.
+- Agent가 상황에 따라 동적으로 경로와 도구를 결정
+- ReAct, Planning 등 에이전트 패턴을 적극 활용하세요
+"""
+
         prompt = f"""다음 분석 결과를 바탕으로 프레임워크 독립적인 Agent 설계를 수행하세요:
 
 {json.dumps(analysis, indent=2, ensure_ascii=False)}
+{automation_guidance}
 {chat_section}
 {context_section}
 {improvement_section}
@@ -342,7 +402,7 @@ class DesignAgent:
 """
         result = self.agent(prompt)
         self._last_usage = extract_usage(result)
-        return result.message['content'][0]['text']
+        return _extract_final_text(result)
 
 
 class DiagramAgent:
@@ -448,9 +508,15 @@ flowchart TB
         pattern = analysis.get('pattern', '')
         recommended_arch = analysis.get('recommended_architecture', '')
         multi_agent_pattern = analysis.get('multi_agent_pattern', '')
+        automation_level = analysis.get('automation_level', '')
 
         steps_text = '\n'.join(f'  - {s}' for s in process_steps) if process_steps else 'N/A'
         outputs_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
+
+        automation_line = ""
+        if automation_level:
+            label = 'AI-Assisted Workflow' if automation_level == 'ai-assisted-workflow' else 'Agentic AI'
+            automation_line = f"\n- **Automation Level**: {label}"
 
         return f"""**원본 분석 컨텍스트**:
 - **Pain Point**: {pain_point}
@@ -461,7 +527,7 @@ flowchart TB
 - **Human-in-Loop**: {human_loop}
 - **Pattern**: {pattern}
 - **Architecture**: {recommended_arch or 'single-agent'}
-- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}"""
+- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}{automation_line}"""
 
     def generate_diagrams(self, design_result: str, analysis: Dict[str, Any]) -> str:
         """다이어그램 생성 (검증 + 재시도 1회)"""
@@ -470,7 +536,7 @@ flowchart TB
 
         # 1차 생성
         result = self.agent(prompt)
-        output = result.message['content'][0]['text']
+        output = _extract_final_text(result)
         self._last_usage = extract_usage(result)
 
         # 검증
@@ -493,7 +559,7 @@ flowchart TB
 수정된 전체 출력만 작성하세요. 설명이나 메타 코멘트 없이 바로 수정 결과만 출력하세요.
 """
         retry_result = self.agent(retry_prompt)
-        retry_output = retry_result.message['content'][0]['text']
+        retry_output = _extract_final_text(retry_result)
         self._last_usage = merge_usage(self._last_usage, extract_usage(retry_result))
 
         # 재시도 결과 검증 (실패해도 반환 — 최선의 결과 사용)
@@ -513,9 +579,18 @@ def _build_analysis_context_section(analysis: Dict[str, Any]) -> str:
     pattern = analysis.get('pattern', '')
     recommended_arch = analysis.get('recommended_architecture', '')
     multi_agent_pattern = analysis.get('multi_agent_pattern', '')
+    automation_level = analysis.get('automation_level', '')
+    automation_level_reason = analysis.get('automation_level_reason', '')
 
     steps_text = '\n'.join(f'  - {s}' for s in process_steps) if process_steps else 'N/A'
     outputs_text = ', '.join(output_types) if isinstance(output_types, list) else str(output_types)
+
+    automation_line = ""
+    if automation_level:
+        label = 'AI-Assisted Workflow' if automation_level == 'ai-assisted-workflow' else 'Agentic AI'
+        automation_line = f"\n- **Automation Level**: {label}"
+        if automation_level_reason:
+            automation_line += f" ({automation_level_reason})"
 
     return f"""**원본 분석 컨텍스트**:
 - **Pain Point**: {pain_point}
@@ -526,7 +601,7 @@ def _build_analysis_context_section(analysis: Dict[str, Any]) -> str:
 - **Human-in-Loop**: {human_loop}
 - **Pattern**: {pattern}
 - **Architecture**: {recommended_arch or 'single-agent'}
-- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}"""
+- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}{automation_line}"""
 
 
 class PromptAgent:
@@ -607,7 +682,7 @@ class PromptAgent:
 """
         result = self.agent(prompt)
         self._last_usage = extract_usage(result)
-        return result.message['content'][0]['text']
+        return _extract_final_text(result)
 
 
 class ToolAgent:
@@ -735,7 +810,7 @@ class ToolAgent:
 """
         result = self.agent(prompt)
         self._last_usage = extract_usage(result)
-        return result.message['content'][0]['text']
+        return _extract_final_text(result)
 
 
 class AssemblerAgent:
@@ -745,25 +820,52 @@ class AssemblerAgent:
         pass
 
     def _clean_internal_comments(self, text: str) -> str:
-        """내부 코멘트 제거 (Claude의 메타 발언)"""
+        """내부 코멘트 제거 (Claude의 메타 발언 + tool call 잔재)
+
+        전략:
+        1. tool_call/tool_result XML 태그 블록 제거
+        2. 첫 번째 섹션 헤딩(##) 이전의 모든 텍스트 제거 (메타 코멘터리가 항상 앞부분에 위치)
+        3. 라인 단위 패턴 매칭으로 남은 메타 코멘터리 제거
+        """
         import re
 
+        # 1단계: <tool_call>...</tool_call> 및 <tool_result>...</tool_result> 블록 제거
+        text = re.sub(r'<tool_call>.*?</tool_call>', '', text, flags=re.DOTALL)
+        text = re.sub(r'<tool_result>.*?</tool_result>', '', text, flags=re.DOTALL)
+
+        # 2단계: 첫 번째 ## 헤딩 이전의 모든 텍스트 제거
+        heading_match = re.search(r'^##\s+', text, re.MULTILINE)
+        if heading_match:
+            text = text[heading_match.start():]
+
+        # 3단계: 라인 단위 메타 코멘터리 패턴 제거 (한국어 + 영어)
         line_patterns = [
+            # 한국어 패턴
             r'^네,?\s*(이미|먼저)?\s*스킬을?\s*(읽었으므로|로드했으므로).*$',
             r'^이미\s+SKILL\.?md를?\s*(로드|읽).*$',
             r'^(먼저|우선)?\s*스킬을?\s*(로드|읽).*$',
-            r'^(바로|이제)?\s*(분석|다이어그램|명세서).*?(진행|생성|작성)하겠습니다.*$',
+            r'^(바로|이제)?\s*(분석|다이어그램|명세서|설계|도구).*?(진행|생성|작성|시작)하겠습니다.*$',
             r'^(바로|이제)?\s*\d+가지\s*다이어그램을?\s*생성하겠습니다.*$',
             r'^(알겠습니다|네,?\s*알겠습니다).*$',
             r'^(그럼|그러면)\s*(바로|이제)?.*?(시작|진행).*$',
+            r'^.*스킬.*?(참조|읽|로드).*$',
+            r'^.*reference.*?(읽|참조|로드).*$',
+            # 영어 패턴
+            r"^I'?ll\s+(read|load|check|look|start|review|first).*$",
+            r"^Let\s+me\s+(read|load|check|look|start|review|first).*$",
+            r"^(First|Now),?\s+I'?ll\s+.*$",
+            r'^(OK|Okay|Sure|Alright),?\s*(let me|I\'ll).*$',
+            r'^I\s+(need to|will|should)\s+(read|load|check|review|look).*$',
+            r'^(Reading|Loading|Checking|Looking)\s+(the|at|through)?\s*(skill|reference|file).*$',
         ]
 
         lines = text.split('\n')
         cleaned_lines = []
         for line in lines:
             should_remove = False
+            stripped = line.strip()
             for pattern in line_patterns:
-                if re.match(pattern, line.strip(), flags=re.IGNORECASE):
+                if re.match(pattern, stripped, flags=re.IGNORECASE):
                     should_remove = True
                     break
             if not should_remove:
@@ -804,6 +906,8 @@ class AssemblerAgent:
         human_loop = analysis.get('human_loop', analysis.get('humanLoop', 'N/A'))
         risks = analysis.get('risks', [])
         next_steps = analysis.get('next_steps', [])
+        automation_level = analysis.get('automation_level', '')
+        automation_level_reason = analysis.get('automation_level_reason', '')
 
         # 개선된 점수 우선 사용
         improved = analysis.get('improved_feasibility')
@@ -815,6 +919,14 @@ class AssemblerAgent:
             feasibility_score = original_score
             score_display = f"{feasibility_score}/50"
 
+        # 자동화 수준 표시
+        automation_line = ""
+        if automation_level:
+            label = 'AI-Assisted Workflow' if automation_level == 'ai-assisted-workflow' else 'Agentic AI'
+            automation_line = f"\n- **Automation Level**: {label}"
+            if automation_level_reason:
+                automation_line += f"\n  - {automation_level_reason}"
+
         # 명세서 조합
         spec = f"""# AI Agent Design Specification
 
@@ -823,7 +935,7 @@ class AssemblerAgent:
 - **Problem**: {pain_point}
 - **Solution**: {pattern} 패턴 사용
 - **Reason**: {pattern_reason}
-- **Feasibility**: {score_display}
+- **Feasibility**: {score_display}{automation_line}
 - **Recommendation**: {recommendation}
 
 {design_result}

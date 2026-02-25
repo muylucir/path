@@ -13,9 +13,11 @@ import FormField from "@cloudscape-design/components/form-field";
 import Textarea from "@cloudscape-design/components/textarea";
 import Alert from "@cloudscape-design/components/alert";
 import Popover from "@cloudscape-design/components/popover";
+import Badge from "@cloudscape-design/components/badge";
 import {
   FEASIBILITY_ITEM_NAMES,
   READINESS_ITEM_DETAILS,
+  AUTONOMY_REQUIREMENT_INFO,
 } from "@/lib/constants";
 import { getReadinessLevel, getStatusIndicatorType } from "@/lib/readiness";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
@@ -282,6 +284,54 @@ export function Step2Readiness({
         );
       })}
       </SpaceBetween>
+
+      {/* Autonomy Requirement (별도 평가 축) */}
+      {feasibility.autonomy_requirement && (
+        <Container
+          header={
+            <Header
+              variant="h2"
+              description="준비도 50점과는 별도의 독립 평가 축입니다. 이 업무에 에이전트의 자율적 판단이 얼마나 필요한지를 나타냅니다."
+              info={
+                <Popover
+                  dismissButton={false}
+                  position="top"
+                  size="medium"
+                  triggerType="text"
+                  content={
+                    <SpaceBetween size="xs">
+                      <Box variant="small" fontWeight="bold">{AUTONOMY_REQUIREMENT_INFO.description}</Box>
+                      <Box variant="small">평가 기준: {AUTONOMY_REQUIREMENT_INFO.criteria}</Box>
+                    </SpaceBetween>
+                  }
+                >
+                  <Box variant="small" color="text-status-info">정보</Box>
+                </Popover>
+              }
+            >
+              {AUTONOMY_REQUIREMENT_INFO.name}
+            </Header>
+          }
+        >
+          <SpaceBetween size="s">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
+                {feasibility.autonomy_requirement.score >= 6 ? "Agentic AI 권장" : "AI-Assisted Workflow 가능"}
+              </Badge>
+              <Box variant="small" color="text-body-secondary">
+                자율성 점수: {feasibility.autonomy_requirement.score}/10
+              </Box>
+            </SpaceBetween>
+            <Box variant="small" color="text-body-secondary">{feasibility.autonomy_requirement.current_state}</Box>
+            <Box variant="p">{feasibility.autonomy_requirement.reason}</Box>
+            {feasibility.autonomy_requirement.changed && feasibility.autonomy_requirement.change_reason && (
+              <Alert type="success">
+                {feasibility.autonomy_requirement.change_reason}
+              </Alert>
+            )}
+          </SpaceBetween>
+        </Container>
+      )}
 
       {/* Risks */}
       {feasibility.risks.length > 0 && (

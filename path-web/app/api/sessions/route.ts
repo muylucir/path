@@ -17,6 +17,8 @@ export const sessionSchema = z.object({
   pattern_reason: z.string(),
   recommended_architecture: z.enum(["single-agent", "multi-agent"]).nullable().optional(),
   multi_agent_pattern: z.enum(["agents-as-tools", "swarm", "graph", "workflow"]).nullable().optional(),
+  automation_level: z.enum(["ai-assisted-workflow", "agentic-ai"]).nullable().optional(),
+  automation_level_reason: z.string().nullable().optional(),
   architecture_reason: z.string().nullable().optional(),
   feasibility_breakdown: z.record(z.string(), z.number()),
   feasibility_score: z.number(),

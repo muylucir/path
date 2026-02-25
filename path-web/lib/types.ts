@@ -72,6 +72,8 @@ export interface FeasibilityEvaluation {
   weak_items: WeakItem[];
   risks: string[];
   summary: string;
+  // 자율성 요구도 (별도 축, 준비도 50점과 독립)
+  autonomy_requirement?: FeasibilityItemDetail;
   // 재평가 시 추가 필드
   previous_score?: number;
   score_change?: number;
@@ -98,6 +100,9 @@ export interface ImprovedFeasibility {
 // 멀티 에이전트 협업 패턴 (Strands Agents 기반)
 export type MultiAgentPattern = 'agents-as-tools' | 'swarm' | 'graph' | 'workflow';
 
+// 자동화 수준 (자율성 요구도 기반)
+export type AutomationLevel = 'ai-assisted-workflow' | 'agentic-ai';
+
 export interface Analysis {
   pain_point: string;
   input_type: string;
@@ -109,6 +114,8 @@ export interface Analysis {
   pattern: string;
   recommended_architecture?: 'single-agent' | 'multi-agent';  // 권장 아키텍처
   multi_agent_pattern?: MultiAgentPattern | null;  // 멀티 에이전트 협업 패턴
+  automation_level?: AutomationLevel;  // 자동화 수준 (자율성 기반)
+  automation_level_reason?: string;  // 자동화 수준 판단 근거
   architecture_reason?: string;  // 권장 이유
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;
@@ -144,6 +151,8 @@ export interface Session {
   pattern_reason: string;
   recommended_architecture?: 'single-agent' | 'multi-agent';
   multi_agent_pattern?: MultiAgentPattern | null;
+  automation_level?: AutomationLevel;
+  automation_level_reason?: string;
   architecture_reason?: string;
   feasibility_breakdown: FeasibilityBreakdown;
   feasibility_score: number;

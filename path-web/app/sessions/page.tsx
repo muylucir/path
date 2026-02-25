@@ -132,6 +132,8 @@ export default function SessionsPage() {
         pattern_reason: session.pattern_reason,
         recommended_architecture: session.recommended_architecture,
         multi_agent_pattern: session.multi_agent_pattern,
+        automation_level: session.automation_level,
+        automation_level_reason: session.automation_level_reason,
         architecture_reason: session.architecture_reason,
         feasibility_breakdown: session.feasibility_breakdown,
         feasibility_score: session.feasibility_score,
