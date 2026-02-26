@@ -1167,6 +1167,7 @@ Resources:
     Type: AWS::Cognito::UserPool
     Properties:
       UserPoolName: !Sub '${AWS::StackName}-users'
+      UserPoolTier: ESSENTIALS
       AutoVerifiedAttributes:
         - email
       UsernameAttributes:
@@ -1192,6 +1193,7 @@ Resources:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
       Domain: !Sub '${AWS::StackName}-auth'
+      ManagedLoginVersion: 2
       UserPoolId: !Ref PathUserPool
 
   # UserPoolClient depends on CloudFront so we know the callback URL

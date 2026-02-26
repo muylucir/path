@@ -11,4 +11,4 @@ mkdir -p /opt/path-web
 cp -r .next/standalone/. /opt/path-web/
 cp -r .next/static /opt/path-web/.next/static
 cp -r public /opt/path-web/public 2>/dev/null || true
-sudo systemctl restart 
+sudo systemctl restart path-web
