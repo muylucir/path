@@ -116,10 +116,11 @@ export default function GuidePage() {
                 <TextContent>
                   <p>
                     아이디어가 좋아도, 데이터가 없거나 시스템 연동이 어려우면 프로젝트가 중간에 멈춥니다. AI가 5가지
-                    핵심 항목을 점검합니다.
+                    핵심 항목을 점검하고, 자율성 요구도를 별도로 평가합니다.
                   </p>
                 </TextContent>
 
+                <Header variant="h3">준비도 점검 항목 (5개, 각 10점)</Header>
                 <Table
                   variant="embedded"
                   columnDefinitions={[
@@ -134,6 +135,29 @@ export default function GuidePage() {
                     { item: "오류 허용도", good: "틀려도 업무에 큰 지장 없음", mid: "90% 이상 정확해야 함", low: "반드시 100% 정확해야 함" },
                     { item: "응답 시간", good: "몇 시간 걸려도 괜찮음", mid: "1분 이내 응답 필요", low: "3초 이내 실시간 필요" },
                     { item: "시스템 연동", good: "독립적으로 실행 가능", mid: "3~5개 시스템과 연결 필요", low: "레거시 시스템에 의존" },
+                  ]}
+                />
+
+                <Header variant="h3">자율성 요구도 (별도 평가, 10점 만점)</Header>
+                <TextContent>
+                  <p>
+                    준비도 점검과 별도로, 해당 업무에 <strong>AI가 얼마나 자율적으로 판단해야 하는지</strong>를 평가합니다.
+                    이 점수는 50점 만점의 준비도 점수에 포함되지 않으며, 다음 단계(Step 3)에서 자동화 수준을 결정하는 데 활용됩니다.
+                  </p>
+                </TextContent>
+                <Table
+                  variant="embedded"
+                  columnDefinitions={[
+                    { id: "score", header: "점수", cell: (item) => <strong>{item.score}</strong>, width: 100 },
+                    { id: "level", header: "자율성 수준", cell: (item) => item.level, width: 130 },
+                    { id: "example", header: "예시", cell: (item) => item.example },
+                  ]}
+                  items={[
+                    { score: "9-10점", level: "완전 자율", example: "예측 불가능한 상황에서 독립적 판단 필요" },
+                    { score: "7-8점", level: "높은 자율", example: "상황에 따라 최적 경로를 스스로 선택" },
+                    { score: "5-6점", level: "보통", example: "일부 판단 필요하지만 대부분 정해진 흐름" },
+                    { score: "3-4점", level: "낮은 자율", example: "거의 결정적, AI가 특정 단계만 보조" },
+                    { score: "0-2점", level: "자율 불필요", example: "완전히 결정적인 파이프라인" },
                   ]}
                 />
 
@@ -179,6 +203,7 @@ export default function GuidePage() {
                 </Alert>
                 <Alert type="success">
                   <strong>이 단계를 거치면:</strong> 개발 2주차에 발견할 문제를 프로젝트 시작 전에 파악할 수 있습니다.
+                  또한 자율성 요구도를 통해, AI Agent가 단순 보조 수준이면 되는지 자율 판단이 필요한지도 사전에 파악합니다.
                 </Alert>
               </SpaceBetween>
             </Container>
@@ -189,8 +214,27 @@ export default function GuidePage() {
             <Container header={<Header variant="h2">Step 3: Agent Pattern — 구현 방식 결정</Header>}>
               <SpaceBetween size="m">
                 <TextContent>
-                  <p>준비도 결과를 바탕으로, AI가 적합한 Agent 구조를 추천합니다.</p>
+                  <p>준비도 결과와 자율성 요구도를 바탕으로, AI가 적합한 Agent 구조와 자동화 수준을 추천합니다.</p>
                 </TextContent>
+
+                <Header variant="h3">자동화 수준 결정</Header>
+                <TextContent>
+                  <p>Step 2에서 평가한 자율성 요구도를 기반으로, 적합한 자동화 수준을 결정합니다.</p>
+                </TextContent>
+                <Table
+                  variant="embedded"
+                  columnDefinitions={[
+                    { id: "level", header: "자동화 수준", cell: (item) => <strong>{item.level}</strong>, width: 200 },
+                    { id: "score", header: "자율성 점수", cell: (item) => item.score, width: 120 },
+                    { id: "desc", header: "설명", cell: (item) => item.desc },
+                  ]}
+                  items={[
+                    { level: "AI-Assisted Workflow", score: "5점 이하", desc: "결정적 파이프라인 + 특정 단계에서 AI 보조. 흐름이 정해져 있고, AI는 특정 작업(분류, 요약 등)만 담당" },
+                    { level: "Agentic AI", score: "6점 이상", desc: "Agent가 자율적으로 도구를 선택하고 판단. 상황에 따라 다른 경로를 선택하며, 반복·수정 가능" },
+                  ]}
+                />
+
+                <Header variant="h3">Agent 구조 추천</Header>
                 <Table
                   variant="embedded"
                   columnDefinitions={[
@@ -212,11 +256,12 @@ export default function GuidePage() {
                   <ul>
                     <li>&ldquo;우리 업무는 실시간 처리가 중요한데, 이 방식이 맞나요?&rdquo;</li>
                     <li>&ldquo;Agent를 여러 개 쓰는 게 왜 필요한 건가요?&rdquo;</li>
+                    <li>&ldquo;AI-Assisted Workflow로도 충분하지 않을까요?&rdquo;</li>
                     <li>&ldquo;더 단순한 방식으로는 안 되나요?&rdquo;</li>
                   </ul>
                 </TextContent>
                 <Alert type="success">
-                  <strong>이 단계를 거치면:</strong> &ldquo;어떤 방식으로 만들 것인가&rdquo;에 대한 기술적 결정이 내려지고, 그 이유도 함께 정리됩니다.
+                  <strong>이 단계를 거치면:</strong> &ldquo;어떤 방식으로, 어떤 수준으로 만들 것인가&rdquo;에 대한 기술적 결정이 내려지고, 그 이유도 함께 정리됩니다.
                 </Alert>
               </SpaceBetween>
             </Container>
@@ -227,19 +272,21 @@ export default function GuidePage() {
             <Container header={<Header variant="h2">Step 4: Handoff — 구현 명세서 생성</Header>}>
               <SpaceBetween size="m">
                 <TextContent>
-                  <p>4개의 전문 AI가 순차적으로 명세서를 작성합니다.</p>
+                  <p>5개의 전문 AI가 명세서를 작성합니다. 1단계 완료 후 2~4단계를 병렬로 동시 실행하여 빠르게 결과를 생성합니다.</p>
                 </TextContent>
                 <Table
                   variant="embedded"
                   columnDefinitions={[
                     { id: "order", header: "순서", cell: (item) => item.order, width: 80 },
                     { id: "content", header: "작성 내용", cell: (item) => item.content },
+                    { id: "mode", header: "실행 방식", cell: (item) => item.mode, width: 100 },
                   ]}
                   items={[
-                    { order: "1단계", content: "Agent 구조 설계 — 역할 분담, 처리 흐름, 상태 관리" },
-                    { order: "2단계", content: "아키텍처 다이어그램 — 시각적 처리 흐름도" },
-                    { order: "3단계", content: "구현 세부사항 — 프롬프트 설계, 도구 정의, 입출력 스펙" },
-                    { order: "4단계", content: "최종 문서 통합 — 하나의 명세서로 조합" },
+                    { order: "1단계", content: "Agent 구조 설계 — 역할 분담, 처리 흐름, 상태 관리", mode: "순차" },
+                    { order: "2단계", content: "아키텍처 다이어그램 — 시각적 처리 흐름도 (Mermaid)", mode: "병렬 실행" },
+                    { order: "3단계", content: "프롬프트 설계 — Agent별 프롬프트 엔지니어링", mode: "병렬 실행" },
+                    { order: "4단계", content: "도구 정의 — 필요한 도구 스키마 및 입출력 스펙", mode: "병렬 실행" },
+                    { order: "5단계", content: "최종 문서 통합 — 하나의 명세서로 조합", mode: "순차" },
                   ]}
                 />
 
@@ -251,12 +298,13 @@ export default function GuidePage() {
                     { id: "desc", header: "설명", cell: (item) => item.desc },
                   ]}
                   items={[
-                    { section: "요약", desc: "프로젝트 개요, 핵심 결정 사항" },
+                    { section: "요약", desc: "프로젝트 개요, 핵심 결정 사항, 자동화 수준" },
                     { section: "Agent 설계", desc: "선택된 구조와 선택 이유" },
                     { section: "역할 정의", desc: "Agent별 담당 업무와 책임 범위" },
                     { section: "처리 흐름", desc: "입력부터 출력까지의 단계별 흐름" },
-                    { section: "아키텍처 다이어그램", desc: "시각적 구조도" },
-                    { section: "구현 가이드", desc: "개발팀이 참고할 기술 세부사항" },
+                    { section: "아키텍처 다이어그램", desc: "시각적 구조도 (Mermaid 다이어그램)" },
+                    { section: "프롬프트 설계", desc: "Agent별 프롬프트 엔지니어링 가이드" },
+                    { section: "도구 정의", desc: "필요한 도구 스키마 및 입출력 스펙" },
                   ]}
                 />
                 <Alert type="success">
@@ -328,8 +376,10 @@ export default function GuidePage() {
                 ]}
                 items={[
                   { result: "준비도 점수 (50점 만점)", who: "프로젝트 매니저 — Go/No-Go 판단 근거" },
+                  { result: "자율성 요구도 (10점 만점)", who: "기획팀/개발팀 — AI 자동화 수준 결정 근거" },
                   { result: "항목별 진단 + 개선 방향", who: "기획팀 — 사전 준비 항목 도출" },
                   { result: "리스크 목록", who: "프로젝트 전체 — 착수 전 위험 공유" },
+                  { result: "자동화 수준 추천", who: "개발팀 — AI-Assisted Workflow vs Agentic AI 결정" },
                   { result: "Agent 구조 추천 + 근거", who: "개발팀 — 아키텍처 설계 출발점" },
                   { result: "구현 명세서 (다이어그램 포함)", who: "개발팀/외주사 — 개발 착수 문서, PoC 기획서 첨부" },
                 ]}
@@ -343,7 +393,7 @@ export default function GuidePage() {
               <SpaceBetween size="m">
                 <TextContent>
                   <p><strong>만들기 전에, 만들 수 있는지 확인한다.</strong></p>
-                  <p><strong>만들 수 있다면, 어떻게 만들어야 하는지 정리한다.</strong></p>
+                  <p><strong>만들 수 있다면, 어떻게, 어떤 수준으로 만들지 정리한다.</strong></p>
                   <p><strong>정리가 끝나면, 바로 시작할 수 있는 문서를 만든다.</strong></p>
                   <ul>
                     <li>개발 착수 후 발견할 문제를 <strong>사전에</strong> 발견합니다</li>

@@ -110,7 +110,7 @@ export default function IntroPage() {
                   <ExpandableSection headerText="Step 2. 지금 시작할 수 있는 상태인지 점검합니다" defaultExpanded>
                     <SpaceBetween size="m">
                       <TextContent>
-                        <p>아이디어가 좋아도 준비가 안 되면 프로젝트가 중간에 멈춥니다. AI가 5가지 항목을 점검합니다.</p>
+                        <p>아이디어가 좋아도 준비가 안 되면 프로젝트가 중간에 멈춥니다. AI가 5가지 준비도 항목을 점검하고, 자율성 요구도를 별도로 평가합니다.</p>
                       </TextContent>
                       <Table
                         variant="embedded"
@@ -132,6 +132,12 @@ export default function IntroPage() {
                           미만이면 보완이 필요합니다.
                         </p>
                         <p>
+                          이와 별도로 <strong>자율성 요구도</strong>(10점 만점)를 평가합니다. &ldquo;이 업무에 AI가 얼마나 자율적으로
+                          판단해야 하는가?&rdquo;를 확인하는 것입니다. 예를 들어 정해진 규칙대로만 처리하면 되는 업무는 자율성이 낮고,
+                          상황에 따라 다른 판단을 해야 하는 업무는 자율성이 높습니다. 이 점수는 다음 단계에서
+                          &ldquo;AI-Assisted Workflow로 충분한지, Agentic AI가 필요한지&rdquo;를 결정하는 데 쓰입니다.
+                        </p>
+                        <p>
                           여기서 중요한 건 <strong>재평가</strong> 기능입니다. 점수가 낮은 항목이 있으면 &ldquo;이렇게 보완할
                           예정입니다&rdquo;라는 계획을 입력하고 다시 평가받을 수 있습니다.
                         </p>
@@ -142,18 +148,30 @@ export default function IntroPage() {
                   <ExpandableSection headerText="Step 3. 어떤 방식으로 만들어야 하는지 결정합니다" defaultExpanded>
                     <TextContent>
                       <p>
-                        준비도 결과를 바탕으로 AI가 적합한 Agent 구조를 추천합니다. 단순한 추천으로 끝나지 않고, AI와 대화하며
+                        준비도 결과와 자율성 요구도를 바탕으로 AI가 두 가지를 추천합니다.
+                      </p>
+                      <p>
+                        첫째, <strong>자동화 수준</strong>입니다. 자율성 점수가 낮으면(5점 이하) &ldquo;AI-Assisted Workflow&rdquo; —
+                        정해진 파이프라인에서 특정 단계만 AI가 처리하는 방식을 추천합니다. 자율성 점수가 높으면(6점 이상)
+                        &ldquo;Agentic AI&rdquo; — Agent가 스스로 도구를 선택하고 판단하는 자율적 방식을 추천합니다.
+                      </p>
+                      <p>
+                        둘째, <strong>Agent 구조</strong>입니다. Agent 하나로 충분한지, 여러 Agent가 역할을 나눠서 처리해야 하는지를 결정합니다.
+                      </p>
+                      <p>
+                        단순한 추천으로 끝나지 않고, AI와 대화하며
                         &ldquo;왜 이 방식인지&rdquo;, &ldquo;우리 상황에 더 맞는 방법은 없는지&rdquo;를 확인할 수 있습니다.
                       </p>
-                      <p>Agent 하나로 충분한지, 여러 Agent가 역할을 나눠서 처리해야 하는지도 여기서 결정됩니다.</p>
                     </TextContent>
                   </ExpandableSection>
 
                   <ExpandableSection headerText="Step 4. 개발팀에 전달할 명세서가 나옵니다" defaultExpanded>
                     <TextContent>
                       <p>
-                        분석이 끝나면 구현 명세서가 자동으로 생성됩니다. Agent의 역할 분담, 처리 흐름 다이어그램, 필요한 도구
-                        정의까지 포함되어 있어서, 개발팀이 &ldquo;뭘 만들어야 하는지&rdquo; 바로 파악할 수 있습니다.
+                        분석이 끝나면 5개의 전문 AI가 협력하여 구현 명세서를 생성합니다. 먼저 Agent 구조를 설계한 뒤,
+                        아키텍처 다이어그램·프롬프트 설계·도구 정의를 병렬로 동시 작성하고, 마지막으로 하나의 문서로 통합합니다.
+                        자동화 수준, Agent의 역할 분담, 처리 흐름 다이어그램, 프롬프트 설계, 필요한 도구 정의까지 포함되어 있어서,
+                        개발팀이 &ldquo;뭘 만들어야 하는지&rdquo; 바로 파악할 수 있습니다.
                       </p>
                     </TextContent>
                   </ExpandableSection>
@@ -219,9 +237,10 @@ export default function IntroPage() {
                   ]}
                   items={[
                     { result: "준비도 점수 (50점 만점)", use: "\"지금 시작해도 되는가?\"에 대한 객관적 근거" },
+                    { result: "자율성 요구도 (10점 만점)", use: "AI 자동화 수준 결정 근거 (AI-Assisted vs Agentic)" },
                     { result: "항목별 진단과 개선 방향", use: "부족한 부분을 사전에 파악하고 대비" },
                     { result: "리스크 목록", use: "프로젝트 시작 전에 위험 요소 공유" },
-                    { result: "Agent 구조 추천", use: "개발팀과 아키텍처 논의의 출발점" },
+                    { result: "자동화 수준 + Agent 구조 추천", use: "개발팀과 아키텍처 논의의 출발점" },
                     { result: "구현 명세서", use: "개발 착수, PoC 기획서, 외주 요구사항 전달에 활용" },
                   ]}
                 />
