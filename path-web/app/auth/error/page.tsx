@@ -34,7 +34,7 @@ function ErrorContent() {
                 : "인증 중 오류가 발생했습니다. 다시 시도해주세요."}
             </Alert>
             <SpaceBetween size="s" direction="horizontal">
-              <Button variant="primary" href="/api/auth/signin/cognito">
+              <Button variant="primary" href="/auth/signin">
                 다시 로그인
               </Button>
               <Link href="/intro">소개 페이지로 이동</Link>
