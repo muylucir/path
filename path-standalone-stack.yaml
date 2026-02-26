@@ -141,10 +141,13 @@ Resources:
                 Action:
                   - dynamodb:PutItem
                   - dynamodb:GetItem
+                  - dynamodb:Query
                   - dynamodb:Scan
                   - dynamodb:DeleteItem
                   - dynamodb:UpdateItem
-                Resource: !GetAtt PathSessionsTable.Arn
+                Resource:
+                  - !GetAtt PathSessionsTable.Arn
+                  - !Sub '${PathSessionsTable.Arn}/index/*'
               - Effect: Allow
                 Action:
                   - bedrock-agentcore:InvokeAgent
@@ -218,9 +221,22 @@ Resources:
       AttributeDefinitions:
         - AttributeName: session_id
           AttributeType: S
+        - AttributeName: user_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: S
       KeySchema:
         - AttributeName: session_id
           KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: user-sessions-index
+          KeySchema:
+            - AttributeName: user_id
+              KeyType: HASH
+            - AttributeName: timestamp
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
 
   # ============================================================
   # EC2 Instance (ARM64 Graviton, m7g.medium, 30GB)
@@ -796,6 +812,320 @@ Resources:
               OriginReadTimeout: 120
               OriginKeepaliveTimeout: 120
 
+  # ============================================================
+  # Cognito Authentication
+  # ============================================================
+
+  PathAuthSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub '${AWS::StackName}-auth-secret'
+      Description: NextAuth.js AUTH_SECRET for PATH Agent Designer
+      GenerateSecretString:
+        ExcludeCharacters: '"@/\'''
+        PasswordLength: 48
+
+  PathUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-users'
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireUppercase: true
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: false
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Required: true
+          Mutable: true
+
+  PathUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${AWS::StackName}-auth'
+      UserPoolId: !Ref PathUserPool
+
+  # UserPoolClient depends on CloudFront so we know the callback URL
+  PathUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    DependsOn: PathCloudFrontDistribution
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-web'
+      UserPoolId: !Ref PathUserPool
+      GenerateSecret: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - !Sub 'https://${PathCloudFrontDistribution.DomainName}/api/auth/callback/cognito'
+      LogoutURLs:
+        - !Sub 'https://${PathCloudFrontDistribution.DomainName}/intro'
+      SupportedIdentityProviders:
+        - COGNITO
+      ExplicitAuthFlows:
+        - ALLOW_REFRESH_TOKEN_AUTH
+        - ALLOW_USER_SRP_AUTH
+
+  # ============================================================
+  # Lambda: Retrieve Cognito Client Secret
+  # (CloudFormation does not expose client secret as output)
+  # ============================================================
+
+  CognitoSecretLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CognitoDescribeClient
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:DescribeUserPoolClient
+                Resource: !GetAtt PathUserPool.Arn
+
+  CognitoSecretLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Retrieve Cognito UserPool Client Secret
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 30
+      Role: !GetAtt CognitoSecretLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              if event['RequestType'] == 'Delete':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  return
+
+              try:
+                  props = event['ResourceProperties']
+                  user_pool_id = props['UserPoolId']
+                  client_id = props['ClientId']
+
+                  cognito = boto3.client('cognito-idp')
+                  resp = cognito.describe_user_pool_client(
+                      UserPoolId=user_pool_id,
+                      ClientId=client_id
+                  )
+                  client_secret = resp['UserPoolClient']['ClientSecret']
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS,
+                      {'ClientSecret': client_secret})
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {},
+                      reason=str(e))
+
+  GetCognitoClientSecret:
+    Type: Custom::CognitoClientSecret
+    DependsOn: PathUserPoolClient
+    Properties:
+      ServiceToken: !GetAtt CognitoSecretLambda.Arn
+      UserPoolId: !Ref PathUserPool
+      ClientId: !Ref PathUserPoolClient
+
+  # ============================================================
+  # Post-Deploy: Configure Auth env vars and restart frontend
+  # ============================================================
+
+  PathAuthSSMDoc:
+    Type: AWS::SSM::Document
+    Properties:
+      DocumentType: Command
+      Content:
+        schemaVersion: '2.2'
+        description: Configure Cognito auth environment variables and restart PATH frontend
+        parameters:
+          AuthSecret:
+            type: String
+          AuthUrl:
+            type: String
+          CognitoClientId:
+            type: String
+          CognitoClientSecret:
+            type: String
+          CognitoIssuer:
+            type: String
+        mainSteps:
+          - name: ConfigureAuthAndRestart
+            action: aws:runShellScript
+            inputs:
+              timeoutSeconds: 120
+              runCommand:
+                - '#!/bin/bash'
+                - set -e
+                - echo "=== Configuring Auth environment variables ==="
+                - SERVICE_FILE=/etc/systemd/system/path-web.service
+                - ENV_FILE=/etc/systemd/system/path-web-auth.env
+                - 'grep -q "path-web-auth.env" $SERVICE_FILE && echo "Auth already configured" && exit 0'
+                - |
+                  cat > $ENV_FILE <<EOF
+                  AUTH_URL={{ AuthUrl }}
+                  AUTH_SECRET={{ AuthSecret }}
+                  AUTH_TRUST_HOST=true
+                  COGNITO_CLIENT_ID={{ CognitoClientId }}
+                  COGNITO_CLIENT_SECRET={{ CognitoClientSecret }}
+                  COGNITO_ISSUER={{ CognitoIssuer }}
+                  EOF
+                - chmod 600 $ENV_FILE
+                - "sed -i '/\\[Service\\]/a EnvironmentFile=/etc/systemd/system/path-web-auth.env' $SERVICE_FILE"
+                - systemctl daemon-reload
+                - systemctl restart path-web
+                - echo "=== Waiting for health check ==="
+                - set +e
+                - 'for i in $(seq 1 30); do curl -sf http://localhost:3009/api/health > /dev/null 2>&1 && echo "Health check passed" && break; sleep 2; done'
+                - echo "=== Auth configuration complete ==="
+
+  # Add PathAuthSSMDoc to SSMDocLambdaRole permissions
+  SSMDocLambdaRoleAuthPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: SSMDocAuthOnEC2
+      Roles:
+        - !Ref SSMDocLambdaRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:SendCommand
+            Resource:
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:document/${PathAuthSSMDoc}'
+              - !Sub 'arn:aws:ec2:${AWS::Region}:${AWS::AccountId}:instance/${PathInstance}'
+          - Effect: Allow
+            Action:
+              - secretsmanager:GetSecretValue
+            Resource: !Ref PathAuthSecret
+
+  # Retrieve AUTH_SECRET value
+  GetAuthSecretLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: GetAuthSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref PathAuthSecret
+
+  GetAuthSecretLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Retrieve AUTH_SECRET from Secrets Manager
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 30
+      Role: !GetAtt GetAuthSecretLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              if event['RequestType'] == 'Delete':
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  return
+
+              try:
+                  secret_arn = event['ResourceProperties']['SecretArn']
+                  sm = boto3.client('secretsmanager')
+                  resp = sm.get_secret_value(SecretId=secret_arn)
+                  secret_value = resp['SecretString']
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS,
+                      {'SecretValue': secret_value})
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {},
+                      reason=str(e))
+
+  GetAuthSecretValue:
+    Type: Custom::GetAuthSecret
+    Properties:
+      ServiceToken: !GetAtt GetAuthSecretLambda.Arn
+      SecretArn: !Ref PathAuthSecret
+
+  # Run Auth configuration SSM Document
+  RunPathAuthSSMDoc:
+    Type: Custom::RunSSMDocLambda
+    DependsOn:
+      - GetCognitoClientSecret
+      - GetAuthSecretValue
+      - SSMDocLambdaRoleAuthPolicy
+      - CheckPathFrontendSSMDoc
+    Properties:
+      ServiceToken: !GetAtt RunSSMDocLambda.Arn
+      ServiceTimeout: 305
+      InstanceId: !Ref PathInstance
+      DocumentName: !Ref PathAuthSSMDoc
+      CloudWatchLogGroupName: !Sub '/aws/ssm/${PathAuthSSMDoc}'
+      AuthSecret: !GetAtt GetAuthSecretValue.SecretValue
+      AuthUrl: !Sub 'https://${PathCloudFrontDistribution.DomainName}'
+      CognitoClientId: !Ref PathUserPoolClient
+      CognitoClientSecret: !GetAtt GetCognitoClientSecret.ClientSecret
+      CognitoIssuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${PathUserPool}'
+
+  # Check Auth configuration completion
+  CheckPathAuthSSMDoc:
+    Type: Custom::CheckSSMDocLambda
+    DependsOn: RunPathAuthSSMDoc
+    Properties:
+      ServiceToken: !GetAtt CheckSSMDocLambda.Arn
+      ServiceTimeout: 610
+      InstanceId: !Ref PathInstance
+      DocumentName: !Ref PathAuthSSMDoc
+
 Outputs:
   PathCloudFrontURL:
     Description: PATH Agent Designer URL
@@ -828,3 +1158,19 @@ Outputs:
   VpcId:
     Description: VPC ID
     Value: !Ref VPC
+
+  CognitoUserPoolId:
+    Description: Cognito User Pool ID
+    Value: !Ref PathUserPool
+
+  CognitoUserPoolClientId:
+    Description: Cognito User Pool Client ID
+    Value: !Ref PathUserPoolClient
+
+  CognitoIssuer:
+    Description: Cognito Issuer URL
+    Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${PathUserPool}'
+
+  CognitoDomain:
+    Description: Cognito Hosted UI Domain
+    Value: !Sub 'https://${AWS::StackName}-auth.auth.${AWS::Region}.amazoncognito.com'
