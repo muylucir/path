@@ -30,8 +30,8 @@ export default auth((req) => {
         { status: 401 }
       );
     }
-    // Page requests redirect to sign-in
-    const signInUrl = new URL("/auth/signin", req.url);
+    // Page requests redirect directly to Cognito Managed Login
+    const signInUrl = new URL("/api/auth/signin/cognito", req.url);
     signInUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(signInUrl);
   }
