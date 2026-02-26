@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import TopNavigation, { type TopNavigationProps } from "@cloudscape-design/components/top-navigation";
 import AppLayout from "@cloudscape-design/components/app-layout";
 import SideNavigation, { type SideNavigationProps } from "@cloudscape-design/components/side-navigation";
@@ -38,6 +39,7 @@ interface AppLayoutShellProps {
 export function AppLayoutShell({ children, breadcrumbs, notifications, navigation, contentType }: AppLayoutShellProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
   const { usage, resetUsage } = useTokenUsage();
   const [navigationOpen, setNavigationOpen] = useState(true);
   const [splitPanelOpen, setSplitPanelOpen] = useState(false);
@@ -99,6 +101,31 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
           }}
           utilities={[
             ...tokenUtilities,
+            ...(session?.user
+              ? [
+                  {
+                    type: "menu-dropdown" as const,
+                    text: session.user.name || session.user.email || "User",
+                    iconName: "user-profile" as const,
+                    items: [
+                      {
+                        id: "email",
+                        text: session.user.email || "",
+                        disabled: true,
+                      },
+                      {
+                        id: "signout",
+                        text: "로그아웃",
+                      },
+                    ],
+                    onItemClick: ({ detail }: { detail: { id: string } }) => {
+                      if (detail.id === "signout") {
+                        signOut({ callbackUrl: "/intro" });
+                      }
+                    },
+                  },
+                ]
+              : []),
           ]}
         />
       </div>

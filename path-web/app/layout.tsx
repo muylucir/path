@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { CloudscapeProvider } from "@/components/cloudscape/CloudscapeProvider";
 import { FlashbarProvider } from "@/components/cloudscape/FlashbarProvider";
 
@@ -29,11 +30,13 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={d2Coding.variable}>
-        <CloudscapeProvider>
-          <FlashbarProvider>
-            {children}
-          </FlashbarProvider>
-        </CloudscapeProvider>
+        <AuthProvider>
+          <CloudscapeProvider>
+            <FlashbarProvider>
+              {children}
+            </FlashbarProvider>
+          </CloudscapeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { loadSession, deleteSession, replaceSession } from "@/lib/aws/dynamodb";
+import { getAuthUserId } from "@/lib/auth-helpers";
 import { sessionSchema } from "@/app/api/sessions/route";
 import type { Session } from "@/lib/types";
 
@@ -14,6 +15,11 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getAuthUserId();
+    if (!userId) {
+      return Response.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const { id } = await params;
     if (!isValidSessionId(id)) {
       return new Response(
@@ -21,7 +27,7 @@ export async function GET(
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-    const session = await loadSession(id);
+    const session = await loadSession(id, userId);
 
     if (!session) {
       return new Response(JSON.stringify({ error: "세션을 찾을 수 없습니다" }), {
@@ -48,6 +54,11 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getAuthUserId();
+    if (!userId) {
+      return Response.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const { id } = await params;
     if (!isValidSessionId(id)) {
       return new Response(
@@ -55,7 +66,14 @@ export async function DELETE(
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-    await deleteSession(id);
+
+    const deleted = await deleteSession(id, userId);
+    if (!deleted) {
+      return new Response(JSON.stringify({ error: "세션을 찾을 수 없습니다" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     return Response.json({ success: true });
   } catch (error) {
@@ -75,6 +93,11 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const userId = await getAuthUserId();
+    if (!userId) {
+      return Response.json({ error: "Authentication required" }, { status: 401 });
+    }
+
     const { id } = await params;
     if (!isValidSessionId(id)) {
       return new Response(
@@ -98,7 +121,13 @@ export async function PUT(
       );
     }
 
-    await replaceSession(id, result.data as unknown as Omit<Session, "session_id" | "timestamp">);
+    const replaced = await replaceSession(id, userId, result.data as unknown as Omit<Session, "session_id" | "user_id" | "timestamp">);
+    if (!replaced) {
+      return new Response(JSON.stringify({ error: "세션을 찾을 수 없습니다" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     return Response.json({ success: true });
   } catch (error) {

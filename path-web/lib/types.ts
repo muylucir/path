@@ -137,6 +137,7 @@ export interface TokenUsage {
 
 export interface Session {
   session_id: string;
+  user_id: string;
   timestamp: string;
   pain_point: string;
   input_type: string;
@@ -179,6 +180,7 @@ export interface Session {
 
 export interface SessionListItem {
   session_id: string;
+  user_id: string;
   timestamp: string;
   pain_point: string;
   feasibility_score: number;
