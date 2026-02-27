@@ -154,7 +154,7 @@ export default function SessionsPage() {
       }
 
       sessionStorage.setItem("currentSessionId", sessionId);
-      router.push("/");
+      router.push("/design");
     } catch (error) {
       console.error("Error loading session:", error);
       addFlash("error", "세션을 불러오는데 실패했습니다");
@@ -253,7 +253,7 @@ export default function SessionsPage() {
                   iconName="add-plus"
                   onClick={() => {
                     sessionStorage.clear();
-                    router.push("/");
+                    router.push("/design");
                   }}
                 >
                   새 분석

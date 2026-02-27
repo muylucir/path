@@ -402,7 +402,7 @@ export default function GuidePage() {
                   </ul>
                 </TextContent>
                 <Box textAlign="center">
-                  <Link href="/intro" style={{ textDecoration: "none" }}>
+                  <Link href="/" style={{ textDecoration: "none" }}>
                     <Button variant="link" iconName="arrow-left" iconAlign="left">
                       P.A.T.H 소개 보기
                     </Button>

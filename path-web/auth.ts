@@ -13,7 +13,7 @@ export const authConfigured =
   !!process.env.COGNITO_ISSUER;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  debug: process.env.NODE_ENV === "development",
+  debug: false,
   providers: [
     Cognito({
       clientId: process.env.COGNITO_CLIENT_ID!,

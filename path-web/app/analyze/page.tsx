@@ -5,6 +5,6 @@ import { useRouter } from "next/navigation";
 
 export default function AnalyzeRedirect() {
   const router = useRouter();
-  useEffect(() => { router.replace("/"); }, [router]);
+  useEffect(() => { router.replace("/design"); }, [router]);
   return null;
 }
