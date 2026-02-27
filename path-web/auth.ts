@@ -5,8 +5,6 @@ import Cognito from "next-auth/providers/cognito";
 // Auth enforcement is skipped in middleware when authConfigured is false.
 const PLACEHOLDER_SECRET = "path-agent-designer-placeholder-secret-not-for-production";
 
-// Always include Cognito provider — NextAuth handles missing config gracefully
-// at the provider level. The authConfigured flag controls middleware enforcement.
 export const authConfigured =
   !!process.env.AUTH_SECRET &&
   !!process.env.COGNITO_CLIENT_ID &&
@@ -14,13 +12,15 @@ export const authConfigured =
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   debug: false,
-  providers: [
-    Cognito({
-      clientId: process.env.COGNITO_CLIENT_ID!,
-      clientSecret: process.env.COGNITO_CLIENT_SECRET!,
-      issuer: process.env.COGNITO_ISSUER!,
-    }),
-  ],
+  providers: authConfigured
+    ? [
+        Cognito({
+          clientId: process.env.COGNITO_CLIENT_ID!,
+          clientSecret: process.env.COGNITO_CLIENT_SECRET!,
+          issuer: process.env.COGNITO_ISSUER!,
+        }),
+      ]
+    : [],
   secret: process.env.AUTH_SECRET || PLACEHOLDER_SECRET,
   trustHost: true,
   session: { strategy: "jwt" },
