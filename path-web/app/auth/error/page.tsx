@@ -37,7 +37,7 @@ function ErrorContent() {
               <Button variant="primary" href="/auth/signin">
                 다시 로그인
               </Button>
-              <Link href="/intro">소개 페이지로 이동</Link>
+              <Link href="/">소개 페이지로 이동</Link>
             </SpaceBetween>
           </SpaceBetween>
         </Container>

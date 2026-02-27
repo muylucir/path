@@ -6,9 +6,10 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["path.workloom.net"],
   async redirects() {
     return [
-      { source: "/feasibility", destination: "/", permanent: true },
-      { source: "/analyze", destination: "/", permanent: true },
-      { source: "/results", destination: "/", permanent: true },
+      { source: "/feasibility", destination: "/design", permanent: true },
+      { source: "/analyze", destination: "/design", permanent: true },
+      { source: "/results", destination: "/design", permanent: true },
+      { source: "/intro", destination: "/", permanent: true },
     ];
   },
   async headers() {

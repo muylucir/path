@@ -6,7 +6,7 @@ export default auth((req) => {
 
   // Public paths that don't require authentication
   const isPublicPath =
-    pathname.startsWith("/intro") ||
+    pathname === "/" ||
     pathname.startsWith("/guide") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/api/health") ||
@@ -41,5 +41,5 @@ export default auth((req) => {
 
 export const config = {
   matcher:
-    "/((?!intro|guide|auth|api/health|api/auth|_next/static|_next/image|favicon\\.ico|.*\\.woff2$).*)",
+    "/((?!guide|auth|api/health|api/auth|_next/static|_next/image|favicon\\.ico|.*\\.woff2$).*)",
 };

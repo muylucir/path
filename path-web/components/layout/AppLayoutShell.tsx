@@ -22,9 +22,9 @@ function formatTokens(n: number): string {
 }
 
 const NAV_ITEMS: SideNavigationProps.Item[] = [
-  { type: "link", text: "소개", href: "/intro" },
+  { type: "link", text: "소개", href: "/" },
   { type: "link", text: "가이드", href: "/guide" },
-  { type: "link", text: "에이전트 디자인", href: "/" },
+  { type: "link", text: "에이전트 디자인", href: "/design" },
   { type: "link", text: "세션 목록", href: "/sessions" },
 ];
 
@@ -45,13 +45,13 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
   const [splitPanelOpen, setSplitPanelOpen] = useState(false);
   const [splitPanelSize, setSplitPanelSize] = useState(200);
 
-  const handleNavigateHome = () => {
+  const handleNavigateDesign = () => {
     sessionStorage.clear();
     resetUsage();
-    if (pathname === "/") {
+    if (pathname === "/design") {
       window.location.reload();
     } else {
-      router.push("/");
+      router.push("/design");
     }
   };
 
@@ -78,8 +78,8 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
       items={NAV_ITEMS}
       onFollow={(e) => {
         e.preventDefault();
-        if (e.detail.href === "/") {
-          handleNavigateHome();
+        if (e.detail.href === "/design") {
+          handleNavigateDesign();
         } else {
           router.push(e.detail.href);
         }
@@ -92,11 +92,11 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
       <div id="top-nav">
         <TopNavigation
           identity={{
-            href: "#",
+            href: "/",
             title: "P.A.T.H Agent Designer",
             onFollow: (e) => {
               e.preventDefault();
-              handleNavigateHome();
+              router.push("/");
             },
           }}
           utilities={[
@@ -120,7 +120,7 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
                     ],
                     onItemClick: ({ detail }: { detail: { id: string } }) => {
                       if (detail.id === "signout") {
-                        signOut({ callbackUrl: "/intro" });
+                        signOut({ callbackUrl: "/" });
                       }
                     },
                   },

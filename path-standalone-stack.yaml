@@ -890,7 +890,7 @@ Resources:
       CallbackURLs:
         - !Sub 'https://${PathCloudFrontDistribution.DomainName}/api/auth/callback/cognito'
       LogoutURLs:
-        - !Sub 'https://${PathCloudFrontDistribution.DomainName}/intro'
+        - !Sub 'https://${PathCloudFrontDistribution.DomainName}/'
       SupportedIdentityProviders:
         - COGNITO
       ExplicitAuthFlows:
