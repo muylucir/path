@@ -201,6 +201,11 @@ Resources:
               - xray:PutTraceSegments
               - xray:PutTelemetryRecords
             Resource: '*'
+          - Effect: Allow
+            Action:
+              - aws-marketplace:ViewSubscriptions
+              - aws-marketplace:Subscribe
+            Resource: '*'
 
   # ============================================================
   # S3 Bucket for Agent deployment package
@@ -854,9 +859,18 @@ Resources:
   PathUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain
     Properties:
-      Domain: !Sub '${AWS::StackName}-auth'
+      Domain: !Sub 'path-agent-${AWS::AccountId}'
       ManagedLoginVersion: 2
       UserPoolId: !Ref PathUserPool
+
+  # Managed Login v2 branding (required when ManagedLoginVersion: 2)
+  PathManagedLoginBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    DependsOn: PathUserPoolClient
+    Properties:
+      UserPoolId: !Ref PathUserPool
+      ClientId: !Ref PathUserPoolClient
+      UseCognitoProvidedValues: true
 
   # UserPoolClient depends on CloudFront so we know the callback URL
   PathUserPoolClient:
@@ -995,7 +1009,7 @@ Resources:
                 - ENV_FILE=/etc/systemd/system/path-web-auth.env
                 - 'grep -q "path-web-auth.env" $SERVICE_FILE && echo "Auth already configured" && exit 0'
                 - |
-                  cat > $ENV_FILE <<EOF
+                  cat > $ENV_FILE <<'EOF'
                   AUTH_URL={{ AuthUrl }}
                   AUTH_SECRET={{ AuthSecret }}
                   AUTH_TRUST_HOST=true

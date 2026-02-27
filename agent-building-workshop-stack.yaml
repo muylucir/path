@@ -906,6 +906,11 @@ Resources:
               - xray:PutTraceSegments
               - xray:PutTelemetryRecords
             Resource: '*'
+          - Effect: Allow
+            Action:
+              - aws-marketplace:ViewSubscriptions
+              - aws-marketplace:Subscribe
+            Resource: '*'
 
   # SSM Document: Build PATH Agent deployment package
   PathBuildSSMDoc:
@@ -934,7 +939,7 @@ Resources:
                 - echo "=== Building PATH Agent deployment package ==="
                 - python3.11 -m pip install --upgrade pip
                 - cd /tmp && rm -rf path-build
-                - git clone -b enhance/agentcore https://github.com/muylucir/path.git path-build
+                - git clone https://github.com/muylucir/path.git path-build
                 - cd /tmp/path-build/path-strands-agent
                 - PACKAGE_DIR=deployment_package
                 - rm -rf $PACKAGE_DIR deployment_package.zip && mkdir -p $PACKAGE_DIR
@@ -1196,6 +1201,15 @@ Resources:
       ManagedLoginVersion: 2
       UserPoolId: !Ref PathUserPool
 
+  # Managed Login v2 branding (required when ManagedLoginVersion: 2)
+  PathManagedLoginBranding:
+    Type: AWS::Cognito::ManagedLoginBranding
+    DependsOn: PathUserPoolClient
+    Properties:
+      UserPoolId: !Ref PathUserPool
+      ClientId: !Ref PathUserPoolClient
+      UseCognitoProvidedValues: true
+
   # UserPoolClient depends on CloudFront so we know the callback URL
   PathUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
@@ -1401,7 +1415,7 @@ Resources:
                 - ENV_FILE=/etc/systemd/system/path-web-auth.env
                 - 'grep -q "path-web-auth.env" $SERVICE_FILE && echo "Auth already configured" && exit 0'
                 - |
-                  cat > $ENV_FILE <<EOF
+                  cat > $ENV_FILE <<'EOF'
                   AUTH_URL={{ AuthUrl }}
                   AUTH_SECRET={{ AuthSecret }}
                   AUTH_TRUST_HOST=true
