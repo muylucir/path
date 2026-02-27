@@ -10,7 +10,7 @@ import { NextResponse } from "next/server";
 export async function GET() {
   const cognitoDomain = process.env.COGNITO_DOMAIN;
   const clientId = process.env.COGNITO_CLIENT_ID;
-  const baseUrl = process.env.AUTH_URL || "https://path.workloom.net";
+  const baseUrl = (process.env.AUTH_URL || "https://path.workloom.net").replace(/\/+$/, "");
   const logoutUri = baseUrl + "/";
 
   if (!cognitoDomain || !clientId) {
@@ -21,7 +21,7 @@ export async function GET() {
   const cognitoLogoutUrl =
     `${cognitoDomain}/logout?client_id=${clientId}&logout_uri=${encodeURIComponent(logoutUri)}`;
 
-  const response = NextResponse.redirect(cognitoLogoutUrl);
+  const response = NextResponse.redirect(cognitoLogoutUrl, 302);
 
   // Clear NextAuth session cookies
   const cookieNames = [
