@@ -23,17 +23,22 @@ export async function GET() {
 
   const response = NextResponse.redirect(cognitoLogoutUrl, 302);
 
-  // Clear NextAuth session cookies
-  const cookieNames = [
+  // Clear all NextAuth session cookies (__Secure- prefix requires secure: true)
+  const secureCookies = [
     "__Secure-authjs.session-token",
-    "authjs.session-token",
     "__Secure-authjs.callback-url",
-    "authjs.callback-url",
     "__Secure-authjs.csrf-token",
+  ];
+  const plainCookies = [
+    "authjs.session-token",
+    "authjs.callback-url",
     "authjs.csrf-token",
   ];
 
-  for (const name of cookieNames) {
+  for (const name of secureCookies) {
+    response.cookies.set(name, "", { maxAge: 0, path: "/", secure: true, httpOnly: true, sameSite: "lax" });
+  }
+  for (const name of plainCookies) {
     response.cookies.set(name, "", { maxAge: 0, path: "/" });
   }
 
