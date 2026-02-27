@@ -996,6 +996,8 @@ Resources:
             type: String
           CognitoIssuer:
             type: String
+          CognitoDomain:
+            type: String
         mainSteps:
           - name: ConfigureAuthAndRestart
             action: aws:runShellScript
@@ -1016,6 +1018,7 @@ Resources:
                   COGNITO_CLIENT_ID={{ CognitoClientId }}
                   COGNITO_CLIENT_SECRET={{ CognitoClientSecret }}
                   COGNITO_ISSUER={{ CognitoIssuer }}
+                  COGNITO_DOMAIN={{ CognitoDomain }}
                   EOF
                 - chmod 600 $ENV_FILE
                 - "sed -i '/\\[Service\\]/a EnvironmentFile=/etc/systemd/system/path-web-auth.env' $SERVICE_FILE"
@@ -1131,6 +1134,7 @@ Resources:
       CognitoClientId: !Ref PathUserPoolClient
       CognitoClientSecret: !GetAtt GetCognitoClientSecret.ClientSecret
       CognitoIssuer: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${PathUserPool}'
+      CognitoDomain: !Sub 'https://${AWS::StackName}-auth.auth.${AWS::Region}.amazoncognito.com'
 
   # Check Auth configuration completion
   CheckPathAuthSSMDoc:

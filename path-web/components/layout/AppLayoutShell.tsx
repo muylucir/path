@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import TopNavigation, { type TopNavigationProps } from "@cloudscape-design/components/top-navigation";
 import AppLayout from "@cloudscape-design/components/app-layout";
 import SideNavigation, { type SideNavigationProps } from "@cloudscape-design/components/side-navigation";
@@ -120,7 +120,7 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
                     ],
                     onItemClick: ({ detail }: { detail: { id: string } }) => {
                       if (detail.id === "signout") {
-                        signOut({ callbackUrl: "/" });
+                        window.location.href = "/api/auth/logout";
                       }
                     },
                   },
