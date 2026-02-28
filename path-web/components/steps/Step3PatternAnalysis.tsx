@@ -13,6 +13,7 @@ import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
 import Avatar from "@cloudscape-design/chat-components/avatar";
 import LoadingBar from "@cloudscape-design/chat-components/loading-bar";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
+import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
 
@@ -297,7 +298,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
   return (
     <SpaceBetween size="m">
       {/* Feasibility Summary */}
-      <Container header={<Header variant="h2">Feasibility 요약 ({feasibility.feasibility_score}/50점)</Header>}>
+      <Container header={<Header variant="h2"><GlossaryTerm glossaryKey="feasibility" /> 요약 ({feasibility.feasibility_score}/50점)</Header>}>
         <SpaceBetween direction="horizontal" size="s">
           {(Object.entries(feasibility.feasibility_breakdown) as [FeasibilityKey, FeasibilityItemDetail][]).map(([key, item]) => (
             <StatusIndicator key={key} type={getScoreType(item.score)}>
@@ -306,7 +307,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
           ))}
           {feasibility.autonomy_requirement && (
             <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
-              자율성: {feasibility.autonomy_requirement.score}/10
+              <GlossaryTerm glossaryKey="autonomy" />: {feasibility.autonomy_requirement.score}/10
             </Badge>
           )}
         </SpaceBetween>
@@ -404,7 +405,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
             variant="primary"
             fullWidth
             onClick={() => finalizeAnalysis(chatHistory)}
-            disabled={streamingAny || isAnalyzing || chatHistory.length === 0}
+            disabled={streamingAny || isAnalyzing || chatHistory.length < 3}
             loading={isAnalyzing}
           >
             {isAnalyzing ? "패턴 확정 중..." : "패턴 확정"}

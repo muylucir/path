@@ -14,6 +14,7 @@ import Textarea from "@cloudscape-design/components/textarea";
 import Alert from "@cloudscape-design/components/alert";
 import Popover from "@cloudscape-design/components/popover";
 import Badge from "@cloudscape-design/components/badge";
+import Flashbar, { type FlashbarProps } from "@cloudscape-design/components/flashbar";
 import {
   FEASIBILITY_ITEM_NAMES,
   READINESS_ITEM_DETAILS,
@@ -51,6 +52,8 @@ export function Step2Readiness({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("");
+  const [isReevaluating, setIsReevaluating] = useState(false);
+  const [flashItems, setFlashItems] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const [additionalInfo, setAdditionalInfo] = useState({
     additionalSources: formData.additionalSources || "",
@@ -80,8 +83,8 @@ export function Step2Readiness({
 
   // Notify parent of loading state changes
   useEffect(() => {
-    onLoadingChange?.(isLoading);
-  }, [isLoading, onLoadingChange]);
+    onLoadingChange?.(isLoading || isReevaluating);
+  }, [isLoading, isReevaluating, onLoadingChange]);
 
   // Expose complete trigger to parent (Wizard)
   useEffect(() => {
@@ -114,6 +117,71 @@ export function Step2Readiness({
       evaluateFeasibility();
     }
   }, []);
+
+  // Check if at least one improvement plan is filled
+  const hasImprovementPlans = Object.values(improvementPlans).some((v) => v.trim().length > 0);
+
+  const handleReevaluate = useCallback(async () => {
+    if (!feasibility || !hasImprovementPlans) return;
+
+    setIsReevaluating(true);
+    setError(null);
+    setFlashItems([]);
+
+    try {
+      const res = await fetch("/api/bedrock/feasibility/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          formData,
+          previousEvaluation: feasibility,
+          improvementPlans,
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `HTTP ${res.status}`);
+      }
+
+      const updatedResult: FeasibilityEvaluation = await res.json();
+      setFeasibility(updatedResult);
+      sessionStorage.setItem("feasibility", JSON.stringify(updatedResult));
+
+      const scoreChange = updatedResult.score_change;
+      const previousScore = updatedResult.previous_score;
+      if (scoreChange !== undefined && previousScore !== undefined) {
+        const changeText = scoreChange >= 0 ? `+${scoreChange}` : `${scoreChange}`;
+        setFlashItems([{
+          type: scoreChange >= 0 ? "success" : "warning",
+          content: `재평가 완료: ${previousScore}점 → ${updatedResult.feasibility_score}점 (${changeText}점)`,
+          id: "reevaluate-result",
+          dismissible: true,
+          onDismiss: () => setFlashItems([]),
+        }]);
+      } else {
+        setFlashItems([{
+          type: "success",
+          content: `재평가 완료: 총점 ${updatedResult.feasibility_score}점`,
+          id: "reevaluate-result",
+          dismissible: true,
+          onDismiss: () => setFlashItems([]),
+        }]);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "재평가 중 오류가 발생했습니다";
+      setError(message);
+      setFlashItems([{
+        type: "error",
+        content: message,
+        id: "reevaluate-error",
+        dismissible: true,
+        onDismiss: () => setFlashItems([]),
+      }]);
+    } finally {
+      setIsReevaluating(false);
+    }
+  }, [feasibility, formData, improvementPlans, hasImprovementPlans]);
 
   const getLevelCounts = () => {
     if (!feasibility) return { ready: 0, good: 0, needsWork: 0, prepare: 0, total: 5 };
@@ -166,6 +234,9 @@ export function Step2Readiness({
 
   return (
     <SpaceBetween size="l">
+      {/* Reevaluation Flashbar */}
+      {flashItems.length > 0 && <Flashbar items={flashItems} />}
+
       {/* Overall Readiness Summary */}
       <Container header={<Header variant="h2">전체 준비도</Header>}>
         <SpaceBetween size="m">
@@ -284,6 +355,23 @@ export function Step2Readiness({
         );
       })}
       </SpaceBetween>
+
+      {/* Reevaluate Button */}
+      <Box textAlign="center">
+        <Button
+          variant="normal"
+          onClick={handleReevaluate}
+          disabled={!hasImprovementPlans || isReevaluating}
+          loading={isReevaluating}
+        >
+          {isReevaluating ? "재평가 중..." : "개선 방안 반영하여 재평가"}
+        </Button>
+        {!hasImprovementPlans && (
+          <Box variant="small" color="text-body-secondary" padding={{ top: "xs" }}>
+            개선 방안을 1개 이상 입력하면 재평가할 수 있습니다
+          </Box>
+        )}
+      </Box>
 
       {/* Autonomy Requirement (별도 평가 축) */}
       {feasibility.autonomy_requirement && (

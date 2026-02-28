@@ -12,7 +12,8 @@ import { AnalysisTab } from "@/components/steps/results/AnalysisTab";
 import { ChatHistoryTab } from "@/components/steps/results/ChatHistoryTab";
 import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
 import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, TokenUsage } from "@/lib/types";
-import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS } from "@/lib/constants";
+import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS, MULTI_AGENT_PATTERN_DESCRIPTIONS, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
+import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 
 interface Step3ResultsProps {
   analysis: Analysis;
@@ -52,15 +53,17 @@ export function Step3Results({
               <Box variant="awsui-key-label">추천 패턴</Box>
               {analysis.recommended_architecture && (
                 <Badge color={analysis.recommended_architecture === "multi-agent" ? "blue" : "grey"}>
-                  {analysis.recommended_architecture === "multi-agent" ? "멀티 에이전트" : "싱글 에이전트"}
+                  <GlossaryTerm glossaryKey={analysis.recommended_architecture === "multi-agent" ? "multiAgent" : "singleAgent"} />
                 </Badge>
               )}
               {analysis.multi_agent_pattern && (
-                <Badge color="blue">{MULTI_AGENT_PATTERN_LABELS[analysis.multi_agent_pattern]}</Badge>
+                <Badge color="blue">
+                  <GlossaryTerm term={MULTI_AGENT_PATTERN_LABELS[analysis.multi_agent_pattern]} description={MULTI_AGENT_PATTERN_DESCRIPTIONS[analysis.multi_agent_pattern]} />
+                </Badge>
               )}
               {analysis.automation_level && (
                 <Badge color={analysis.automation_level === "agentic-ai" ? "blue" : "grey"}>
-                  {AUTOMATION_LEVEL_LABELS[analysis.automation_level]}
+                  <GlossaryTerm term={AUTOMATION_LEVEL_LABELS[analysis.automation_level]} description={AUTOMATION_LEVEL_DESCRIPTIONS[analysis.automation_level]} />
                 </Badge>
               )}
             </SpaceBetween>

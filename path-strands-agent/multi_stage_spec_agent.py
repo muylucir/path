@@ -351,9 +351,32 @@ class DesignAgent:
             automation_guidance = """
 **자동화 수준: AI-Assisted Workflow**
 이 프로젝트는 결정적 파이프라인 + 특정 단계에서 AI를 활용하는 방식입니다.
+
+**용어 변환 규칙:**
+- "Agent Design Pattern" → "파이프라인 아키텍처"로 표현
+- "Agent Components" → "워크플로우 단계(Stages)"로 표현
+- "Agent"보다는 "AI Step" 또는 "AI-Powered Stage"로 표현
+- "자율적 판단" 대신 "결정적 로직 + AI 보조"로 표현
+
+**설계 원칙:**
 - 전체 흐름은 워크플로우 엔진/코드가 제어하고, AI는 개별 단계(요약, 분류, 생성 등)에서만 활용
-- Agent의 자율적 판단보다는 명시적 파이프라인 설계에 집중하세요
-- "Agent"보다는 "AI Step" 또는 "AI-Powered Stage"로 표현이 더 적합할 수 있습니다
+- 각 AI 호출 지점(Integration Point)의 입출력 스키마를 명확히 정의
+- 폴백 전략 필수: AI 실패 시 기본값 또는 사람 에스컬레이션
+- AI 단계별 적합한 모델 선택 (분류: Haiku, 생성: Sonnet)
+
+**파이프라인 패턴 선택:**
+- 순차 처리 → Sequential Pipeline
+- 병렬 분석 필요 → Fan-out/Fan-in
+- AI 판단 기반 분기 → Conditional Pipeline
+- 외부 이벤트 반응 → Event-driven Pipeline
+
+**구현 기술:**
+- AWS Step Functions + Lambda + Bedrock (서버리스 권장)
+- 또는 코드 기반 파이프라인 (단순한 경우)
+
+**필수 참조**: file_read로 "./skills/ai-assisted-workflow/SKILL.md"를 읽고,
+"./skills/ai-assisted-workflow/references/pipeline-patterns.md"와
+"./skills/ai-assisted-workflow/references/ai-integration-guide.md"를 참조하세요.
 """
         elif automation_level == 'agentic-ai':
             automation_guidance = """

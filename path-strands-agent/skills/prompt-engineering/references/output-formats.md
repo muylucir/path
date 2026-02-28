@@ -1,5 +1,108 @@
 # Output Formats (출력 형식)
 
+AI 출력을 원하는 형식으로 강제하는 기법과 형식별 템플릿입니다.
+
+## Structured Output (구조화된 출력 강제)
+
+AI 출력을 JSON 등 구조화된 형식으로 **안정적으로 강제**하는 3가지 방법입니다.
+Pipeline(자동화)에서는 필수이며, Agent에서는 선택적으로 활용합니다.
+
+### 방법 A: 프롬프트에서 스키마 지정
+
+가장 간단하지만, 모델이 형식을 어길 가능성이 있습니다.
+
+```xml
+<output_schema>
+다음 JSON 형식으로만 응답하세요. 다른 텍스트는 포함하지 마세요:
+{
+  "category": "배송|결제|제품|교환반품|기타",
+  "confidence": 0.0-1.0,
+  "reason": "1문장 설명"
+}
+</output_schema>
+```
+
+**안정성 팁:**
+- `다른 텍스트는 포함하지 마세요` 명시
+- `JSON 형식으로만` 강조
+- 각 필드의 유효 값/범위를 명시
+
+### 방법 B: Prefilling (응답 시작 지정)
+
+Assistant 턴의 시작을 미리 채워서 출력 형식을 강제합니다. Claude에서 매우 효과적입니다.
+
+```python
+messages = [
+    {"role": "user", "content": [{"text": "고객 문의를 분류하세요: '배송이 안 와요'"}]},
+    {"role": "assistant", "content": [{"text": '{"category": "'}]},  # Prefill
+]
+response = client.converse(modelId=model_id, messages=messages)
+# 모델이 '배송", "confidence": 0.95, ...}' 형태로 완성
+```
+
+**장점:** 프롬프트만으로 형식 강제, 추가 설정 불필요
+**단점:** 복잡한 스키마에서는 불안정할 수 있음
+
+### 방법 C: Tool Use로 강제 (가장 안정적)
+
+Bedrock Converse API의 `toolSpec`으로 출력 스키마를 강제합니다.
+모델이 tool_use 형태로 응답하므로 **JSON 스키마 준수가 보장**됩니다.
+
+```python
+tools = [{
+    "toolSpec": {
+        "name": "classify",
+        "description": "고객 문의 분류 결과를 반환합니다",
+        "inputSchema": {
+            "json": {
+                "type": "object",
+                "properties": {
+                    "category": {
+                        "type": "string",
+                        "enum": ["배송", "결제", "제품", "교환반품", "기타"]
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "minimum": 0, "maximum": 1
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "분류 근거 1문장"
+                    }
+                },
+                "required": ["category", "confidence", "reason"]
+            }
+        }
+    }
+}]
+
+response = client.converse(
+    modelId=model_id,
+    messages=messages,
+    toolConfig={"tools": tools, "toolChoice": {"tool": {"name": "classify"}}}
+    # toolChoice로 특정 도구 사용을 강제
+)
+
+# response에서 tool_use 결과 추출
+tool_result = response["output"]["message"]["content"][0]["toolUse"]["input"]
+# {"category": "배송", "confidence": 0.95, "reason": "배송 지연 문의"}
+```
+
+**장점:** JSON 스키마 100% 준수, enum/required 등 검증 자동 적용
+**단점:** 설정이 약간 복잡, 도구 정의 필요
+
+### 방법 비교
+
+| 항목 | 프롬프트 스키마 | Prefilling | Tool Use |
+|------|:-------------:|:----------:|:--------:|
+| **안정성** | 중 | 중상 | 최상 |
+| **설정 복잡도** | 낮음 | 낮음 | 중간 |
+| **스키마 검증** | 없음 | 없음 | 자동 |
+| **적합 상황** | 간단한 출력 | 빠른 프로토타입 | 프로덕션 Pipeline |
+| **추천 용도** | 내부 테스트 | Agent 응답 유도 | 자동화 Pipeline |
+
+---
+
 ## JSON 형식
 
 ### 기본 구조
