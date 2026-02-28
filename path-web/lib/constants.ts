@@ -126,3 +126,24 @@ export const FEASIBILITY_JUDGMENT = {
   REEVALUATE: { min: 20, label: "재평가 필요", emoji: "🔄" },
   ALTERNATIVE: { min: 0, label: "대안 모색", emoji: "❌" },
 } as const;
+
+// 용어 해설 (비전문가 사용자를 위한 기술 용어 설명)
+export const GLOSSARY = {
+  // Step 1 용어
+  painPoint: { term: "Pain Point", description: "현재 수동으로 처리하거나 비효율적인 업무 과정" },
+  triggerType: { term: "트리거 타입", description: "Agent가 작동을 시작하는 조건 (이벤트, 일정, 요청 등)" },
+  humanInLoop: { term: "Human-in-Loop", description: "AI가 작업하는 과정에서 사람이 개입하는 방식과 시점" },
+  errorTolerance: { term: "오류 허용도", description: "AI의 실수가 비즈니스에 미치는 영향의 크기" },
+  // Step 3 용어
+  agentPattern: { term: "Agent 패턴", description: "AI Agent가 문제를 해결하는 방식 (예: 생각→행동→관찰 반복)" },
+  singleAgent: { term: "싱글 에이전트", description: "하나의 AI Agent가 모든 작업을 순차 처리" },
+  multiAgent: { term: "멀티 에이전트", description: "여러 전문 AI Agent가 역할을 나눠 협업" },
+  agentsAsTools: { term: "Agents as Tools", description: "지휘자 Agent가 전문 Agent를 도구처럼 호출하는 방식" },
+  swarm: { term: "Swarm", description: "동등한 Agent들이 서로 작업을 넘겨주며(handoff) 협업하는 방식" },
+  graph: { term: "Graph", description: "방향성 그래프로 Agent 간 정보 흐름과 의사결정 경로를 정의" },
+  workflow: { term: "Workflow", description: "미리 정의된 순서대로 Agent가 단계별로 실행하는 파이프라인" },
+  aiAssistedWorkflow: { term: "AI-Assisted Workflow", description: "전체 흐름은 고정하고, 특정 단계에서만 AI를 활용하는 방식 (예: 요약, 분류)" },
+  agenticAI: { term: "Agentic AI", description: "AI가 스스로 판단하고 도구를 선택하며 자율적으로 작업하는 방식" },
+  feasibility: { term: "Feasibility (준비도)", description: "아이디어를 AI Agent로 구현할 수 있는 기술적 준비 상태" },
+  autonomy: { term: "자율성 요구도", description: "AI가 독립적으로 판단해야 하는 정도 (높을수록 복잡한 Agent 필요)" },
+} as const;

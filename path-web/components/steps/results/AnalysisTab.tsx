@@ -13,7 +13,8 @@ import Icon from "@cloudscape-design/components/icon";
 import Button from "@cloudscape-design/components/button";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import type { Analysis, FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
-import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, MULTI_AGENT_PATTERN_LABELS, AUTONOMY_REQUIREMENT_INFO } from "@/lib/constants";
+import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, MULTI_AGENT_PATTERN_LABELS, AUTONOMY_REQUIREMENT_INFO, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
+import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
@@ -223,9 +224,12 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
               header={
                 <Header variant="h3">
                   <SpaceBetween direction="horizontal" size="xs">
-                    <span>{AUTONOMY_REQUIREMENT_INFO.name}</span>
+                    <span><GlossaryTerm glossaryKey="autonomy" /></span>
                     <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
-                      {feasibility.autonomy_requirement.score >= 6 ? "Agentic AI" : "AI-Assisted Workflow"}
+                      <GlossaryTerm
+                        term={feasibility.autonomy_requirement.score >= 6 ? "Agentic AI" : "AI-Assisted Workflow"}
+                        description={feasibility.autonomy_requirement.score >= 6 ? AUTOMATION_LEVEL_DESCRIPTIONS['agentic-ai'] : AUTOMATION_LEVEL_DESCRIPTIONS['ai-assisted-workflow']}
+                      />
                     </Badge>
                     <Box variant="small" color="text-body-secondary">{feasibility.autonomy_requirement.score}/10</Box>
                   </SpaceBetween>

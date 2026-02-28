@@ -11,6 +11,7 @@ import {
   HUMAN_LOOP_OPTIONS,
   ERROR_TOLERANCE_OPTIONS,
 } from "@/lib/constants";
+import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -80,7 +81,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
               render={({ field }) => (
                 <div className="full-width-control">
                   <FormField
-                    label="Pain Point"
+                    label={<span>Pain Point <GlossaryTerm glossaryKey="painPoint" /></span>}
                     errorText={errors.painPoint?.message}
                   >
                     <Textarea
@@ -103,7 +104,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
               render={({ field }) => (
                 <div className="full-width-control">
                   <FormField
-                    label="트리거 타입"
+                    label={<span>트리거 타입 <GlossaryTerm glossaryKey="triggerType" /></span>}
                     errorText={errors.inputType?.message}
                   >
                     <Select
@@ -222,7 +223,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                 render={({ field }) => (
                   <div className="full-width-control">
                     <FormField
-                      label="Human-in-Loop"
+                      label={<span>Human-in-Loop <GlossaryTerm glossaryKey="humanInLoop" /></span>}
                       description="사람이 언제 개입하나요?"
                       errorText={errors.humanLoop?.message}
                     >
@@ -259,7 +260,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                 render={({ field }) => (
                   <div className="full-width-control">
                     <FormField
-                      label="오류 허용도"
+                      label={<span>오류 허용도 <GlossaryTerm glossaryKey="errorTolerance" /></span>}
                       description="AI 실수의 허용 범위는?"
                       errorText={errors.errorTolerance?.message}
                     >
