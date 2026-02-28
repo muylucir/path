@@ -83,7 +83,7 @@ path-strands-agent/_output/
 path-strands-agent/_scratch/
 strands-skill-system/
 infra/cdk.out/
-
+.claude/worktrees/
 
 CLAUDE.md
 .claude/
