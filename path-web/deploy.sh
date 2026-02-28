@@ -1,7 +1,5 @@
 #!/bin/bash
 set -e
-cd /tmp/path-build/path-web
-git pull
 echo "=== Building PATH frontend ==="
 npm ci
 npm run build
