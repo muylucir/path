@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, memo, useLayoutEffect, useCallback } from 
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
+import Box from "@cloudscape-design/components/box";
 import Button from "@cloudscape-design/components/button";
+import Modal from "@cloudscape-design/components/modal";
 import Spinner from "@cloudscape-design/components/spinner";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import Badge from "@cloudscape-design/components/badge";
@@ -74,6 +76,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
   const [userInput, setUserInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isUserScrollingRef = useRef(false);
@@ -404,12 +407,39 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
           <Button
             variant="primary"
             fullWidth
-            onClick={() => finalizeAnalysis(chatHistory)}
+            onClick={() => setShowFinalizeConfirm(true)}
             disabled={streamingAny || isAnalyzing || chatHistory.length < 3}
             loading={isAnalyzing}
           >
             {isAnalyzing ? "패턴 확정 중..." : "패턴 확정"}
           </Button>
+
+          {/* Finalize Confirmation Modal */}
+          <Modal
+            visible={showFinalizeConfirm}
+            onDismiss={() => setShowFinalizeConfirm(false)}
+            header="패턴 확정"
+            footer={
+              <Box float="right">
+                <SpaceBetween direction="horizontal" size="xs">
+                  <Button variant="link" onClick={() => setShowFinalizeConfirm(false)}>
+                    취소
+                  </Button>
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      setShowFinalizeConfirm(false);
+                      finalizeAnalysis(chatHistory);
+                    }}
+                  >
+                    확정
+                  </Button>
+                </SpaceBetween>
+              </Box>
+            }
+          >
+            현재 분석 내용으로 패턴을 확정하시겠습니까? 확정 후에는 대화 내용을 기반으로 최종 분석이 생성됩니다.
+          </Modal>
         </SpaceBetween>
       </Container>
     </SpaceBetween>
