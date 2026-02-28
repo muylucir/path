@@ -3,6 +3,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  transpilePackages: [
+    "@cloudscape-design/components",
+    "@cloudscape-design/chat-components",
+    "@cloudscape-design/collection-hooks",
+    "@cloudscape-design/design-tokens",
+    "@cloudscape-design/global-styles",
+  ],
   allowedDevOrigins: ["path.workloom.net"],
   async redirects() {
     return [
