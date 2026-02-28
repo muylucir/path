@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
-import { invokeAgentCoreJSON } from "../../../_shared/agentcore-client";
+import { invokeAgentCoreJSON } from "../../_shared/agentcore-client";
 
 const feasibilityUpdateSchema = z.object({
   formData: z.record(z.string(), z.unknown()),
