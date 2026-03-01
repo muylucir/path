@@ -4,7 +4,7 @@ Next.js 16.1.0 + Cloudscape Design System 기반 P.A.T.H Agent Designer Frontend
 
 ## 개요
 
-P.A.T.H (Problem → Technical → Agent Pattern → Handoff) 프레임워크를 사용하여:
+P.A.T.H (Problem → Assessment → Technical Review → Handoff) 프레임워크를 사용하여:
 1. **기본 정보 입력** - Pain Point와 요구사항 정의
 2. **준비도 점검** - 5가지 기준으로 Feasibility 평가 (50점 만점)
 3. **패턴 분석** - Claude Opus 4.6 기반 대화형 분석 및 Agent 패턴 추천

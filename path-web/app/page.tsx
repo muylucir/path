@@ -59,7 +59,7 @@ export default function IntroPage() {
                 <SpaceBetween size="m">
                   <TextContent>
                     <p>
-                      P.A.T.H는 <strong>Problem → Technical → Agent Pattern → Handoff</strong> 4단계를 따릅니다.
+                      P.A.T.H는 <strong>Problem → Assessment → Technical Review → Handoff</strong> 4단계를 따릅니다.
                     </p>
                     <p>
                       여러분이 가진 AI Agent 아이디어를 입력하면, AI가 그 아이디어의 <strong>실현 가능성을 점검</strong>하고,{" "}

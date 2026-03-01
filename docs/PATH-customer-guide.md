@@ -6,7 +6,7 @@
 
 ## P.A.T.H란?
 
-**P.A.T.H** = **P**roblem → **T**echnical → **A**gent Pattern → **H**andoff
+**P.A.T.H** = **P**roblem → **A**ssessment → **T**echnical Review → **H**andoff
 
 AI Agent를 도입하려면 "좋은 아이디어"만으로는 부족합니다. 그 아이디어가 실현 가능한지, 지금 바로 시작할 수 있는 상태인지, 어떤 구조로 만들어야 하는지를 먼저 확인해야 합니다.
 
@@ -15,13 +15,13 @@ P.A.T.H는 이 과정을 4단계로 안내합니다.
 ```
 여러분의 아이디어
        ↓
-  Step 1: Problem       — 문제를 구조화합니다
+  Step 1: Problem          — 문제를 구조화합니다
        ↓
-  Step 2: Technical     — 준비 상태를 점검합니다
+  Step 2: Assessment       — 준비 상태를 점검합니다
        ↓
-  Step 3: Agent Pattern — 구현 방식을 결정합니다
+  Step 3: Technical Review — 구현 방식을 결정합니다
        ↓
-  Step 4: Handoff       — 구현 명세서를 생성합니다
+  Step 4: Handoff          — 구현 명세서를 생성합니다
        ↓
   개발팀에 전달할 수 있는 문서
 ```
@@ -47,7 +47,7 @@ P.A.T.H는 이 과정을 4단계로 안내합니다.
 
 ---
 
-### Step 2: Technical — 준비도 점검
+### Step 2: Assessment — 준비도 점검
 
 아이디어가 좋아도, 데이터가 없거나 시스템 연동이 어려우면 프로젝트가 중간에 멈춥니다. AI가 5가지 핵심 항목을 점검하고, 자율성 요구도를 별도로 평가합니다.
 
@@ -97,7 +97,7 @@ P.A.T.H는 이 과정을 4단계로 안내합니다.
 
 ---
 
-### Step 3: Agent Pattern — 구현 방식 결정
+### Step 3: Technical Review — 구현 방식 결정
 
 준비도 결과와 자율성 요구도를 바탕으로, AI가 적합한 Agent 구조와 자동화 수준을 추천합니다.
 

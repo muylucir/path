@@ -6,7 +6,7 @@
 
 ## P.A.T.H란?
 
-**P.A.T.H** = **P**roblem → **T**echnical → **A**gent Pattern → **H**andoff
+**P.A.T.H** = **P**roblem → **A**ssessment → **T**echnical Review → **H**andoff
 
 막연한 AI Agent 아이디어를 **구조화된 프로토타입 계획**으로 변환하는 4단계 프레임워크입니다.
 
@@ -15,9 +15,9 @@
               ↓
     Step 1: Problem - 문제 정의
               ↓
-    Step 2: Technical - 준비도 점검
+    Step 2: Assessment - 준비도 점검
               ↓
-    Step 3: Agent Pattern - 패턴 분석
+    Step 3: Technical Review - 패턴 분석
               ↓
     Step 4: Handoff - 명세서 생성
               ↓
@@ -31,8 +31,8 @@
 | Step | 페이지 | 경로 | P.A.T.H | 설명 |
 |------|--------|------|---------|------|
 | **Step 1** | 기본 정보 | `/` | **P**roblem | Pain Point 및 요구사항 입력 |
-| **Step 2** | 준비도 점검 | `/feasibility` | **T**echnical | 5개 항목 Feasibility 평가 |
-| **Step 3** | 패턴 분석 | `/analyze` | **A**gent Pattern | Agent 패턴 분석 대화 |
+| **Step 2** | 준비도 점검 | `/feasibility` | **A**ssessment | 5개 항목 Feasibility 평가 |
+| **Step 3** | 패턴 분석 | `/analyze` | **T**echnical Review | Agent 패턴 분석 대화 |
 | **Step 4** | 명세서 | `/results` | **H**andoff | 최종 결과 및 명세서 생성 |
 
 ---
@@ -55,7 +55,7 @@ Pain Point를 4가지 요소로 분해합니다.
 
 ---
 
-## Step 2: Technical Readiness (준비도 점검)
+## Step 2: Assessment (준비도 점검)
 
 `FeasibilityAgent`가 5개 항목을 평가합니다.
 
@@ -99,7 +99,7 @@ Pain Point를 4가지 요소로 분해합니다.
 
 ---
 
-## Step 3: Agent Pattern (패턴 분석)
+## Step 3: Technical Review (패턴 분석)
 
 `PatternAnalyzerAgent`가 준비도 결과를 기반으로 Agent 패턴을 분석합니다.
 
