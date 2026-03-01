@@ -35,7 +35,7 @@ export const ERROR_TOLERANCE_OPTIONS = [
   { label: "매우 높은 정확도 필요 (99%+)", example: "예: 재무 데이터 처리, 법률 문서 검토, 의료 정보" },
 ] as const;
 
-// P.A.T.H 4단계 - 기본 정보(P) → 준비도 점검(T) → 패턴 분석(A) → 명세서(H)
+// P.A.T.H 4단계 - 기본 정보(P) → 준비도 점검(A) → 패턴 분석(T) → 명세서(H)
 export const STEPS = ["기본 정보", "준비도 점검", "패턴 분석", "명세서"] as const;
 
 // 준비도 레벨 시스템 (점수 → 아이콘 기반 단계)

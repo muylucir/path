@@ -19,8 +19,8 @@ import AnchorNavigation from "@cloudscape-design/components/anchor-navigation";
 const GUIDE_ANCHORS = [
   { text: "P.A.T.H란?", href: "#about", level: 1 },
   { text: "Step 1: Problem", href: "#step1", level: 1 },
-  { text: "Step 2: Technical", href: "#step2", level: 1 },
-  { text: "Step 3: Agent Pattern", href: "#step3", level: 1 },
+  { text: "Step 2: Assessment", href: "#step2", level: 1 },
+  { text: "Step 3: Technical Review", href: "#step3", level: 1 },
   { text: "Step 4: Handoff", href: "#step4", level: 1 },
   { text: "활용 시나리오", href: "#scenarios", level: 1 },
   { text: "결과물 요약", href: "#results", level: 1 },
@@ -50,7 +50,7 @@ export default function GuidePage() {
               <SpaceBetween size="m">
                 <TextContent>
                   <p>
-                    <strong>P.A.T.H</strong> = <strong>P</strong>roblem → <strong>T</strong>echnical → <strong>A</strong>gent Pattern → <strong>H</strong>andoff
+                    <strong>P.A.T.H</strong> = <strong>P</strong>roblem → <strong>A</strong>ssessment → <strong>T</strong>echnical Review → <strong>H</strong>andoff
                   </p>
                   <p>
                     AI Agent를 도입하려면 &ldquo;좋은 아이디어&rdquo;만으로는 부족합니다. 그 아이디어가 실현 가능한지,
@@ -66,8 +66,8 @@ export default function GuidePage() {
                   ]}
                   items={[
                     { step: "Step 1: Problem", desc: "문제를 구조화합니다" },
-                    { step: "Step 2: Technical", desc: "준비 상태를 점검합니다" },
-                    { step: "Step 3: Agent Pattern", desc: "구현 방식을 결정합니다" },
+                    { step: "Step 2: Assessment", desc: "준비 상태를 점검합니다" },
+                    { step: "Step 3: Technical Review", desc: "구현 방식을 결정합니다" },
                     { step: "Step 4: Handoff", desc: "구현 명세서를 생성합니다" },
                   ]}
                 />
@@ -111,7 +111,7 @@ export default function GuidePage() {
 
           {/* Step 2 */}
           <div id="step2">
-            <Container header={<Header variant="h2">Step 2: Technical — 준비도 점검</Header>}>
+            <Container header={<Header variant="h2">Step 2: Assessment — 준비도 점검</Header>}>
               <SpaceBetween size="m">
                 <TextContent>
                   <p>
@@ -211,7 +211,7 @@ export default function GuidePage() {
 
           {/* Step 3 */}
           <div id="step3">
-            <Container header={<Header variant="h2">Step 3: Agent Pattern — 구현 방식 결정</Header>}>
+            <Container header={<Header variant="h2">Step 3: Technical Review — 구현 방식 결정</Header>}>
               <SpaceBetween size="m">
                 <TextContent>
                   <p>준비도 결과와 자율성 요구도를 바탕으로, AI가 적합한 Agent 구조와 자동화 수준을 추천합니다.</p>

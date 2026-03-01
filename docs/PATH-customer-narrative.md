@@ -16,7 +16,7 @@ P.A.T.H Agent Designer는 그 간극을 메우기 위해 만들어졌습니다.
 
 ## P.A.T.H가 하는 일
 
-P.A.T.H는 **Problem → Technical → Agent Pattern → Handoff** 4단계를 따릅니다.
+P.A.T.H는 **Problem → Assessment → Technical Review → Handoff** 4단계를 따릅니다.
 
 여러분이 가진 AI Agent 아이디어를 입력하면, AI가 그 아이디어의 **실현 가능성을 점검**하고, **어떤 구조로 만들어야 하는지 분석**한 뒤, **개발팀이 바로 착수할 수 있는 구현 명세서**까지 생성합니다.
 
