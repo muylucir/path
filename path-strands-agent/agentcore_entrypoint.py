@@ -3,7 +3,7 @@ AgentCore Runtime 엔트리포인트 - PATH Agent Designer
 
 6개 액션을 단일 BedrockAgentCoreApp 엔드포인트에서 dispatch:
   feasibility       → FeasibilityAgent SSE 스트리밍
-  feasibility_update → FeasibilityAgent JSON (단일 yield)
+  feasibility_update → FeasibilityAgent SSE 스트리밍 (재평가)
   pattern_analyze   → PatternAnalyzerAgent SSE 스트리밍
   pattern_chat      → PatternAnalyzerAgent SSE 스트리밍
   pattern_finalize  → PatternAnalyzerAgent JSON (단일 yield)
@@ -95,8 +95,8 @@ async def invoke(payload, context):
                 yield event
 
         elif action_type == "feasibility_update":
-            result = await asyncio.to_thread(_run_feasibility_update, payload)
-            yield result
+            async for event in _handle_feasibility_update(payload):
+                yield event
 
         elif action_type == "pattern_analyze":
             async for event in _handle_pattern_analyze(payload, session_id):
@@ -151,15 +151,20 @@ async def _handle_feasibility(payload: dict):
             yield {"raw": chunk}
 
 
-def _run_feasibility_update(payload: dict) -> dict:
-    """개선안 반영 재평가 — JSON 응답 (sync)"""
+async def _handle_feasibility_update(payload: dict):
+    """개선안 반영 재평가 — SSE 스트리밍 (타임아웃 방지)"""
     form_data = payload.get("formData", {})
     previous_evaluation = payload.get("previousEvaluation", {})
     improvement_plans = payload.get("improvementPlans", {})
 
     mod = _get_chat_agent_module()
     agent = mod.FeasibilityAgent()
-    return agent.reevaluate(form_data, previous_evaluation, improvement_plans)
+
+    async for chunk in agent.reevaluate_stream(form_data, previous_evaluation, improvement_plans):
+        try:
+            yield json.loads(chunk)
+        except (json.JSONDecodeError, TypeError):
+            yield {"raw": chunk}
 
 
 # ──────────────────────────────────────────────

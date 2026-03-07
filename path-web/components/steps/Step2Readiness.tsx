@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -52,7 +52,8 @@ export function Step2Readiness({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("");
-  const [isReevaluating, setIsReevaluating] = useState(false);
+  const [reevalProgress, setReevalProgress] = useState(0);
+  const [reevalStage, setReevalStage] = useState("");
   const [flashItems, setFlashItems] = useState<FlashbarProps.MessageDefinition[]>([]);
 
   const [additionalInfo, setAdditionalInfo] = useState({
@@ -81,10 +82,72 @@ export function Step2Readiness({
     }, []),
   });
 
+  const reevalBodyRef = useRef<Record<string, unknown>>({});
+
+  const { start: startReevaluation, isStreaming: isReevaluatingStream } = useSSEStream({
+    url: "/api/bedrock/feasibility/update",
+    body: reevalBodyRef.current,
+    onChunk: useCallback((parsed: any) => {
+      if (parsed.progress !== undefined) {
+        setReevalProgress(parsed.progress);
+      }
+      if (parsed.stage) {
+        setReevalStage(parsed.stage);
+      }
+      if (parsed.result) {
+        const updatedResult: FeasibilityEvaluation = parsed.result;
+        setFeasibility(updatedResult);
+        sessionStorage.setItem("feasibility", JSON.stringify(updatedResult));
+
+        const scoreChange = updatedResult.score_change;
+        const previousScore = updatedResult.previous_score;
+        if (scoreChange !== undefined && previousScore !== undefined) {
+          const changeText = scoreChange >= 0 ? `+${scoreChange}` : `${scoreChange}`;
+          setFlashItems([{
+            type: scoreChange >= 0 ? "success" : "warning",
+            content: `재평가 완료: ${previousScore}점 → ${updatedResult.feasibility_score}점 (${changeText}점)`,
+            id: "reevaluate-result",
+            dismissible: true,
+            onDismiss: () => setFlashItems([]),
+          }]);
+        } else {
+          setFlashItems([{
+            type: "success",
+            content: `재평가 완료: 총점 ${updatedResult.feasibility_score}점`,
+            id: "reevaluate-result",
+            dismissible: true,
+            onDismiss: () => setFlashItems([]),
+          }]);
+        }
+      }
+    }, []),
+    onProgress: useCallback((p: number, s: string) => {
+      setReevalProgress(p);
+      if (s) setReevalStage(s);
+    }, []),
+    onUsage: useCallback((usage: TokenUsage) => {
+      onUsage?.(usage);
+    }, [onUsage]),
+    onDone: useCallback(() => {
+      setReevalProgress(0);
+      setReevalStage("");
+    }, []),
+    onError: useCallback((err: string) => {
+      setError(err);
+      setFlashItems([{
+        type: "error",
+        content: err,
+        id: "reevaluate-error",
+        dismissible: true,
+        onDismiss: () => setFlashItems([]),
+      }]);
+    }, []),
+  });
+
   // Notify parent of loading state changes
   useEffect(() => {
-    onLoadingChange?.(isLoading || isReevaluating);
-  }, [isLoading, isReevaluating, onLoadingChange]);
+    onLoadingChange?.(isLoading || isReevaluatingStream);
+  }, [isLoading, isReevaluatingStream, onLoadingChange]);
 
   // Expose complete trigger to parent (Wizard)
   useEffect(() => {
@@ -121,67 +184,21 @@ export function Step2Readiness({
   // Check if at least one improvement plan is filled
   const hasImprovementPlans = Object.values(improvementPlans).some((v) => v.trim().length > 0);
 
-  const handleReevaluate = useCallback(async () => {
+  const handleReevaluate = useCallback(() => {
     if (!feasibility || !hasImprovementPlans) return;
 
-    setIsReevaluating(true);
     setError(null);
     setFlashItems([]);
+    setReevalProgress(0);
+    setReevalStage("재평가 준비 중...");
 
-    try {
-      const res = await fetch("/api/bedrock/feasibility/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          formData,
-          previousEvaluation: feasibility,
-          improvementPlans,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `HTTP ${res.status}`);
-      }
-
-      const updatedResult: FeasibilityEvaluation = await res.json();
-      setFeasibility(updatedResult);
-      sessionStorage.setItem("feasibility", JSON.stringify(updatedResult));
-
-      const scoreChange = updatedResult.score_change;
-      const previousScore = updatedResult.previous_score;
-      if (scoreChange !== undefined && previousScore !== undefined) {
-        const changeText = scoreChange >= 0 ? `+${scoreChange}` : `${scoreChange}`;
-        setFlashItems([{
-          type: scoreChange >= 0 ? "success" : "warning",
-          content: `재평가 완료: ${previousScore}점 → ${updatedResult.feasibility_score}점 (${changeText}점)`,
-          id: "reevaluate-result",
-          dismissible: true,
-          onDismiss: () => setFlashItems([]),
-        }]);
-      } else {
-        setFlashItems([{
-          type: "success",
-          content: `재평가 완료: 총점 ${updatedResult.feasibility_score}점`,
-          id: "reevaluate-result",
-          dismissible: true,
-          onDismiss: () => setFlashItems([]),
-        }]);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "재평가 중 오류가 발생했습니다";
-      setError(message);
-      setFlashItems([{
-        type: "error",
-        content: message,
-        id: "reevaluate-error",
-        dismissible: true,
-        onDismiss: () => setFlashItems([]),
-      }]);
-    } finally {
-      setIsReevaluating(false);
-    }
-  }, [feasibility, formData, improvementPlans, hasImprovementPlans]);
+    reevalBodyRef.current = {
+      formData,
+      previousEvaluation: feasibility,
+      improvementPlans,
+    };
+    startReevaluation();
+  }, [feasibility, formData, improvementPlans, hasImprovementPlans, startReevaluation]);
 
   const getLevelCounts = () => {
     if (!feasibility) return { ready: 0, good: 0, needsWork: 0, prepare: 0, total: 5 };
@@ -361,12 +378,21 @@ export function Step2Readiness({
         <Button
           variant="normal"
           onClick={handleReevaluate}
-          disabled={!hasImprovementPlans || isReevaluating}
-          loading={isReevaluating}
+          disabled={!hasImprovementPlans || isReevaluatingStream}
+          loading={isReevaluatingStream}
         >
-          {isReevaluating ? "재평가 중..." : "개선 방안 반영하여 재평가"}
+          {isReevaluatingStream ? "재평가 중..." : "개선 방안 반영하여 재평가"}
         </Button>
-        {!hasImprovementPlans && (
+        {isReevaluatingStream && (
+          <div style={{ width: 300, margin: "8px auto 0" }}>
+            <Box variant="small" color="text-body-secondary">{reevalStage}</Box>
+            <ProgressBar
+              value={reevalProgress}
+              additionalInfo={`${reevalProgress}%`}
+            />
+          </div>
+        )}
+        {!hasImprovementPlans && !isReevaluatingStream && (
           <Box variant="small" color="text-body-secondary" padding={{ top: "xs" }}>
             개선 방안을 1개 이상 입력하면 재평가할 수 있습니다
           </Box>

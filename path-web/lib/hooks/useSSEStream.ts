@@ -37,6 +37,9 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Keep latest body in a ref so start() always reads the current value
+  const bodyRef = useRef(body);
+  bodyRef.current = body;
 
   const abort = useCallback(() => {
     if (abortControllerRef.current) {
@@ -62,7 +65,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify(bodyRef.current),
         signal: controller.signal,
       });
 
@@ -150,7 +153,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
         abortControllerRef.current = null;
       }
     }
-  }, [url, body, onChunk, onProgress, onUsage, onDone, onError]);
+  }, [url, onChunk, onProgress, onUsage, onDone, onError]);
 
   return { start, abort, isStreaming, error };
 }

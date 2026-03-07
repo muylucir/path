@@ -141,6 +141,42 @@ class FeasibilityAgent:
         parsed["_usage"] = extract_usage(result)
         return parsed
 
+    async def reevaluate_stream(self, form_data: Dict[str, Any], previous_evaluation: Dict[str, Any], improvement_plans: Dict[str, str]) -> AsyncIterator[str]:
+        """개선안 반영 재평가 - SSE 스트리밍 (Progress 포함, 타임아웃 방지)"""
+        import asyncio
+
+        stages = [
+            "개선 방안 분석 중...",
+            "이전 평가 비교 중...",
+            "데이터 접근성 재평가 중...",
+            "판단 명확성 재평가 중...",
+            "오류 허용도 재평가 중...",
+            "시스템 연동 재평가 중...",
+            "점수 변화 계산 중...",
+        ]
+
+        yield json.dumps({"stage": "재평가 시작", "progress": 0}, ensure_ascii=False)
+
+        task = asyncio.create_task(asyncio.to_thread(self.reevaluate, form_data, previous_evaluation, improvement_plans))
+
+        progress = 10
+        stage_idx = 0
+        while not task.done():
+            await asyncio.sleep(3)
+            if not task.done():
+                progress = min(progress + 12, 85)
+                stage = stages[stage_idx % len(stages)]
+                stage_idx += 1
+                yield json.dumps({"stage": stage, "progress": progress}, ensure_ascii=False)
+
+        result = await task
+        usage = result.pop("_usage", None)
+
+        yield json.dumps({"stage": "재평가 완료", "progress": 100}, ensure_ascii=False)
+        yield json.dumps({"result": result}, ensure_ascii=False)
+        if usage:
+            yield json.dumps({"usage": usage}, ensure_ascii=False)
+
 
 class PatternAnalyzerAgent:
     """Step3: Feasibility 결과를 바탕으로 패턴 분석하는 Agent (Skill 시스템 지원)"""
