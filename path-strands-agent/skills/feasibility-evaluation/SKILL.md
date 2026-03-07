@@ -22,7 +22,7 @@ AI Agent 아이디어의 실현 가능성을 5개 항목으로 평가하고, 취
 | **판단 명확성** | 의사결정 규칙의 명확도 | 10점 | `scoring-criteria.md` |
 | **오류 허용도** | 실패 시 리스크 수준 | 10점 | `scoring-criteria.md` |
 | **지연 요구사항** | 응답 시간 제약 | 10점 | `scoring-criteria.md` |
-| **통합 복잡도** | 외부 시스템 연동 난이도 | 10점 | `scoring-criteria.md` |
+| **통합 복잡도** | 연동 인터페이스 성숙도 | 10점 | `scoring-criteria.md` |
 
 ### 자율성 요구도 (별도 축, 0-10점)
 

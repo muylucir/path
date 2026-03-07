@@ -123,7 +123,7 @@ export default function IntroPage() {
                           { item: "판단 명확성", check: "\"이럴 때는 이렇게 한다\"는 기준이 정리되어 있는가?" },
                           { item: "오류 허용도", check: "AI가 실수했을 때 업무에 미치는 영향은?" },
                           { item: "응답 시간", check: "결과가 나오기까지 기다릴 수 있는 시간은?" },
-                          { item: "시스템 연동", check: "기존 시스템과 연결하는 데 어려움은 없는가?" },
+                          { item: "시스템 연동", check: "연동 대상 시스템에 API나 SDK가 잘 갖춰져 있는가?" },
                         ]}
                       />
                       <TextContent>

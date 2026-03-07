@@ -199,7 +199,7 @@ path-strands-agent/
 | `decision_clarity` | 판단 명확성 | 규칙화 가능 여부, 예시 데이터 존재 |
 | `error_tolerance` | 오류 허용도 | 검토 프로세스, 롤백 가능 여부, 리스크 |
 | `latency` | 지연 요구사항 | 실시간 필요 여부, SLA |
-| `integration` | 통합 복잡도 | 연동 시스템 수, API 표준화 |
+| `integration` | 통합 복잡도 | MCP/SDK 존재 여부, API 문서화 수준, 인터페이스 표준화 |
 
 **메서드**:
 - `evaluate_stream(form_data)`: 초기 평가 (async generator, SSE 스트리밍)

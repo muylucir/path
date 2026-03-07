@@ -95,8 +95,8 @@ export const READINESS_ITEM_DETAILS = {
   },
   integration: {
     name: "통합 복잡도",
-    description: "외부 시스템과의 연동 복잡성",
-    criteria: "연동 시스템 수, API 표준화, 인증 복잡도",
+    description: "연동 인터페이스의 성숙도 및 접근 용이성",
+    criteria: "MCP/SDK 존재 여부, API 문서화 수준, 인터페이스 표준화",
   },
 } as const;
 

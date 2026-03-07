@@ -130,7 +130,7 @@ docker run -p 3009:3009 path-web
 | `decision_clarity` | 판단 명확성 | 규칙화 가능 여부, 예시 데이터, 전문가 지식 문서화 |
 | `error_tolerance` | 오류 허용도 | 검토 프로세스, 롤백 가능 여부, 리스크 수준 |
 | `latency` | 지연 요구사항 | 실시간 필요 여부, 배치 처리 가능 여부, SLA |
-| `integration` | 통합 복잡도 | 연동 시스템 수, API 표준화, 인증 복잡도 |
+| `integration` | 통합 복잡도 | MCP/SDK 존재 여부, API 문서화 수준, 인터페이스 표준화 |
 
 ### 준비도 레벨
 

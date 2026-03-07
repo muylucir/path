@@ -130,11 +130,11 @@ export default function GuidePage() {
                     { id: "low", header: "부족 (0-3점)", cell: (item) => <StatusIndicator type="error">{item.low}</StatusIndicator> },
                   ]}
                   items={[
-                    { item: "데이터 접근성", good: "API로 바로 가져올 수 있음", mid: "DB 직접 접근 필요", low: "수기 데이터만 존재" },
+                    { item: "데이터 접근성", good: "API로 바로 가져올 수 있음", mid: "파일 기반 접근 (CSV, Excel)", low: "수기 데이터만 존재" },
                     { item: "판단 명확성", good: "명확한 규칙이 정리됨", mid: "경험적으로 알지만 문서화 안 됨", low: "담당자의 감에 의존" },
                     { item: "오류 허용도", good: "틀려도 업무에 큰 지장 없음", mid: "90% 이상 정확해야 함", low: "반드시 100% 정확해야 함" },
                     { item: "응답 시간", good: "몇 시간 걸려도 괜찮음", mid: "1분 이내 응답 필요", low: "3초 이내 실시간 필요" },
-                    { item: "시스템 연동", good: "독립적으로 실행 가능", mid: "3~5개 시스템과 연결 필요", low: "레거시 시스템에 의존" },
+                    { item: "시스템 연동", good: "MCP/SDK로 바로 연동 가능", mid: "API 존재하나 문서 부족", low: "API 없는 폐쇄 시스템" },
                   ]}
                 />
 
