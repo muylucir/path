@@ -13,6 +13,7 @@ import PromptInput from "@cloudscape-design/components/prompt-input";
 import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
 import Avatar from "@cloudscape-design/chat-components/avatar";
 import LoadingBar from "@cloudscape-design/chat-components/loading-bar";
+import SupportPromptGroup from "@cloudscape-design/chat-components/support-prompt-group";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
@@ -20,6 +21,28 @@ import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, Feasibilit
 
 interface ChatMessageWithId extends ChatMessage {
   id: string;
+}
+
+interface QuestionOption {
+  question: string;
+  options: string[];
+}
+
+function parseOptions(content: string): { text: string; questions: QuestionOption[] } {
+  const match = content.match(/<options>\s*([\s\S]*?)\s*<\/options>/);
+  if (!match) return { text: content, questions: [] };
+  const text = content.replace(/<options>[\s\S]*?<\/options>/, "").trimEnd();
+  try {
+    const questions = JSON.parse(match[1]) as QuestionOption[];
+    if (!Array.isArray(questions)) return { text: content, questions: [] };
+    return { text, questions };
+  } catch {
+    return { text: content, questions: [] };
+  }
+}
+
+function stripOptionsTag(content: string): string {
+  return content.replace(/<options>[\s\S]*$/, "").trimEnd();
 }
 
 interface Step3PatternAnalysisProps {
@@ -33,7 +56,15 @@ interface Step3PatternAnalysisProps {
 
 type FeasibilityKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
-const MessageComponent = memo(({ message }: { message: ChatMessageWithId }) => {
+interface MessageComponentProps {
+  message: ChatMessageWithId;
+  showOptions?: boolean;
+  onOptionClick?: (text: string) => void;
+}
+
+const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageComponentProps) => {
+  const [selections, setSelections] = useState<Record<number, string>>({});
+
   if (message.role === "user") {
     return (
       <div className="chat-bubble-user">
@@ -48,6 +79,27 @@ const MessageComponent = memo(({ message }: { message: ChatMessageWithId }) => {
     );
   }
 
+  const { text, questions } = parseOptions(message.content);
+
+  const handleItemClick = (questionIdx: number, optionText: string) => {
+    if (!onOptionClick) return;
+
+    if (questions.length === 1) {
+      onOptionClick(optionText);
+      return;
+    }
+
+    const newSelections = { ...selections, [questionIdx]: optionText };
+    setSelections(newSelections);
+
+    if (Object.keys(newSelections).length === questions.length) {
+      const combined = questions
+        .map((_, i) => `${i + 1}. ${newSelections[i]}`)
+        .join("\n");
+      onOptionClick(combined);
+    }
+  };
+
   return (
     <div className="chat-bubble-assistant">
       <ChatBubble
@@ -55,12 +107,33 @@ const MessageComponent = memo(({ message }: { message: ChatMessageWithId }) => {
         avatar={<Avatar color="gen-ai" iconName="gen-ai" ariaLabel="Claude" />}
         ariaLabel="Claude response"
       >
-        <span style={{ whiteSpace: "pre-wrap" }}>{message.content}</span>
+        <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
       </ChatBubble>
+      {showOptions && questions.length > 0 && (
+        <SpaceBetween size="s">
+          {questions.map((q, qi) => (
+            <div key={qi}>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: qi === 0 ? 8 : 0 }}>{q.question}</div>
+              <SupportPromptGroup
+                ariaLabel={q.question}
+                onItemClick={({ detail }) => {
+                  const optIdx = parseInt(detail.id.split("-o")[1], 10);
+                  handleItemClick(qi, q.options[optIdx]);
+                }}
+                items={q.options.map((opt, oi) => ({
+                  id: `q${qi}-o${oi}`,
+                  text: selections[qi] === opt ? `✓ ${opt}` : opt,
+                }))}
+              />
+            </div>
+          ))}
+        </SpaceBetween>
+      )}
     </div>
   );
 }, (prev, next) => {
-  return prev.message.content === next.message.content;
+  return prev.message.content === next.message.content
+    && prev.showOptions === next.showOptions;
 });
 
 MessageComponent.displayName = "MessageComponent";
@@ -125,11 +198,10 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
     startAnalysisStream();
   }, []);
 
-  const handleUserMessage = async () => {
-    if (!userInput.trim() || isStreaming || isAnalysisStreaming) return;
+  const handleSendMessage = useCallback(async (text: string) => {
+    if (!text.trim() || isStreaming || isAnalysisStreaming) return;
 
-    const message = userInput.trim();
-    setUserInput("");
+    const message = text.trim();
 
     const userMsg: ChatMessageWithId = { id: crypto.randomUUID(), role: "user", content: message };
     const newHistory = [...chatHistory, userMsg];
@@ -220,6 +292,13 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       setIsStreaming(false);
       abortRef.current = null;
     }
+  }, [chatHistory, isStreaming, isAnalysisStreaming, formData, feasibility, onUsage]);
+
+  const handleUserMessage = () => {
+    if (!userInput.trim()) return;
+    const message = userInput.trim();
+    setUserInput("");
+    handleSendMessage(message);
   };
 
   const streamingAny = isStreaming || isAnalysisStreaming;
@@ -342,8 +421,17 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
             aria-label="대화 내용"
           >
             <SpaceBetween size="s">
-              {chatHistory.map((msg) => (
-                <MessageComponent key={msg.id} message={msg} />
+              {chatHistory.map((msg, idx) => (
+                <MessageComponent
+                  key={msg.id}
+                  message={msg}
+                  showOptions={
+                    msg.role === "assistant"
+                    && idx === chatHistory.length - 1
+                    && !streamingAny
+                  }
+                  onOptionClick={handleSendMessage}
+                />
               ))}
 
               {streamingAny && currentMessage && (
@@ -353,7 +441,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                     avatar={<Avatar color="gen-ai" iconName="gen-ai" loading ariaLabel="Claude is typing" />}
                     ariaLabel="Claude is responding"
                   >
-                    <span style={{ whiteSpace: "pre-wrap" }}>{currentMessage}</span>
+                    <span style={{ whiteSpace: "pre-wrap" }}>{stripOptionsTag(currentMessage)}</span>
                     <LoadingBar variant="gen-ai" />
                   </ChatBubble>
                 </div>
