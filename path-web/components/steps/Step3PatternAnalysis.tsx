@@ -9,6 +9,7 @@ import Button from "@cloudscape-design/components/button";
 import Spinner from "@cloudscape-design/components/spinner";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import Badge from "@cloudscape-design/components/badge";
+import Input from "@cloudscape-design/components/input";
 import PromptInput from "@cloudscape-design/components/prompt-input";
 import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
 import Avatar from "@cloudscape-design/chat-components/avatar";
@@ -64,6 +65,8 @@ interface MessageComponentProps {
 
 const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageComponentProps) => {
   const [selections, setSelections] = useState<Record<number, string>>({});
+  const [customInputs, setCustomInputs] = useState<Record<number, string>>({});
+  const [sent, setSent] = useState(false);
 
   if (message.role === "user") {
     return (
@@ -82,23 +85,31 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
   const { text, questions } = parseOptions(message.content);
 
   const handleItemClick = (questionIdx: number, optionText: string) => {
-    if (!onOptionClick) return;
+    if (!onOptionClick || sent) return;
+    setSelections((prev) => ({ ...prev, [questionIdx]: optionText }));
+    setCustomInputs((prev) => { const next = { ...prev }; delete next[questionIdx]; return next; });
+  };
 
+  const handleCustomSubmit = (questionIdx: number) => {
+    const value = customInputs[questionIdx]?.trim();
+    if (!value) return;
+    setSelections((prev) => ({ ...prev, [questionIdx]: value }));
+  };
+
+  const handleSend = () => {
+    if (!onOptionClick || sent) return;
+    setSent(true);
     if (questions.length === 1) {
-      onOptionClick(optionText);
-      return;
-    }
-
-    const newSelections = { ...selections, [questionIdx]: optionText };
-    setSelections(newSelections);
-
-    if (Object.keys(newSelections).length === questions.length) {
+      onOptionClick(selections[0]);
+    } else {
       const combined = questions
-        .map((_, i) => `${i + 1}. ${newSelections[i]}`)
+        .map((_, i) => `${i + 1}. ${selections[i]}`)
         .join("\n");
       onOptionClick(combined);
     }
   };
+
+  const allAnswered = questions.length > 0 && Object.keys(selections).length === questions.length;
 
   return (
     <div className="chat-bubble-assistant">
@@ -109,7 +120,7 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
       >
         <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
       </ChatBubble>
-      {showOptions && questions.length > 0 && (
+      {showOptions && questions.length > 0 && !sent && (
         <SpaceBetween size="s">
           {questions.map((q, qi) => (
             <div key={qi}>
@@ -125,8 +136,30 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
                   text: selections[qi] === opt ? `✓ ${opt}` : opt,
                 }))}
               />
+              <div style={{ marginTop: 4 }}>
+                <Input
+                  value={customInputs[qi] ?? ""}
+                  onChange={({ detail }) => {
+                    setCustomInputs((prev) => ({ ...prev, [qi]: detail.value }));
+                    if (selections[qi]) {
+                      setSelections((prev) => { const next = { ...prev }; delete next[qi]; return next; });
+                    }
+                  }}
+                  onKeyDown={({ detail }) => {
+                    if (detail.key === "Enter") handleCustomSubmit(qi);
+                  }}
+                  placeholder="직접 입력..."
+                  ariaLabel={`${q.question} 직접 입력`}
+                />
+              </div>
             </div>
           ))}
+          {allAnswered && (
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <Button variant="link" onClick={() => setSelections({})}>선택 초기화</Button>
+              <Button variant="primary" onClick={handleSend}>답변 전송</Button>
+            </div>
+          )}
         </SpaceBetween>
       )}
     </div>
