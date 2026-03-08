@@ -4,3 +4,5 @@ strands-agents-tools
 boto3
 pyyaml
 strictyaml
+strands-agents[otel]>=0.1.0
+aws-opentelemetry-distro
