@@ -218,29 +218,40 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
             );
           })}
 
-          {/* Autonomy Requirement (별도 축) */}
-          {feasibility.autonomy_requirement && (
-            <Container
-              header={
-                <Header variant="h3">
-                  <SpaceBetween direction="horizontal" size="xs">
-                    <span><GlossaryTerm glossaryKey="autonomy" /></span>
-                    <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
-                      <GlossaryTerm
-                        term={feasibility.autonomy_requirement.score >= 6 ? "Agentic AI" : "AI-Assisted Workflow"}
-                        description={feasibility.autonomy_requirement.score >= 6 ? AUTOMATION_LEVEL_DESCRIPTIONS['agentic-ai'] : AUTOMATION_LEVEL_DESCRIPTIONS['ai-assisted-workflow']}
-                      />
-                    </Badge>
-                    <Box variant="small" color="text-body-secondary">{feasibility.autonomy_requirement.score}/10</Box>
-                  </SpaceBetween>
-                </Header>
-              }
-            >
-              <SpaceBetween size="s">
-                <Box variant="p" color="text-body-secondary">{feasibility.autonomy_requirement.reason}</Box>
-              </SpaceBetween>
-            </Container>
-          )}
+          {/* Autonomy Requirement (별도 축) — updated_autonomy 우선 */}
+          {feasibility.autonomy_requirement && (() => {
+            const updatedAutonomy = analysis.updated_autonomy;
+            const autonomyScore = updatedAutonomy?.score ?? feasibility.autonomy_requirement.score;
+            const autonomyReason = updatedAutonomy?.reason ?? feasibility.autonomy_requirement.reason;
+            const isAgentic = autonomyScore >= 6;
+            const wasUpdated = updatedAutonomy && updatedAutonomy.score !== feasibility.autonomy_requirement.score;
+            return (
+              <Container
+                header={
+                  <Header variant="h3">
+                    <SpaceBetween direction="horizontal" size="xs">
+                      <span><GlossaryTerm glossaryKey="autonomy" /></span>
+                      <Badge color={isAgentic ? "blue" : "grey"}>
+                        <GlossaryTerm
+                          term={isAgentic ? "Agentic AI" : "AI-Assisted Workflow"}
+                          description={isAgentic ? AUTOMATION_LEVEL_DESCRIPTIONS['agentic-ai'] : AUTOMATION_LEVEL_DESCRIPTIONS['ai-assisted-workflow']}
+                        />
+                      </Badge>
+                      <Box variant="small" color="text-body-secondary">
+                        {wasUpdated
+                          ? `${feasibility.autonomy_requirement.score} → ${autonomyScore}/10`
+                          : `${autonomyScore}/10`}
+                      </Box>
+                    </SpaceBetween>
+                  </Header>
+                }
+              >
+                <SpaceBetween size="s">
+                  <Box variant="p" color="text-body-secondary">{autonomyReason}</Box>
+                </SpaceBetween>
+              </Container>
+            );
+          })()}
 
           {feasibility.risks && feasibility.risks.length > 0 && (
             <Alert type="warning" header="준비도 리스크">

@@ -814,6 +814,10 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
   "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",
   "automation_level": "ai-assisted-workflow 또는 agentic-ai (자율성 요구도 기반 판단)",
   "automation_level_reason": "자동화 수준 판단 근거. 자율성 요구도 점수, 프로세스 특성, 오류 허용도 등을 종합하여 설명",
+  "updated_autonomy": {{
+    "score": "대화를 통해 재판단된 자율성 요구도 점수 (0-10 숫자). 원본과 동일하면 원본 점수 유지.",
+    "reason": "대화 결과를 반영한 자율성 요구도에 대한 완전한 새 설명 (2-3문장). 원본 설명을 복사하지 말고, 대화에서 확인된 구체적 정보를 바탕으로 새로 작성하세요."
+  }},
   "architecture_reason": "권장 아키텍처 이유 (문제의 특성 - 프로세스 단계 수, 도구 수, 협업 방식 기반으로 설명. 멀티 에이전트인 경우 선택한 협업 패턴의 적합성도 설명)",
   "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
   "feasibility_breakdown": {json.dumps(simple_breakdown)},
@@ -834,5 +838,6 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
 - multi_agent_pattern은 멀티 에이전트인 경우 반드시 "agents-as-tools", "swarm", "graph", "workflow" 중 하나로 출력하세요. 싱글 에이전트인 경우 null.
 - architecture_reason은 왜 해당 아키텍처를 권장하는지 문제 특성을 기반으로 설명하세요. 멀티 에이전트인 경우 협업 패턴 선택 이유도 포함하세요.
 - automation_level은 반드시 "ai-assisted-workflow" 또는 "agentic-ai" 중 하나로 출력하세요. 자율성 요구도 ≤5이면 "ai-assisted-workflow", ≥6이면 "agentic-ai"를 기본으로 하되, 경계 영역(5-6)은 오류 허용도, 프로세스 복잡도 등을 추가 고려하세요.
+- updated_autonomy.score는 대화를 통해 재판단된 자율성 점수(0-10)입니다. 대화에서 자율성 요구가 변했다면 반영하고, automation_level과 일관되게 유지하세요 (≤5→ai-assisted-workflow, ≥6→agentic-ai).
 - {improved_feasibility_instruction}
 - JSON만 출력하세요."""
