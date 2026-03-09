@@ -116,6 +116,7 @@ export interface Analysis {
   multi_agent_pattern?: MultiAgentPattern | null;  // 멀티 에이전트 협업 패턴
   automation_level?: AutomationLevel;  // 자동화 수준 (자율성 기반)
   automation_level_reason?: string;  // 자동화 수준 판단 근거
+  updated_autonomy?: { score: number; reason: string } | null;  // 대화 후 재판단된 자율성 점수
   architecture_reason?: string;  // 권장 이유
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;
