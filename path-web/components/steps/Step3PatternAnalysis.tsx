@@ -27,6 +27,7 @@ interface ChatMessageWithId extends ChatMessage {
 interface QuestionOption {
   question: string;
   options: string[];
+  multiSelect?: boolean;
 }
 
 function parseOptions(content: string): { text: string; questions: QuestionOption[] } {
@@ -64,7 +65,7 @@ interface MessageComponentProps {
 }
 
 const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageComponentProps) => {
-  const [selections, setSelections] = useState<Record<number, string>>({});
+  const [selections, setSelections] = useState<Record<number, string | string[]>>({});
   const [customInputs, setCustomInputs] = useState<Record<number, string>>({});
   const [sent, setSent] = useState(false);
 
@@ -86,7 +87,17 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
 
   const handleItemClick = (questionIdx: number, optionText: string) => {
     if (!onOptionClick || sent) return;
-    setSelections((prev) => ({ ...prev, [questionIdx]: optionText }));
+    const q = questions[questionIdx];
+    if (q.multiSelect) {
+      setSelections((prev) => {
+        const current = Array.isArray(prev[questionIdx]) ? (prev[questionIdx] as string[]) : [];
+        const exists = current.includes(optionText);
+        const updated = exists ? current.filter((s) => s !== optionText) : [...current, optionText];
+        return { ...prev, [questionIdx]: updated };
+      });
+    } else {
+      setSelections((prev) => ({ ...prev, [questionIdx]: optionText }));
+    }
     setCustomInputs((prev) => { const next = { ...prev }; delete next[questionIdx]; return next; });
   };
 
@@ -96,20 +107,31 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
     setSelections((prev) => ({ ...prev, [questionIdx]: value }));
   };
 
+  const formatAnswer = (qi: number): string => {
+    const sel = selections[qi];
+    if (Array.isArray(sel)) return sel.join(", ");
+    return sel as string;
+  };
+
   const handleSend = () => {
     if (!onOptionClick || sent) return;
     setSent(true);
     if (questions.length === 1) {
-      onOptionClick(selections[0]);
+      onOptionClick(formatAnswer(0));
     } else {
       const combined = questions
-        .map((_, i) => `${i + 1}. ${selections[i]}`)
+        .map((_, i) => `${i + 1}. ${formatAnswer(i)}`)
         .join("\n");
       onOptionClick(combined);
     }
   };
 
-  const allAnswered = questions.length > 0 && Object.keys(selections).length === questions.length;
+  const allAnswered = questions.length > 0 && questions.every((q, qi) => {
+    const sel = selections[qi];
+    if (!sel) return false;
+    if (q.multiSelect) return Array.isArray(sel) && sel.length > 0;
+    return typeof sel === "string" && sel.length > 0;
+  });
 
   return (
     <div className="chat-bubble-assistant">
@@ -124,17 +146,24 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
         <SpaceBetween size="s">
           {questions.map((q, qi) => (
             <div key={qi}>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: qi === 0 ? 8 : 0 }}>{q.question}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 4, marginTop: qi === 0 ? 8 : 0 }}>
+                {q.question}{q.multiSelect && <span style={{ fontSize: 11, fontWeight: 400, color: "var(--color-text-body-secondary, #5f6b7a)", marginLeft: 6 }}>(복수 선택 가능)</span>}
+              </div>
               <SupportPromptGroup
                 ariaLabel={q.question}
                 onItemClick={({ detail }) => {
                   const optIdx = parseInt(detail.id.split("-o")[1], 10);
                   handleItemClick(qi, q.options[optIdx]);
                 }}
-                items={q.options.map((opt, oi) => ({
-                  id: `q${qi}-o${oi}`,
-                  text: selections[qi] === opt ? `✓ ${opt}` : opt,
-                }))}
+                items={q.options.map((opt, oi) => {
+                  const isSelected = q.multiSelect
+                    ? Array.isArray(selections[qi]) && (selections[qi] as string[]).includes(opt)
+                    : selections[qi] === opt;
+                  return {
+                    id: `q${qi}-o${oi}`,
+                    text: isSelected ? `✓ ${opt}` : opt,
+                  };
+                })}
               />
               <div style={{ marginTop: 4 }}>
                 <Input
