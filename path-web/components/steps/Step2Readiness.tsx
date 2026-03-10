@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -82,11 +82,9 @@ export function Step2Readiness({
     }, []),
   });
 
-  const reevalBodyRef = useRef<Record<string, unknown>>({});
-
   const { start: startReevaluation, isStreaming: isReevaluatingStream } = useSSEStream({
     url: "/api/bedrock/feasibility/update",
-    body: reevalBodyRef.current,
+    body: {},
     onChunk: useCallback((parsed: any) => {
       if (parsed.progress !== undefined) {
         setReevalProgress(parsed.progress);
@@ -192,12 +190,11 @@ export function Step2Readiness({
     setReevalProgress(0);
     setReevalStage("재평가 준비 중...");
 
-    reevalBodyRef.current = {
+    startReevaluation({
       formData,
       previousEvaluation: feasibility,
       improvementPlans,
-    };
-    startReevaluation();
+    });
   }, [feasibility, formData, improvementPlans, hasImprovementPlans, startReevaluation]);
 
   const getLevelCounts = () => {

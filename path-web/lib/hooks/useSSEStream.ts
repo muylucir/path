@@ -14,7 +14,7 @@ export interface UseSSEStreamOptions {
 }
 
 export interface UseSSEStreamReturn {
-  start: () => Promise<void>;
+  start: (bodyOverride?: Record<string, unknown>) => Promise<void>;
   abort: () => void;
   isStreaming: boolean;
   error: string | null;
@@ -49,7 +49,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
     setIsStreaming(false);
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (bodyOverride?: Record<string, unknown>) => {
     // Abort any existing stream
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -65,7 +65,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bodyRef.current),
+        body: JSON.stringify(bodyOverride ?? bodyRef.current),
         signal: controller.signal,
       });
 
