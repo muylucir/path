@@ -15,6 +15,8 @@ import ChatBubble from "@cloudscape-design/chat-components/chat-bubble";
 import Avatar from "@cloudscape-design/chat-components/avatar";
 import LoadingBar from "@cloudscape-design/chat-components/loading-bar";
 import SupportPromptGroup from "@cloudscape-design/chat-components/support-prompt-group";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
@@ -140,7 +142,7 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
         avatar={<Avatar color="gen-ai" iconName="gen-ai" ariaLabel="Claude" />}
         ariaLabel="Claude response"
       >
-        <span style={{ whiteSpace: "pre-wrap" }}>{text}</span>
+        <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{text}</ReactMarkdown></div>
       </ChatBubble>
       {showOptions && questions.length > 0 && !sent && (
         <SpaceBetween size="s">
@@ -365,6 +367,13 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
 
   const streamingAny = isStreaming || isAnalysisStreaming;
 
+  const lastAssistantHasOptions = (() => {
+    if (streamingAny || chatHistory.length === 0) return false;
+    const last = chatHistory[chatHistory.length - 1];
+    if (last.role !== "assistant") return false;
+    return parseOptions(last.content).questions.length > 0;
+  })();
+
   // Notify parent of loading state changes
   useEffect(() => {
     onLoadingChange?.(streamingAny || isAnalyzing);
@@ -503,7 +512,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                     avatar={<Avatar color="gen-ai" iconName="gen-ai" loading ariaLabel="Claude is typing" />}
                     ariaLabel="Claude is responding"
                   >
-                    <span style={{ whiteSpace: "pre-wrap" }}>{stripOptionsTag(currentMessage)}</span>
+                    <div className="chat-markdown"><ReactMarkdown remarkPlugins={[remarkGfm]}>{stripOptionsTag(currentMessage)}</ReactMarkdown></div>
                     <LoadingBar variant="gen-ai" />
                   </ChatBubble>
                 </div>
@@ -525,32 +534,34 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
             </SpaceBetween>
           </div>
 
-          {/* Input */}
-          <div
-            onKeyDownCapture={(e) => {
-              if (e.key === "Enter" && !e.nativeEvent.isComposing) {
-                if (e.shiftKey) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleUserMessage();
-                } else {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setUserInput((prev) => prev + "\n");
+          {/* Input — 선택지가 표시될 때는 숨김 */}
+          {!lastAssistantHasOptions && (
+            <div
+              onKeyDownCapture={(e) => {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
+                  if (e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleUserMessage();
+                  } else {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setUserInput((prev) => prev + "\n");
+                  }
                 }
-              }
-            }}
-          >
-            <PromptInput
-              value={userInput}
-              onChange={({ detail }) => setUserInput(detail.value)}
-              onAction={handleUserMessage}
-              actionButtonIconName="send"
-              placeholder="답변을 입력하세요... (Shift+Enter로 전송)"
-              disabled={streamingAny || isAnalyzing}
-              minRows={3}
-            />
-          </div>
+              }}
+            >
+              <PromptInput
+                value={userInput}
+                onChange={({ detail }) => setUserInput(detail.value)}
+                onAction={handleUserMessage}
+                actionButtonIconName="send"
+                placeholder="답변을 입력하세요... (Shift+Enter로 전송)"
+                disabled={streamingAny || isAnalyzing}
+                minRows={3}
+              />
+            </div>
+          )}
 
           {/* Finalize Button / Inline Confirmation */}
           {!showFinalizeConfirm ? (

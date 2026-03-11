@@ -12,6 +12,7 @@ import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import FormField from "@cloudscape-design/components/form-field";
 import Textarea from "@cloudscape-design/components/textarea";
 import Alert from "@cloudscape-design/components/alert";
+import ExpandableSection from "@cloudscape-design/components/expandable-section";
 import Popover from "@cloudscape-design/components/popover";
 import Badge from "@cloudscape-design/components/badge";
 import Flashbar, { type FlashbarProps } from "@cloudscape-design/components/flashbar";
@@ -55,6 +56,7 @@ export function Step2Readiness({
   const [reevalProgress, setReevalProgress] = useState(0);
   const [reevalStage, setReevalStage] = useState("");
   const [flashItems, setFlashItems] = useState<FlashbarProps.MessageDefinition[]>([]);
+  const [expandedGoodItems, setExpandedGoodItems] = useState<Set<string>>(new Set());
 
   const [additionalInfo, setAdditionalInfo] = useState({
     additionalSources: formData.additionalSources || "",
@@ -210,6 +212,16 @@ export function Step2Readiness({
   };
 
   const needsImprovement = (score: number) => score < 6;
+  const isGoodLevel = (score: number) => score >= 6 && score < 8;
+
+  const toggleGoodExpand = (key: string) => {
+    setExpandedGoodItems((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   if (isLoading) {
     return (
@@ -363,6 +375,36 @@ export function Step2Readiness({
                     </FormField>
                   </SpaceBetween>
                 </Alert>
+              )}
+
+              {isGoodLevel(item.score) && (
+                <ExpandableSection
+                  variant="footer"
+                  headerText="추가 개선사항 입력"
+                  expanded={expandedGoodItems.has(key)}
+                  onChange={() => toggleGoodExpand(key)}
+                >
+                  <Alert type="info" header="추가 개선 제안">
+                    <SpaceBetween size="s">
+                      <Box variant="p">
+                        이 항목은 양호한 상태이지만, 추가 개선 방안이 있다면 입력해주세요.
+                      </Box>
+                      <FormField label="추가 개선 방안 (선택)">
+                        <Textarea
+                          value={improvementPlans[key] || ""}
+                          onChange={({ detail }) =>
+                            setImprovementPlans((prev) => ({
+                              ...prev,
+                              [key]: detail.value,
+                            }))
+                          }
+                          placeholder="추가로 계획하고 있는 개선 방안을 입력하세요..."
+                          rows={2}
+                        />
+                      </FormField>
+                    </SpaceBetween>
+                  </Alert>
+                </ExpandableSection>
               )}
             </SpaceBetween>
           </Container>
