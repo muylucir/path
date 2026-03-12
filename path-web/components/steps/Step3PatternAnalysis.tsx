@@ -100,7 +100,9 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
     } else {
       setSelections((prev) => ({ ...prev, [questionIdx]: optionText }));
     }
-    setCustomInputs((prev) => { const next = { ...prev }; delete next[questionIdx]; return next; });
+    if (!q.multiSelect) {
+      setCustomInputs((prev) => { const next = { ...prev }; delete next[questionIdx]; return next; });
+    }
   };
 
   const handleCustomSubmit = (questionIdx: number) => {
@@ -111,6 +113,13 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
 
   const formatAnswer = (qi: number): string => {
     const sel = selections[qi];
+    const customVal = customInputs[qi]?.trim();
+    if (questions[qi]?.multiSelect) {
+      const parts: string[] = Array.isArray(sel) ? [...sel] : [];
+      if (customVal) parts.push(customVal);
+      return parts.join(", ");
+    }
+    if (customVal) return customVal;
     if (Array.isArray(sel)) return sel.join(", ");
     return sel as string;
   };
@@ -130,8 +139,13 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
 
   const allAnswered = questions.length > 0 && questions.every((q, qi) => {
     const sel = selections[qi];
+    const customVal = customInputs[qi]?.trim();
+    if (q.multiSelect) {
+      const hasSelection = Array.isArray(sel) && sel.length > 0;
+      return hasSelection || !!customVal;
+    }
+    if (customVal) return true;
     if (!sel) return false;
-    if (q.multiSelect) return Array.isArray(sel) && sel.length > 0;
     return typeof sel === "string" && sel.length > 0;
   });
 
@@ -172,7 +186,7 @@ const MessageComponent = memo(({ message, showOptions, onOptionClick }: MessageC
                   value={customInputs[qi] ?? ""}
                   onChange={({ detail }) => {
                     setCustomInputs((prev) => ({ ...prev, [qi]: detail.value }));
-                    if (selections[qi]) {
+                    if (!q.multiSelect && selections[qi]) {
                       setSelections((prev) => { const next = { ...prev }; delete next[qi]; return next; });
                     }
                   }}
