@@ -8,8 +8,27 @@ from strands.models import BedrockModel
 from strands.models.bedrock import CacheConfig
 from typing import Any
 import os
+import logging
 import botocore.config
 from agentskills import discover_skills, generate_skills_prompt
+
+logger = logging.getLogger(__name__)
+
+# --- OpenTelemetry / Langfuse 초기화 ---
+# OTEL_EXPORTER_OTLP_ENDPOINT 환경변수가 설정되어 있으면 자동으로 트레이스 전송
+# Langfuse 연동 시 필요한 환경변수:
+#   OTEL_EXPORTER_OTLP_ENDPOINT=https://us.cloud.langfuse.com/api/public/otel
+#   OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64(public_key:secret_key)>
+if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"):
+    try:
+        from strands.telemetry import StrandsTelemetry
+        _telemetry = StrandsTelemetry()
+        _telemetry.setup_otlp_exporter()
+        logger.info("OpenTelemetry OTLP exporter 초기화 완료: %s", os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT"))
+    except Exception as e:
+        logger.warning("OpenTelemetry 초기화 실패 (트레이싱 비활성화): %s", e)
+else:
+    logger.debug("OTEL_EXPORTER_OTLP_ENDPOINT 미설정 — 트레이싱 비활성화")
 
 
 # Bedrock API 호출 타임아웃 및 재시도 설정

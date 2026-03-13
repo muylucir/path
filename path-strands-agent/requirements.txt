@@ -6,3 +6,4 @@ pyyaml
 strictyaml
 strands-agents[otel]>=0.1.0
 aws-opentelemetry-distro
+opentelemetry-exporter-otlp-proto-http
