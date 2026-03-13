@@ -130,15 +130,6 @@ export function Step3Results({
             ),
           },
           {
-            label: "대화 내역",
-            id: "chat",
-            content: (
-              <Box padding={{ top: "l" }}>
-                <ChatHistoryTab chatHistory={chatHistory} />
-              </Box>
-            ),
-          },
-          {
             label: "명세서",
             id: "spec",
             content: (
@@ -152,6 +143,15 @@ export function Step3Results({
                   onSave={onSave}
                   onUsage={onUsage}
                 />
+              </Box>
+            ),
+          },
+          {
+            label: "대화 내역",
+            id: "chat",
+            content: (
+              <Box padding={{ top: "l" }}>
+                <ChatHistoryTab chatHistory={chatHistory} />
               </Box>
             ),
           },

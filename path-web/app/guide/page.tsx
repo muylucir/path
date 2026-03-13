@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { AppLayoutShell } from "@/components/layout/AppLayoutShell";
 import ContentLayout from "@cloudscape-design/components/content-layout";
@@ -402,11 +400,18 @@ export default function GuidePage() {
                   </ul>
                 </TextContent>
                 <Box textAlign="center">
-                  <Link href="/" style={{ textDecoration: "none" }}>
-                    <Button variant="link" iconName="arrow-left" iconAlign="left">
-                      P.A.T.H 소개 보기
-                    </Button>
-                  </Link>
+                  <SpaceBetween direction="horizontal" size="s" alignItems="center">
+                    <Link href="/" style={{ textDecoration: "none" }}>
+                      <Button variant="link" iconName="arrow-left" iconAlign="left">
+                        P.A.T.H 소개 보기
+                      </Button>
+                    </Link>
+                    <Link href="/design" style={{ textDecoration: "none" }}>
+                      <Button variant="primary" iconName="arrow-right" iconAlign="right">
+                        에이전트 디자인 시작하기
+                      </Button>
+                    </Link>
+                  </SpaceBetween>
                 </Box>
               </SpaceBetween>
             </Container>

@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { AppLayoutShell } from "@/components/layout/AppLayoutShell";
 import ContentLayout from "@cloudscape-design/components/content-layout";
@@ -264,11 +262,18 @@ export default function IntroPage() {
                     </p>
                   </TextContent>
                   <Box textAlign="center">
-                    <Link href="/guide" style={{ textDecoration: "none" }}>
-                      <Button variant="link" iconName="arrow-right" iconAlign="right">
-                        단계별 상세 가이드 보기
-                      </Button>
-                    </Link>
+                    <SpaceBetween direction="horizontal" size="s" alignItems="center">
+                      <Link href="/guide" style={{ textDecoration: "none" }}>
+                        <Button variant="link" iconName="arrow-right" iconAlign="right">
+                          단계별 상세 가이드 보기
+                        </Button>
+                      </Link>
+                      <Link href="/design" style={{ textDecoration: "none" }}>
+                        <Button variant="primary" iconName="arrow-right" iconAlign="right">
+                          지금 시작하기
+                        </Button>
+                      </Link>
+                    </SpaceBetween>
                   </Box>
                 </SpaceBetween>
               </Container>

@@ -82,12 +82,14 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                 <div className="full-width-control">
                   <FormField
                     label={<span>Pain Point <GlossaryTerm glossaryKey="painPoint" /></span>}
+                    description="현재 상황, 문제점, 소요 시간/비용, 관련 이해관계자를 포함하면 더 정확한 분석이 가능합니다."
+                    constraintText="필수, 최소 10자"
                     errorText={errors.painPoint?.message}
                   >
                     <Textarea
                       value={field.value}
                       onChange={({ detail }) => field.onChange(detail.value)}
-                      placeholder="예: 하루 100건 고객 이메일 답변에 2시간 소요"
+                      placeholder="예: 채용팀 3명이 월 150건 이력서를 수동 검토하며, 1건당 20분 소요. 담당자마다 평가 기준이 달라 일관성이 떨어지고, 우수 후보자가 경쟁사로 이탈하는 경우가 월 5건 이상 발생"
                       rows={5}
                     />
                   </FormField>
@@ -126,7 +128,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
               <div className="full-width-control">
                 <FormField
                   label="수행 작업"
-                  description="Agent가 하는 일 (복수 선택)"
+                  description="Agent가 하는 일 (필수, 복수 선택)"
                   errorText={errors.processSteps?.message}
                 >
                   <div className="equal-height-cards">
@@ -159,7 +161,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
               <div className="full-width-control">
                 <FormField
                   label="산출물"
-                  description="최종 결과물 (복수 선택)"
+                  description="최종 결과물 (필수, 복수 선택)"
                   errorText={errors.outputTypes?.message}
                 >
                   <div className="equal-height-cards">
@@ -198,7 +200,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
               render={({ field }) => (
                 <div className="full-width-control">
                   <FormField
-                    label="데이터 소스"
+                    label="데이터 소스 (선택)"
                     description="데이터베이스, API, MCP 서버, 클라우드 서비스 등 Agent가 사용할 리소스를 자유롭게 입력하세요"
                   >
                     <Textarea
@@ -224,7 +226,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                   <div className="full-width-control">
                     <FormField
                       label={<span>Human-in-Loop <GlossaryTerm glossaryKey="humanInLoop" /></span>}
-                      description="사람이 언제 개입하나요?"
+                      description="사람이 언제 개입하나요? (단일 선택)"
                       errorText={errors.humanLoop?.message}
                     >
                       <div className="equal-height-cards">
@@ -261,7 +263,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                   <div className="full-width-control">
                     <FormField
                       label={<span>오류 허용도 <GlossaryTerm glossaryKey="errorTolerance" /></span>}
-                      description="AI 실수의 허용 범위는?"
+                      description="AI 실수의 허용 범위는? (단일 선택)"
                       errorText={errors.errorTolerance?.message}
                     >
                       <div className="equal-height-cards">
@@ -299,7 +301,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
               control={control}
               render={({ field }) => (
                 <div className="full-width-control">
-                  <FormField label="추가 컨텍스트">
+                  <FormField label="추가 컨텍스트 (선택)">
                     <Textarea
                       value={field.value || ""}
                       onChange={({ detail }) => field.onChange(detail.value)}
