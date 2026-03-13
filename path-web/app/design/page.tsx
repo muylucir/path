@@ -4,6 +4,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Wizard from "@cloudscape-design/components/wizard";
 import Spinner from "@cloudscape-design/components/spinner";
 import Box from "@cloudscape-design/components/box";
+import Modal from "@cloudscape-design/components/modal";
+import Button from "@cloudscape-design/components/button";
+import SpaceBetween from "@cloudscape-design/components/space-between";
 import { Step1Form } from "@/components/steps/Step1Form";
 import { Step2Readiness } from "@/components/steps/Step2Readiness";
 import { Step3PatternAnalysis } from "@/components/steps/Step3PatternAnalysis";
@@ -31,6 +34,7 @@ export default function DesignWizardPage() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoadingNextStep, setIsLoadingNextStep] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
 
   const { addUsage, resetUsage } = useTokenUsage();
   const { addFlash } = useFlash();
@@ -167,18 +171,21 @@ export default function DesignWizardPage() {
   // --- Cancel / Submit handlers ---
 
   const handleCancel = () => {
-    if (window.confirm("진행 중인 분석이 초기화됩니다. 계속하시겠습니까?")) {
-      sessionStorage.clear();
-      resetUsage();
-      setFormData(null);
-      setFeasibility(null);
-      setImprovementPlans({});
-      setChatHistory([]);
-      setAnalysis(null);
-      setSpecification("");
-      setSessionId(null);
-      setActiveStepIndex(0);
-    }
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = () => {
+    setShowCancelModal(false);
+    ["formData", "feasibility", "improvementPlans", "chatHistory", "analysis", "specification", "tokenUsage", "currentSessionId"].forEach((key) => sessionStorage.removeItem(key));
+    resetUsage();
+    setFormData(null);
+    setFeasibility(null);
+    setImprovementPlans({});
+    setChatHistory([]);
+    setAnalysis(null);
+    setSpecification("");
+    setSessionId(null);
+    setActiveStepIndex(0);
   };
 
   const handleSave = useCallback(async (spec: string) => {
@@ -363,6 +370,21 @@ export default function DesignWizardPage() {
           },
         ]}
       />
+      <Modal
+        visible={showCancelModal}
+        onDismiss={() => setShowCancelModal(false)}
+        header="분석 초기화"
+        footer={
+          <Box float="right">
+            <SpaceBetween direction="horizontal" size="xs">
+              <Button variant="link" onClick={() => setShowCancelModal(false)}>취소</Button>
+              <Button variant="primary" onClick={handleConfirmCancel}>초기화</Button>
+            </SpaceBetween>
+          </Box>
+        }
+      >
+        진행 중인 분석이 초기화됩니다. 계속하시겠습니까?
+      </Modal>
     </AppLayoutShell>
   );
 }

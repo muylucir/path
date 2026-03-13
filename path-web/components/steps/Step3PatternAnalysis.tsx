@@ -494,8 +494,8 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
           <div
             ref={chatContainerRef}
             style={{
-              minHeight: 400,
-              maxHeight: 600,
+              minHeight: "40vh",
+              maxHeight: "calc(100vh - 350px)",
               overflowY: "auto",
               padding: 16,
               border: "1px solid var(--color-border-divider-default, #e9ebed)",
@@ -556,11 +556,11 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                   if (e.shiftKey) {
                     e.preventDefault();
                     e.stopPropagation();
-                    handleUserMessage();
+                    setUserInput((prev) => prev + "\n");
                   } else {
                     e.preventDefault();
                     e.stopPropagation();
-                    setUserInput((prev) => prev + "\n");
+                    handleUserMessage();
                   }
                 }
               }}
@@ -570,7 +570,7 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                 onChange={({ detail }) => setUserInput(detail.value)}
                 onAction={handleUserMessage}
                 actionButtonIconName="send"
-                placeholder="답변을 입력하세요... (Shift+Enter로 전송)"
+                placeholder="답변을 입력하세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
                 disabled={streamingAny || isAnalyzing}
                 minRows={3}
               />

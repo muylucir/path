@@ -21,7 +21,7 @@ import {
   READINESS_ITEM_DETAILS,
   AUTONOMY_REQUIREMENT_INFO,
 } from "@/lib/constants";
-import { getReadinessLevel, getStatusIndicatorType } from "@/lib/readiness";
+import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
 
@@ -257,6 +257,7 @@ export function Step2Readiness({
   const levelCounts = getLevelCounts();
   const proceedableCount = levelCounts.ready + levelCounts.good;
   const proceedablePercentage = (proceedableCount / levelCounts.total) * 100;
+  const judgmentBadge = getJudgmentBadge(feasibility.feasibility_score);
 
   return (
     <SpaceBetween size="l">
@@ -266,6 +267,15 @@ export function Step2Readiness({
       {/* Overall Readiness Summary */}
       <Container header={<Header variant="h2">전체 준비도</Header>}>
         <SpaceBetween size="m">
+          {/* Total Score + Judgment Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <Box variant="h1" fontSize="display-l" fontWeight="bold">
+              {feasibility.feasibility_score}<Box variant="span" fontSize="heading-xl" fontWeight="normal" color="text-body-secondary"> / 50</Box>
+            </Box>
+            <Badge color={judgmentBadge.type === "success" ? "green" : judgmentBadge.type === "error" ? "red" : "blue"}>
+              {judgmentBadge.label}
+            </Badge>
+          </div>
           {/* Level Breakdown */}
           <SpaceBetween direction="horizontal" size="s">
             {levelCounts.ready > 0 && (
@@ -332,7 +342,7 @@ export function Step2Readiness({
               >
                 <SpaceBetween direction="horizontal" size="xs">
                   <StatusIndicator type={getStatusIndicatorType(level.color)}>
-                    {level.label}
+                    {level.label} ({item.score}/10)
                   </StatusIndicator>
                   {details.name}
                 </SpaceBetween>

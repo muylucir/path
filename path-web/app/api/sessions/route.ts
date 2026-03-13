@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { saveSession, listSessions } from "@/lib/aws/dynamodb";
-import { getAuthUserId } from "@/lib/auth-helpers";
+import { getAuthUserId, isAuthConfigured } from "@/lib/auth-helpers";
 import type { Session } from "@/lib/types";
 
 export const sessionSchema = z.object({
@@ -91,9 +91,14 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const userId = await getAuthUserId();
-    if (!userId) {
+    const authEnabled = isAuthConfigured();
+
+    if (authEnabled && !userId) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
+
+    // When auth is not configured, pass null to list all sessions
+    const effectiveUserId = authEnabled ? userId : null;
 
     const { searchParams } = new URL(req.url);
     const lastKey = searchParams.get('lastKey');
@@ -105,23 +110,28 @@ export async function GET(req: NextRequest) {
           parsed &&
           typeof parsed === "object" &&
           !Array.isArray(parsed) &&
-          typeof parsed.session_id === "string" &&
-          typeof parsed.user_id === "string" &&
-          typeof parsed.timestamp === "string" &&
-          Object.keys(parsed).length <= 3
+          typeof parsed.session_id === "string"
         ) {
-          parsedLastKey = {
-            session_id: parsed.session_id,
-            user_id: userId,  // Always use authenticated user's ID
-            timestamp: parsed.timestamp,
-          };
+          if (effectiveUserId) {
+            // GSI pagination needs user_id + timestamp
+            if (typeof parsed.user_id === "string" && typeof parsed.timestamp === "string") {
+              parsedLastKey = {
+                session_id: parsed.session_id,
+                user_id: effectiveUserId,
+                timestamp: parsed.timestamp,
+              };
+            }
+          } else {
+            // Table scan pagination needs only session_id
+            parsedLastKey = { session_id: parsed.session_id };
+          }
         }
       } catch {
         // Invalid format, start from beginning
       }
     }
 
-    const result = await listSessions(userId, 15, parsedLastKey);
+    const result = await listSessions(effectiveUserId, 15, parsedLastKey);
     return Response.json(result);
   } catch (error) {
     console.error("Error listing sessions:", error);

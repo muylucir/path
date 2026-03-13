@@ -5,6 +5,7 @@ import {
   GetCommand,
   QueryCommand,
   DeleteCommand,
+  ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import type { Session, SessionListItem } from "@/lib/types";
 
@@ -42,7 +43,7 @@ export async function saveSession(
   return session_id;
 }
 
-export async function loadSession(sessionId: string, userId: string): Promise<Session | null> {
+export async function loadSession(sessionId: string, userId: string | null): Promise<Session | null> {
   const response = await docClient.send(
     new GetCommand({
       TableName: TABLE_NAME,
@@ -53,17 +54,43 @@ export async function loadSession(sessionId: string, userId: string): Promise<Se
   const session = response.Item as Session | undefined;
   if (!session) return null;
 
-  // Ownership check
-  if (session.user_id !== userId) return null;
+  // Ownership check (skip when auth is not configured)
+  if (userId && session.user_id !== userId) return null;
 
   return session;
 }
 
 export async function listSessions(
-  userId: string,
+  userId: string | null,
   limit: number = 15,
   lastEvaluatedKey?: Record<string, unknown>
 ): Promise<{ sessions: SessionListItem[]; lastEvaluatedKey?: Record<string, unknown> }> {
+  // When userId is null (auth not configured), scan all sessions
+  if (!userId) {
+    let validatedKey: Record<string, unknown> | undefined;
+    if (lastEvaluatedKey && typeof lastEvaluatedKey.session_id === "string") {
+      validatedKey = { session_id: lastEvaluatedKey.session_id };
+    }
+
+    const response = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAME,
+        ProjectionExpression: "session_id, user_id, #ts, pain_point, feasibility_score, improved_feasibility, next_steps, token_usage",
+        ExpressionAttributeNames: { "#ts": "timestamp" },
+        Limit: limit,
+        ...(validatedKey && { ExclusiveStartKey: validatedKey }),
+      })
+    );
+
+    const sessions = (response.Items || []) as SessionListItem[];
+    sessions.sort((a, b) => (b.timestamp ?? "").localeCompare(a.timestamp ?? ""));
+
+    return {
+      sessions,
+      lastEvaluatedKey: response.LastEvaluatedKey as Record<string, unknown> | undefined,
+    };
+  }
+
   // Validate lastEvaluatedKey structure for GSI pagination
   let validatedKey: Record<string, unknown> | undefined;
   if (lastEvaluatedKey) {

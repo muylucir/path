@@ -144,6 +144,21 @@ export function MDXRenderer({ content }: MDXRendererProps) {
         <ReactMarkdown
           remarkPlugins={[remarkGfm]}
           components={{
+            h1: ({ children }) => {
+              const text = String(children);
+              const id = text.toLowerCase().replace(/[^a-z0-9가-힣\s]/g, "").replace(/\s+/g, "-");
+              return <h1 id={id}>{children}</h1>;
+            },
+            h2: ({ children }) => {
+              const text = String(children);
+              const id = text.toLowerCase().replace(/[^a-z0-9가-힣\s]/g, "").replace(/\s+/g, "-");
+              return <h2 id={id}>{children}</h2>;
+            },
+            h3: ({ children }) => {
+              const text = String(children);
+              const id = text.toLowerCase().replace(/[^a-z0-9가-힣\s]/g, "").replace(/\s+/g, "-");
+              return <h3 id={id}>{children}</h3>;
+            },
             code: ({ className, children, ...props }) => {
               const match = /language-(\w+)/.exec(className || "");
               const lang = match?.[1];

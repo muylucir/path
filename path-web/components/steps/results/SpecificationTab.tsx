@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useMemo } from "react";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -11,6 +11,20 @@ import TextContent from "@cloudscape-design/components/text-content";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { Analysis, ChatMessage, FormData, ImprovementPlans, TokenUsage } from "@/lib/types";
+
+function extractHeadings(markdown: string): { level: number; text: string; id: string }[] {
+  const headings: { level: number; text: string; id: string }[] = [];
+  for (const line of markdown.split("\n")) {
+    const match = line.match(/^(#{1,3})\s+(.+)/);
+    if (match) {
+      const level = match[1].length;
+      const text = match[2].replace(/[*_`]/g, "").trim();
+      const id = text.toLowerCase().replace(/[^a-z0-9가-힣\s]/g, "").replace(/\s+/g, "-");
+      headings.push({ level, text, id });
+    }
+  }
+  return headings;
+}
 
 interface SpecificationTabProps {
   analysis: Analysis;
@@ -153,13 +167,33 @@ export function SpecificationTab({
             />
           )}
 
-          <div className="spec-viewer-scroll">
-            {isGenerating ? (
-              <TextContent><pre>{specification}</pre></TextContent>
-            ) : (
-              <MDXRenderer content={specification} />
-            )}
-          </div>
+          {!isGenerating && specification ? (
+            <div style={{ display: "grid", gridTemplateColumns: "200px 1fr", gap: 16 }}>
+              <div style={{ position: "sticky", top: 56, alignSelf: "start", maxHeight: "calc(100vh - 400px)", overflowY: "auto", fontSize: 13, lineHeight: 1.6 }}>
+                <Box variant="h4" margin={{ bottom: "xs" }}>목차</Box>
+                {extractHeadings(specification).map((h, i) => (
+                  <div key={i} style={{ paddingLeft: (h.level - 1) * 12, marginBottom: 4 }}>
+                    <a
+                      href={`#${h.id}`}
+                      style={{ color: "var(--color-text-body-secondary)", textDecoration: "none" }}
+                      onClick={(e) => { e.preventDefault(); document.getElementById(h.id)?.scrollIntoView({ behavior: "smooth" }); }}
+                    >
+                      {h.text}
+                    </a>
+                  </div>
+                ))}
+              </div>
+              <div className="spec-viewer-scroll">
+                <MDXRenderer content={specification} />
+              </div>
+            </div>
+          ) : (
+            <div className="spec-viewer-scroll">
+              {isGenerating ? (
+                <TextContent><pre>{specification}</pre></TextContent>
+              ) : null}
+            </div>
+          )}
         </SpaceBetween>
       )}
     </Container>

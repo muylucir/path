@@ -13,6 +13,7 @@ import Box from "@cloudscape-design/components/box";
 import KeyValuePairs from "@cloudscape-design/components/key-value-pairs";
 import Button from "@cloudscape-design/components/button";
 import SpaceBetween from "@cloudscape-design/components/space-between";
+import HelpPanel from "@cloudscape-design/components/help-panel";
 import { useTokenUsage } from "@/lib/hooks/useTokenUsage";
 
 function formatTokens(n: number): string {
@@ -22,10 +23,22 @@ function formatTokens(n: number): string {
 }
 
 const NAV_ITEMS: SideNavigationProps.Item[] = [
-  { type: "link", text: "소개", href: "/" },
-  { type: "link", text: "가이드", href: "/guide" },
-  { type: "link", text: "에이전트 디자인", href: "/design" },
-  { type: "link", text: "세션 목록", href: "/sessions" },
+  {
+    type: "section-group",
+    title: "정보",
+    items: [
+      { type: "link", text: "소개", href: "/" },
+      { type: "link", text: "가이드", href: "/guide" },
+    ],
+  },
+  {
+    type: "section-group",
+    title: "작업",
+    items: [
+      { type: "link", text: "에이전트 디자인", href: "/design" },
+      { type: "link", text: "세션 목록", href: "/sessions" },
+    ],
+  },
 ];
 
 interface AppLayoutShellProps {
@@ -145,7 +158,17 @@ export function AppLayoutShell({ children, breadcrumbs, notifications, navigatio
         }
         notifications={notifications}
         navigation={navigation || defaultNavigation}
-        toolsHide
+        tools={
+          <HelpPanel header={<h2>도움말</h2>}>
+            <p>P.A.T.H Agent Designer는 4단계로 AI Agent를 설계합니다.</p>
+            <ul>
+              <li><b>Step 1 (Problem)</b>: 해결하고 싶은 문제를 정의합니다.</li>
+              <li><b>Step 2 (Assessment)</b>: AI가 준비도를 점검합니다.</li>
+              <li><b>Step 3 (Technical Review)</b>: 대화를 통해 최적 패턴을 분석합니다.</li>
+              <li><b>Step 4 (Handoff)</b>: 구현 명세서를 생성합니다.</li>
+            </ul>
+          </HelpPanel>
+        }
         headerSelector="#top-nav"
         stickyNotifications
         splitPanelOpen={splitPanelOpen}
