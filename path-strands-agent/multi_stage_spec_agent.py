@@ -285,7 +285,7 @@ class DesignAgent:
         self.agent = strands_utils.get_agent(
             system_prompts=enhanced_prompt,
             model_id=DEFAULT_MODEL_ID,
-            max_tokens=32000,
+            max_tokens=16000,
             temperature=0.3,
             tools=[safe_file_read]
         )
@@ -1080,30 +1080,7 @@ class MultiStageSpecAgent:
                     stage_text = " & ".join(stages_status) + " 생성 중..."
                     yield {'progress': progress, 'stage': stage_text}
 
-            # return_exceptions=True: 실패한 태스크도 Exception 객체로 반환, 성공한 결과 보존
-            results = await asyncio.gather(diagram_task, prompt_task, tool_task, return_exceptions=True)
-            diagram_result = results[0]
-            prompt_result = results[1]
-            tool_result = results[2]
-
-            # 실패한 에이전트 확인 — 성공한 결과는 보존
-            failed_agents = []
-            if isinstance(diagram_result, Exception):
-                logger.error(f"DiagramAgent 실패: {diagram_result}", exc_info=diagram_result)
-                failed_agents.append("다이어그램")
-                diagram_result = "\n## 3. Visual Design\n\n> 다이어그램 생성에 실패했습니다. 명세서 재생성을 시도해주세요.\n"
-            if isinstance(prompt_result, Exception):
-                logger.error(f"PromptAgent 실패: {prompt_result}", exc_info=prompt_result)
-                failed_agents.append("프롬프트")
-                prompt_result = "\n## 4. Agent Prompts\n\n> 프롬프트 생성에 실패했습니다. 명세서 재생성을 시도해주세요.\n"
-            if isinstance(tool_result, Exception):
-                logger.error(f"ToolAgent 실패: {tool_result}", exc_info=tool_result)
-                failed_agents.append("도구")
-                tool_result = "\n## 5. Tool Definitions\n\n> 도구 정의 생성에 실패했습니다. 명세서 재생성을 시도해주세요.\n"
-
-            if failed_agents:
-                logger.warning(f"일부 에이전트 실패 (부분 명세서 생성): {', '.join(failed_agents)}")
-
+            diagram_result, prompt_result, tool_result = await asyncio.gather(diagram_task, prompt_task, tool_task)
             yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
@@ -1132,10 +1109,7 @@ class MultiStageSpecAgent:
                 yield {'usage': total_usage}
 
             # 최종 100% 도달
-            if failed_agents:
-                yield {'progress': 100, 'stage': f'완료 (일부 실패: {", ".join(failed_agents)})'}
-            else:
-                yield {'progress': 100, 'stage': '완료'}
+            yield {'progress': 100, 'stage': '완료'}
 
         except Exception as e:
             logger.error(f"명세서 생성 오류: {e}", exc_info=True)
