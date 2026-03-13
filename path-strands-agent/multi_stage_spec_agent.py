@@ -1022,75 +1022,6 @@ class MultiStageSpecAgent:
         self.tool_agent = ToolAgent()
         self.assembler_agent = AssemblerAgent()
 
-    async def _run_with_retry(
-        self,
-        name: str,
-        agent,
-        fn,
-        *args,
-        max_retries: int = 2,
-    ) -> Tuple[Optional[str], dict]:
-        """에이전트 함수를 최대 max_retries회 재시도하며 실행.
-
-        Returns:
-            (result_str, accumulated_usage) 튜플.
-            모든 시도 실패 시 (None, accumulated_usage).
-        """
-        import asyncio
-
-        total_attempts = 1 + max_retries
-        accumulated_usage: dict = {}
-
-        for attempt in range(total_attempts):
-            try:
-                result = await asyncio.to_thread(fn, *args)
-
-                # 토큰 사용량 누적
-                try:
-                    attempt_usage = getattr(agent, '_last_usage', {}) or {}
-                    accumulated_usage = merge_usage(accumulated_usage, attempt_usage)
-                except Exception:
-                    pass
-
-                # 빈 결과 감지 — "무음 실패"로 간주하고 재시도
-                if not result or not result.strip():
-                    if attempt < max_retries:
-                        logger.warning(
-                            f"{name} 빈 결과 반환 (시도 {attempt + 1}/{total_attempts}), 재시도"
-                        )
-                        continue
-                    else:
-                        logger.error(
-                            f"{name} 빈 결과로 최종 실패 ({total_attempts}회 시도)"
-                        )
-                        return (None, accumulated_usage)
-
-                if attempt > 0:
-                    logger.info(f"{name} 재시도 성공 (시도 {attempt + 1}/{total_attempts})")
-                return (result, accumulated_usage)
-
-            except Exception:
-                # 실패한 호출에서도 토큰 사용량 수집 시도
-                try:
-                    attempt_usage = getattr(agent, '_last_usage', {}) or {}
-                    accumulated_usage = merge_usage(accumulated_usage, attempt_usage)
-                except Exception:
-                    pass
-
-                if attempt < max_retries:
-                    logger.warning(
-                        f"{name} 실패 (시도 {attempt + 1}/{total_attempts}), 재시도",
-                        exc_info=True,
-                    )
-                else:
-                    logger.error(
-                        f"{name} 최종 실패 ({total_attempts}회 시도)",
-                        exc_info=True,
-                    )
-                    return (None, accumulated_usage)
-
-        return (None, accumulated_usage)
-
     async def generate_spec_stream(
         self,
         analysis: Dict[str, Any],
@@ -1105,14 +1036,12 @@ class MultiStageSpecAgent:
         try:
             # 1단계: Agent 설계 패턴 (0-40%) - Section 2: Agent Design Pattern
             yield {'progress': 0, 'stage': '2. 에이전트 설계 패턴 분석 시작'}
-            task = asyncio.create_task(self._run_with_retry(
-                "DesignAgent",
-                self.design_agent,
+            task = asyncio.create_task(asyncio.to_thread(
                 self.design_agent.analyze,
                 analysis,
                 improvement_plans,
                 chat_history,
-                additional_context,
+                additional_context
             ))
             progress = 5
             while not task.done():
@@ -1120,30 +1049,20 @@ class MultiStageSpecAgent:
                 if not task.done():
                     progress = min(progress + 5, 35)
                     yield {'progress': progress, 'stage': '2. 에이전트 설계 패턴 분석 중...'}
-            design_result, design_usage = await task
-
-            if not design_result:
-                yield {'error': 'Agent 설계 패턴 분석에 실패했습니다 (3회 시도). 잠시 후 다시 시도해주세요.'}
-                if design_usage.get("totalTokens", 0) > 0:
-                    yield {'usage': design_usage}
-                return
-
+            design_result = await task
             yield {'progress': 40, 'stage': '2. 에이전트 설계 패턴 완료'}
 
             # 2-3단계: 다이어그램 + 프롬프트 + 도구 병렬 실행 (40-95%)
             yield {'progress': 40, 'stage': '3. 다이어그램 & 4. 프롬프트 & 5. 도구 병렬 생성 시작'}
 
-            diagram_task = asyncio.create_task(self._run_with_retry(
-                "DiagramAgent", self.diagram_agent,
-                self.diagram_agent.generate_diagrams, design_result, analysis,
+            diagram_task = asyncio.create_task(asyncio.to_thread(
+                self.diagram_agent.generate_diagrams, design_result, analysis
             ))
-            prompt_task = asyncio.create_task(self._run_with_retry(
-                "PromptAgent", self.prompt_agent,
-                self.prompt_agent.generate_prompts, design_result, analysis,
+            prompt_task = asyncio.create_task(asyncio.to_thread(
+                self.prompt_agent.generate_prompts, design_result, analysis
             ))
-            tool_task = asyncio.create_task(self._run_with_retry(
-                "ToolAgent", self.tool_agent,
-                self.tool_agent.generate_tools, design_result, analysis,
+            tool_task = asyncio.create_task(asyncio.to_thread(
+                self.tool_agent.generate_tools, design_result, analysis
             ))
 
             progress = 45
@@ -1161,19 +1080,24 @@ class MultiStageSpecAgent:
                     stage_text = " & ".join(stages_status) + " 생성 중..."
                     yield {'progress': progress, 'stage': stage_text}
 
-            diagram_result, diagram_usage = await diagram_task
-            prompt_result, prompt_usage = await prompt_task
-            tool_result, tool_usage = await tool_task
+            # return_exceptions=True: 실패한 태스크도 Exception 객체로 반환, 성공한 결과 보존
+            results = await asyncio.gather(diagram_task, prompt_task, tool_task, return_exceptions=True)
+            diagram_result = results[0]
+            prompt_result = results[1]
+            tool_result = results[2]
 
             # 실패한 에이전트 확인 — 성공한 결과는 보존
             failed_agents = []
-            if not diagram_result:
+            if isinstance(diagram_result, Exception):
+                logger.error(f"DiagramAgent 실패: {diagram_result}", exc_info=diagram_result)
                 failed_agents.append("다이어그램")
                 diagram_result = "\n## 3. Visual Design\n\n> 다이어그램 생성에 실패했습니다. 명세서 재생성을 시도해주세요.\n"
-            if not prompt_result:
+            if isinstance(prompt_result, Exception):
+                logger.error(f"PromptAgent 실패: {prompt_result}", exc_info=prompt_result)
                 failed_agents.append("프롬프트")
                 prompt_result = "\n## 4. Agent Prompts\n\n> 프롬프트 생성에 실패했습니다. 명세서 재생성을 시도해주세요.\n"
-            if not tool_result:
+            if isinstance(tool_result, Exception):
+                logger.error(f"ToolAgent 실패: {tool_result}", exc_info=tool_result)
                 failed_agents.append("도구")
                 tool_result = "\n## 5. Tool Definitions\n\n> 도구 정의 생성에 실패했습니다. 명세서 재생성을 시도해주세요.\n"
 
@@ -1193,10 +1117,16 @@ class MultiStageSpecAgent:
             ):
                 yield chunk_data
 
-            # 서브 에이전트 토큰 사용량 집계 (리트라이 포함 누적)
+            # 서브 에이전트 토큰 사용량 집계
             total_usage = merge_usage(
-                merge_usage(design_usage, diagram_usage),
-                merge_usage(prompt_usage, tool_usage),
+                merge_usage(
+                    getattr(self.design_agent, '_last_usage', {}) or {},
+                    getattr(self.diagram_agent, '_last_usage', {}) or {}
+                ),
+                merge_usage(
+                    getattr(self.prompt_agent, '_last_usage', {}) or {},
+                    getattr(self.tool_agent, '_last_usage', {}) or {}
+                )
             )
             if total_usage.get("totalTokens", 0) > 0:
                 yield {'usage': total_usage}
