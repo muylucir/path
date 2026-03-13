@@ -10,3 +10,7 @@ export async function getAuthUserId(): Promise<string | null> {
   const session = await auth();
   return session?.user?.id ?? null;
 }
+
+export function isAuthConfigured(): boolean {
+  return authConfigured;
+}

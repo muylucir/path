@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { AppLayoutShell } from "@/components/layout/AppLayoutShell";
 import ContentLayout from "@cloudscape-design/components/content-layout";

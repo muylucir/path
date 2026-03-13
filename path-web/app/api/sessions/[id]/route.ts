@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { loadSession, deleteSession, replaceSession } from "@/lib/aws/dynamodb";
-import { getAuthUserId } from "@/lib/auth-helpers";
+import { getAuthUserId, isAuthConfigured } from "@/lib/auth-helpers";
 import { sessionSchema } from "@/app/api/sessions/route";
 import type { Session } from "@/lib/types";
 
@@ -16,9 +16,11 @@ export async function GET(
 ) {
   try {
     const userId = await getAuthUserId();
-    if (!userId) {
+    const authEnabled = isAuthConfigured();
+    if (authEnabled && !userId) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
+    const effectiveUserId = authEnabled ? userId : null;
 
     const { id } = await params;
     if (!isValidSessionId(id)) {
@@ -27,7 +29,7 @@ export async function GET(
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-    const session = await loadSession(id, userId);
+    const session = await loadSession(id, effectiveUserId);
 
     if (!session) {
       return new Response(JSON.stringify({ error: "세션을 찾을 수 없습니다" }), {
@@ -55,9 +57,11 @@ export async function DELETE(
 ) {
   try {
     const userId = await getAuthUserId();
-    if (!userId) {
+    const authEnabled = isAuthConfigured();
+    if (authEnabled && !userId) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
+    const effectiveUserId = authEnabled ? userId! : "anonymous";
 
     const { id } = await params;
     if (!isValidSessionId(id)) {
@@ -67,7 +71,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = await deleteSession(id, userId);
+    const deleted = await deleteSession(id, effectiveUserId);
     if (!deleted) {
       return new Response(JSON.stringify({ error: "세션을 찾을 수 없습니다" }), {
         status: 404,
@@ -94,9 +98,11 @@ export async function PUT(
 ) {
   try {
     const userId = await getAuthUserId();
-    if (!userId) {
+    const authEnabled = isAuthConfigured();
+    if (authEnabled && !userId) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
+    const effectiveUserId = authEnabled ? userId! : "anonymous";
 
     const { id } = await params;
     if (!isValidSessionId(id)) {
@@ -121,7 +127,7 @@ export async function PUT(
       );
     }
 
-    const replaced = await replaceSession(id, userId, result.data as unknown as Omit<Session, "session_id" | "user_id" | "timestamp">);
+    const replaced = await replaceSession(id, effectiveUserId, result.data as unknown as Omit<Session, "session_id" | "user_id" | "timestamp">);
     if (!replaced) {
       return new Response(JSON.stringify({ error: "세션을 찾을 수 없습니다" }), {
         status: 404,
