@@ -751,19 +751,10 @@ Resources:
         AWS_DEFAULT_REGION: !Ref 'AWS::Region'
         BEDROCK_MODEL_ID: 'global.anthropic.claude-opus-4-6-v1'
 
-  # Step 4: AgentCore Runtime Endpoint
-  PathAgentCoreEndpoint:
-    Type: AWS::BedrockAgentCore::RuntimeEndpoint
-    DependsOn: PathAgentCoreRuntime
-    Properties:
-      AgentRuntimeId: !GetAtt PathAgentCoreRuntime.AgentRuntimeId
-      Name: PathAgentDesignerEndpoint
-      Description: PATH Agent Designer Runtime Endpoint
-
-  # Step 5: Run PATH Frontend SSM Document (after AgentCore endpoint ready)
+  # Step 4: Run PATH Frontend SSM Document (after AgentCore Runtime ready, uses DEFAULT endpoint)
   RunPathFrontendSSMDoc:
     Type: Custom::RunSSMDocLambda
-    DependsOn: PathAgentCoreEndpoint
+    DependsOn: PathAgentCoreRuntime
     Properties:
       ServiceToken: !GetAtt RunSSMDocLambda.Arn
       ServiceTimeout: 305
@@ -774,7 +765,7 @@ Resources:
       DynamoDBTableName: !Ref PathSessionsTable
       AwsRegion: !Ref 'AWS::Region'
 
-  # Step 6: Check PATH Frontend completion
+  # Step 5: Check PATH Frontend completion
   CheckPathFrontendSSMDoc:
     Type: Custom::CheckSSMDocLambda
     DependsOn: RunPathFrontendSSMDoc
@@ -1158,10 +1149,6 @@ Outputs:
   PathAgentCoreRuntimeId:
     Description: PATH AgentCore Runtime ID
     Value: !GetAtt PathAgentCoreRuntime.AgentRuntimeId
-
-  PathAgentCoreEndpointArn:
-    Description: PATH AgentCore Runtime Endpoint ARN
-    Value: !GetAtt PathAgentCoreEndpoint.AgentRuntimeEndpointArn
 
   PathSessionsTableName:
     Description: PATH DynamoDB Sessions Table Name
