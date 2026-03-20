@@ -194,6 +194,15 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
                 }
               >
                 <SpaceBetween size="s">
+                  {/* Confidence indicator */}
+                  {item.confidence && item.confidence !== "high" && (
+                    <Alert type={item.confidence === "low" ? "warning" : "info"} header={item.confidence === "low" ? "추정 점수" : "추가 정보 권장"}>
+                      {item.information_gaps && item.information_gaps.length > 0
+                        ? `필요한 정보: ${item.information_gaps.join(" / ")}`
+                        : "추가 정보가 제공되면 더 정확한 평가가 가능합니다."}
+                    </Alert>
+                  )}
+
                   <Box variant="p" color="text-body-secondary">{item.reason}</Box>
 
                   {weakItem && (

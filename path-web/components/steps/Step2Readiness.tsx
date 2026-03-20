@@ -23,7 +23,7 @@ import {
 } from "@/lib/constants";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
-import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
+import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage, ConfidenceLevel } from "@/lib/types";
 
 interface Step2ReadinessProps {
   formData: FormData;
@@ -345,11 +345,32 @@ export function Step2Readiness({
                     {level.label} ({item.score}/10)
                   </StatusIndicator>
                   {details.name}
+                  {item.confidence && item.confidence !== "high" && (
+                    <Badge color={item.confidence === "low" ? "red" : "blue"}>
+                      {item.confidence === "low" ? "추정" : "보통"}
+                    </Badge>
+                  )}
                 </SpaceBetween>
               </Header>
             }
           >
             <SpaceBetween size="s">
+              {/* Confidence indicator */}
+              {item.confidence && item.confidence !== "high" && (
+                <Alert type={item.confidence === "low" ? "warning" : "info"}>
+                  <SpaceBetween size="xs">
+                    <Box variant="small" fontWeight="bold">
+                      {item.confidence === "low" ? "정보 부족으로 추정 점수입니다" : "추가 정보가 있으면 더 정확한 평가가 가능합니다"}
+                    </Box>
+                    {item.information_gaps && item.information_gaps.length > 0 && (
+                      <Box variant="small">
+                        필요한 정보: {item.information_gaps.join(" / ")}
+                      </Box>
+                    )}
+                  </SpaceBetween>
+                </Alert>
+              )}
+
               <Box variant="small" color="text-body-secondary">{item.current_state}</Box>
               <Box variant="p">{item.reason}</Box>
 

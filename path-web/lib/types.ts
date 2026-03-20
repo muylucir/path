@@ -39,11 +39,16 @@ export interface FeasibilityBreakdown {
   integration: number;
 }
 
-// Step2: Feasibility 상세 항목 (점수 + 근거)
+// 평가 신뢰도 레벨
+export type ConfidenceLevel = 'high' | 'medium' | 'low';
+
+// Step2: Feasibility 상세 항목 (점수 + 근거 + 신뢰도)
 export interface FeasibilityItemDetail {
   score: number;
   reason: string;
   current_state: string;
+  confidence?: ConfidenceLevel;
+  information_gaps?: string[];
   changed?: boolean;
   change_reason?: string;
 }

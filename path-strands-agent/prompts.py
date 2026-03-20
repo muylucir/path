@@ -23,47 +23,75 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 <evaluation_criteria>
 ## Feasibility 평가 기준 (총 50점)
 
+**채점 규칙**: 아래 기준표에서 현재 상황에 가장 가까운 점수를 선택하세요. 모든 점수(0-10)에 기준이 정의되어 있으므로, 기준표에 없는 점수를 부여하지 마세요.
+
 ### 1. 데이터 접근성 (10점)
-- **10점**: MCP 서버 또는 RAG 존재
-- **9점**: REST/GraphQL API 존재
-- **7점**: DB 직접 접근
-- **6점**: 파일 기반 (CSV, JSON, Excel)
-- **3점**: 화면 스크래핑 필요
-- **0점**: 오프라인/수동 데이터만
-감점: 데이터 소스 접근 권한 제약(NDA, 접근 승인 등) -1, 데이터 실시간성 제약(일배치 등) -1, 데이터 품질 이슈(결측, 비정규화) -1
+- **10점**: MCP 서버 또는 RAG 시스템이 이미 운영 중
+- **9점**: 잘 문서화된 REST/GraphQL API 존재 + 인증 간단 (API Key 등)
+- **8점**: REST/GraphQL API 존재하나 문서 불완전 또는 인증 복잡 (OAuth2 등)
+- **7점**: DB 직접 접근 가능 (읽기 전용, 스키마 문서화됨)
+- **6점**: 구조화된 파일 기반 접근 (CSV, JSON, Excel + 정기 업데이트)
+- **5점**: 파일 기반이나 비정형 데이터 또는 접근 절차 복잡 (승인 필요 등)
+- **4점**: 부분적 자동화 가능 (일부 API + 일부 수동 입력 혼합)
+- **3점**: 화면 스크래핑 필요 (정적 HTML, 구조 안정적)
+- **2점**: 스크래핑도 어려움 (동적 렌더링, CAPTCHA, 인증 벽)
+- **1점**: 대부분 수동 수집, 극히 일부만 디지털 형태로 존재
+- **0점**: 완전 오프라인/수동 데이터만 (종이 문서, 구두 정보)
+감점 요소 (위 기준에서 추가 차감): 접근 권한 제약(NDA, 승인) -1, 실시간성 제약(일배치) -1, 데이터 품질 이슈(결측, 비정규화) -1
 
 ### 2. 판단 명확성 (10점)
-- **10점**: 명확한 if-then 규칙
-- **8점**: 100+ 레이블링된 예시
-- **6점**: 암묵적 패턴 (문서화 안됨)
-- **4점**: 전문가 직감 의존
-- **2점**: "그냥 알 수 있어" (설명 불가)
-- **0점**: 기준 없음
+- **10점**: 명확한 if-then 규칙이 문서화됨 + 경계 케이스 처리 정의
+- **9점**: if-then 규칙 존재하나 일부 경계 케이스 미정의
+- **8점**: 100+ 레이블링된 예시 존재 (학습/참조 데이터)
+- **7점**: 50-100개 예시 또는 규칙 초안 존재 (정제 필요)
+- **6점**: 암묵적 패턴 존재 (담당자는 알지만 문서화 안됨)
+- **5점**: 담당자 인터뷰로 규칙 추출 가능한 수준
+- **4점**: 전문가 직감 의존 (경험 기반, 설명 가능하나 규칙화 안됨)
+- **3점**: 전문가마다 판단이 다름 (합의된 기준 없음)
+- **2점**: "그냥 알 수 있어" (설명 불가능한 판단)
+- **1점**: 기준이 매번 바뀜 (일관성 없음)
+- **0점**: 판단 기준 자체가 없음
 
 ### 3. 오류 허용도 (10점)
-- **10점**: 틀려도 괜찮음
-- **8점**: 리뷰 후 실행
-- **5점**: 90%+ 정확도 필요
-- **3점**: 99%+ 정확도 필요
-- **0점**: 100% 정확도 필수
+- **10점**: 틀려도 전혀 문제없음 (내부 참고용, 브레인스토밍)
+- **9점**: 틀려도 즉시 발견/수정 가능 (되돌리기 쉬움)
+- **8점**: 사람이 리뷰 후 실행 (초안 생성 → 검토 → 확정)
+- **7점**: 대부분 맞으면 OK, 가끔 오류 허용 (80%+ 정확도)
+- **6점**: 높은 정확도 기대하나 일부 오류 감수 (85%+ 정확도)
+- **5점**: 90%+ 정확도 필요 (오류 시 업무 재처리 비용 발생)
+- **4점**: 95%+ 정확도 필요 (오류 시 고객 불만 또는 비용 손실)
+- **3점**: 99%+ 정확도 필요 (오류 시 심각한 비즈니스 영향)
+- **2점**: 오류 시 법적/재무적 책임 발생 가능
+- **1점**: 오류 시 안전/생명에 영향 가능 (의료, 안전 시스템)
+- **0점**: 100% 정확도 필수 (오류 절대 불허, 규제 환경)
 
 ### 4. 지연 요구사항 (10점)
-- **10점**: 몇 시간 OK
-- **9점**: 몇 분 OK
-- **7점**: 1분 이내
-- **5점**: 10초 이내
-- **3점**: 3초 이내 실시간
-- **0점**: 밀리초 단위
-감점: 대량 처리(일 1만건+) -1, 동시 요청 처리(동시 100+) -1, SLA 보장 필수(다운타임 불허) -1
+- **10점**: 몇 시간~하루 OK (야간 배치, 비동기 처리)
+- **9점**: 몇 분 OK (이메일 응답, 보고서 생성)
+- **8점**: 2-5분 OK (대시보드 갱신, 알림 발송)
+- **7점**: 1분 이내 (챗봇 응답, 간단한 분석)
+- **6점**: 30초 이내 (사용자 대기 가능한 웹 요청)
+- **5점**: 10초 이내 (실시간 추천, 검색 결과)
+- **4점**: 5초 이내 (인터랙티브 UI 응답)
+- **3점**: 3초 이내 실시간 (검색 자동완성, 실시간 필터링)
+- **2점**: 1초 이내 (API 게이트웨이, 실시간 스트리밍)
+- **1점**: 수백 밀리초 이내 (고빈도 트레이딩 보조)
+- **0점**: 밀리초 단위 (HFT, 실시간 제어 시스템)
+감점 요소 (위 기준에서 추가 차감): 대량 처리(일 1만건+) -1, 동시 요청 처리(동시 100+) -1, SLA 보장 필수(다운타임 불허) -1
 
 ### 5. 통합 복잡도 (10점) — 연동 인터페이스 성숙도 기준
-- **10점**: 모든 연동 대상에 MCP 서버/SDK 존재
-- **8점**: 잘 문서화된 REST API로 연동 가능
-- **6점**: API 존재하나 문서/품질 부족
-- **4점**: 레거시 시스템 연동 필요
-- **2점**: 커스텀 어댑터 개발 필요
-- **0점**: API 없는 폐쇄 시스템
-감점: 방화벽/VPN -1, 인증 토큰 관리 복잡(OAuth2 등) -1, 트랜잭션/롤백 처리 -1, 데이터 정합성 보장 -1
+- **10점**: 모든 연동 대상에 MCP 서버/SDK 존재 + 문서 완비
+- **9점**: MCP/SDK 부분 존재 + 나머지는 잘 문서화된 REST API
+- **8점**: 잘 문서화된 REST API로 연동 가능 + 인증 간단
+- **7점**: REST API 존재 + 문서 있으나 인증/페이징 등 복잡도 있음
+- **6점**: API 존재하나 문서/품질 부족 (비공식 API, 버전 불안정)
+- **5점**: API 있으나 심각한 제약 (Rate Limit, 불완전 응답, 잦은 변경)
+- **4점**: 레거시 시스템 연동 필요 (SOAP, 메인프레임, 독자 프로토콜)
+- **3점**: 레거시 + 추가로 커스텀 변환 로직 필요
+- **2점**: 커스텀 어댑터 개발 필요 (독자 프로토콜, 스크래핑 기반 연동)
+- **1점**: 폐쇄 시스템이나 극히 제한된 내보내기(export) 기능 존재
+- **0점**: API 없는 완전 폐쇄 시스템 (수동 입력만 가능)
+감점 요소 (위 기준에서 추가 차감): 방화벽/VPN -1, 인증 토큰 관리 복잡(OAuth2 등) -1, 트랜잭션/롤백 처리 -1, 데이터 정합성 보장 -1
 </evaluation_criteria>
 
 <autonomy_evaluation>
@@ -105,12 +133,35 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 - 취약 항목에 대해 구체적인 개선 제안 필수
 </judgment_criteria>
 
+<confidence_assessment>
+## 평가 신뢰도 (Confidence) 및 정보 부족 (Information Gaps)
+
+각 항목을 평가할 때, 사용자 입력에서 해당 항목을 판단하기에 충분한 정보가 있는지 함께 평가하세요.
+
+### confidence 판정 기준
+- **high**: 사용자 입력에서 이 항목을 직접 판단할 수 있는 구체적 정보가 있음 (예: "Slack API 사용", "REST API 문서 있음" 등 명시적 언급)
+- **medium**: 간접적으로 추론 가능하나 핵심 정보가 1-2개 부족 (예: API 존재는 추론 가능하나 인증 방식 미확인)
+- **low**: 대부분 추측에 의존. 사용자 입력에 관련 정보가 거의 없음 (예: 데이터소스 언급 없이 데이터 접근성 평가)
+
+### information_gaps 작성 규칙
+- confidence가 "high"가 아닌 경우 반드시 작성
+- 해당 항목의 점수를 더 정확하게 하려면 필요한 구체적 정보를 나열
+- 각 gap은 "~인지 여부", "~에 대한 정보" 형태로 작성
+- 최대 3개까지
+- confidence가 "high"이면 빈 배열 []
+
+### 중요
+- confidence가 "low"인 항목은 점수를 중간값(5점) 쪽으로 보수적으로 부여하세요
+- 정보 부족으로 점수가 불확실한 경우, 낙관적 해석보다는 보수적으로 평가하세요
+</confidence_assessment>
+
 <style>
 **평가 스타일:**
 - 낙관적 해석 금지, 현실적으로 평가
 - 모든 점수에 구체적 근거 제시
 - 개선 제안은 실행 가능하고 구체적으로
 - 리스크를 숨기지 않고 명확히 제시
+- 정보 부족 시 추측하지 말고 confidence와 information_gaps로 명시
 </style>
 
 <skill_usage>
@@ -149,39 +200,52 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
 **중요: 각 항목에 대해 상세하고 풍성한 설명을 제공하세요.**
 - reason: 왜 이 점수를 주었는지 구체적인 근거 (2-3문장)
 - current_state: 현재 상태에 대한 상세 분석 (어떤 점이 좋고, 어떤 점이 부족한지)
-- improvement_suggestion: 실행 가능한 구체적인 개선 방안 (어떻게 준비하면 점수가 올라갈지)
+- confidence: 이 평가의 신뢰도 ("high" / "medium" / "low")
+- information_gaps: confidence가 high가 아닌 경우, 점수를 더 정확하게 하려면 필요한 정보 목록
 
 다음 JSON 형식으로 출력:
 {{
   "feasibility_breakdown": {{
     "data_access": {{
       "score": 7,
+      "confidence": "high/medium/low",
+      "information_gaps": ["confidence가 high가 아닌 경우 필요한 정보 나열", "최대 3개"],
       "reason": "이 점수를 준 구체적 근거. 언급된 데이터소스의 접근 방식, API 존재 여부, 인증 복잡도 등을 분석하여 2-3문장으로 설명",
       "current_state": "현재 데이터 접근 상황에 대한 상세 분석. 어떤 데이터에 어떻게 접근 가능한지, 제약사항은 무엇인지"
     }},
     "decision_clarity": {{
       "score": 7,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "판단 기준의 명확성에 대한 구체적 근거. 규칙화 가능 여부, 예시 데이터 존재 여부, 전문가 지식 문서화 정도 등",
       "current_state": "현재 판단 기준 상태. 어떤 판단을 내려야 하는지, 그 기준이 얼마나 명확한지 상세히 분석"
     }},
     "error_tolerance": {{
       "score": 7,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "오류 허용도에 대한 구체적 근거. 사용자가 선택한 오류 허용 수준과 실제 비즈니스 영향도 분석",
       "current_state": "현재 오류 허용 상황. 오류 발생 시 영향, 복구 가능성, 검토 프로세스 존재 여부 등"
     }},
     "latency": {{
       "score": 7,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "지연 요구사항에 대한 구체적 근거. 입력 트리거 유형에 따른 응답 시간 요구 분석",
       "current_state": "현재 지연 요구 상황. 실시간 필요 여부, 배치 처리 가능 여부, 예상 처리 시간 등"
     }},
     "integration": {{
       "score": 7,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "통합 복잡도에 대한 구체적 근거. 연동 인터페이스의 성숙도, MCP/SDK 존재 여부, API 문서화 수준 분석",
       "current_state": "현재 통합 상황. 어떤 시스템들과 연동이 필요한지, 각각의 연동 복잡도는 어떤지"
     }}
   }},
   "autonomy_requirement": {{
     "score": 7,
+    "confidence": "high/medium/low",
+    "information_gaps": [],
     "reason": "이 업무의 자율성 요구도에 대한 근거. 동적 판단, 예측 불가 상황, 결정적 프로세스 여부 등을 분석하여 2-3문장으로 설명",
     "current_state": "자율성 특성 분석. PROCESS 단계의 동적/결정적 성격, 예외 처리 복잡도, 출력 자유도 등"
   }},
@@ -205,32 +269,44 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
   "feasibility_breakdown": {{
     "data_access": {{
       "score": "[평가 기준표에 따라 산정]",
+      "confidence": "high/medium/low",
+      "information_gaps": ["confidence가 high가 아닌 경우만 작성"],
       "reason": "데이터 접근 방식과 API 존재 여부를 분석한 결과입니다. 인증 절차의 복잡도와 호출 제한 등도 함께 고려하여 점수를 산정했습니다.",
       "current_state": "현재 데이터 접근 방식에 대한 상세 분석"
     }},
     "decision_clarity": {{
       "score": "[평가 기준표에 따라 산정]",
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "의사결정 기준의 명확성을 분석한 결과입니다. 규칙의 문서화 정도와 예시 데이터 존재 여부를 종합적으로 검토했습니다.",
       "current_state": "현재 판단 기준 상태에 대한 상세 분석"
     }},
     "error_tolerance": {{
       "score": "[평가 기준표에 따라 산정]",
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "업무 특성에 따른 오류 허용 수준을 분석한 결과입니다. 오류 발생 시 비즈니스 영향도와 복구 가능성을 함께 고려했습니다.",
       "current_state": "현재 오류 허용 상황에 대한 상세 분석"
     }},
     "latency": {{
       "score": "[평가 기준표에 따라 산정]",
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "입력 트리거 유형과 업무 특성에 따른 응답 시간 요구를 분석한 결과입니다. 실시간 필요 여부와 배치 처리 가능 여부를 검토했습니다.",
       "current_state": "현재 지연 요구 상황에 대한 상세 분석"
     }},
     "integration": {{
       "score": "[평가 기준표에 따라 산정]",
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "연동 인터페이스의 성숙도와 API 문서화 수준을 분석한 결과입니다. MCP 서버/SDK 존재 여부와 인증 복잡도도 고려했습니다.",
       "current_state": "현재 통합 상황에 대한 상세 분석"
     }}
   }},
   "autonomy_requirement": {{
     "score": "[자율성 요구도 0-10 산정]",
+    "confidence": "high/medium/low",
+    "information_gaps": [],
     "reason": "이 업무가 에이전트의 자율적 판단을 얼마나 필요로 하는지 분석한 결과입니다. PROCESS 단계의 동적 성격과 예외 처리 복잡도를 종합적으로 검토했습니다.",
     "current_state": "자율성 특성에 대한 상세 분석"
   }},
@@ -305,6 +381,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
   "feasibility_breakdown": {{
     "data_access": {{
       "score": 0-10,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "이 점수를 준 구체적 근거 (2-3문장)",
       "current_state": "현재 데이터 접근 상황에 대한 상세 분석",
       "changed": true/false,
@@ -312,6 +390,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
     }},
     "decision_clarity": {{
       "score": 0-10,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "판단 기준 명확성에 대한 구체적 근거 (2-3문장)",
       "current_state": "현재 판단 기준 상태에 대한 상세 분석",
       "changed": true/false,
@@ -319,6 +399,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
     }},
     "error_tolerance": {{
       "score": 0-10,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "오류 허용도에 대한 구체적 근거 (2-3문장)",
       "current_state": "현재 오류 허용 상황에 대한 상세 분석",
       "changed": true/false,
@@ -326,6 +408,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
     }},
     "latency": {{
       "score": 0-10,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "지연 요구사항에 대한 구체적 근거 (2-3문장)",
       "current_state": "현재 지연 요구 상황에 대한 상세 분석",
       "changed": true/false,
@@ -333,6 +417,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
     }},
     "integration": {{
       "score": 0-10,
+      "confidence": "high/medium/low",
+      "information_gaps": [],
       "reason": "통합 복잡도에 대한 구체적 근거 (2-3문장)",
       "current_state": "현재 통합 상황에 대한 상세 분석",
       "changed": true/false,
@@ -341,6 +427,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
   }},
   "autonomy_requirement": {{
     "score": 0-10,
+    "confidence": "high/medium/low",
+    "information_gaps": [],
     "reason": "자율성 요구도에 대한 근거 (2-3문장). 개선 계획에 따라 자율성 요구가 변했는지 분석",
     "current_state": "자율성 특성 분석",
     "changed": true/false,
