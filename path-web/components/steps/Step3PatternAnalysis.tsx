@@ -418,8 +418,11 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
           chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
         }
       });
-    } else if (!isUserScrollingRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    } else if (!isUserScrollingRef.current && chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
     }
   }, [chatHistory, currentMessage]);
 
@@ -497,10 +500,10 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
               minHeight: "40vh",
               maxHeight: "calc(100vh - 350px)",
               overflowY: "auto",
+              overscrollBehavior: "contain",
               padding: 16,
               border: "1px solid var(--color-border-divider-default, #e9ebed)",
               borderRadius: 8,
-              scrollBehavior: "smooth",
             }}
             aria-live="polite"
             aria-label="대화 내용"
