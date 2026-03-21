@@ -262,17 +262,6 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
             );
           })()}
 
-          {feasibility.risks && feasibility.risks.length > 0 && (
-            <Alert type="warning" header="준비도 리스크">
-              <TextContent>
-                <ul>
-                  {feasibility.risks.map((risk, idx) => (
-                    <li key={idx}>{risk}</li>
-                  ))}
-                </ul>
-              </TextContent>
-            </Alert>
-          )}
         </SpaceBetween>
       )}
 
