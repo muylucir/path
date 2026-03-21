@@ -266,7 +266,7 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
       )}
 
       {/* Claude Process Analysis */}
-      <Container header={<Header variant="h2">PROCESS (Claude 분석)</Header>}>
+      <Container header={<Header variant="h2">AI Agent 동작 PROCESS</Header>}>
         <TextContent>
           <ol>
             {analysis.process_steps?.map((step, idx) => (
