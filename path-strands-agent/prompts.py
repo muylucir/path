@@ -203,6 +203,8 @@ Additional Context: {form_data.get('additionalContext') or '없음'}
 - confidence: 이 평가의 신뢰도 ("high" / "medium" / "low")
 - information_gaps: confidence가 high가 아닌 경우, 점수를 더 정확하게 하려면 필요한 정보 목록
 
+**타입 규칙 (필수)**: 모든 score 필드와 feasibility_score는 반드시 JSON 숫자 타입으로 출력하세요. 문자열("7")은 금지입니다.
+
 다음 JSON 형식으로 출력:
 {{
   "feasibility_breakdown": {{
@@ -373,6 +375,7 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
 - 막연한 계획은 점수에 반영하지 마세요
 - 변경된 항목과 변경 근거를 상세히 명시하세요
 - 각 항목의 reason과 current_state는 상세하게 작성하세요 (2-3문장)
+- 모든 숫자 필드(score, feasibility_score, previous_score, score_change)는 반드시 JSON 숫자 타입으로 출력하세요. 문자열("8") 금지
 - autonomy_requirement 점수는 개선 계획에 따라 상향 또는 하향 모두 가능합니다 (예: 자동화 범위가 좁아지면 자율성 요구도 하향)
 - feasibility_score는 5개 준비도 항목만의 합계입니다 (autonomy_requirement 미포함)
 
@@ -827,109 +830,96 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
             simple_breakdown[key] = value
 
     # 개선 방안 텍스트 구성
-    improvement_section = ""
+    improvement_xml = ""
     if improvement_plans:
         plans_with_content = {k: v for k, v in improvement_plans.items() if v and v.strip()}
         if plans_with_content:
-            improvement_section = "\n**사용자 개선 방안**:\n"
-            for item, plan in plans_with_content.items():
-                improvement_section += f"- {item}: {plan}\n"
+            plans_text = "\n".join([f"- {item}: {plan}" for item, plan in plans_with_content.items()])
+            improvement_xml = f"\n<improvement_plans>\n{plans_text}\n</improvement_plans>\n"
 
-    # 개선된 점수 계산 프롬프트 추가
-    improved_feasibility_prompt = ""
-    improved_feasibility_field = '"improved_feasibility": null,'
-    improved_feasibility_instruction = "- 개선 방안이 없거나 반영할 내용이 없으면 improved_feasibility는 null로 유지하세요."
-    if improvement_plans and any(v and v.strip() for v in improvement_plans.values()):
-        original_score = feasibility.get('feasibility_score', 0)
-        improved_feasibility_prompt = """
-**개선된 Feasibility 점수 계산 (improved_feasibility)**:
-사용자의 개선 방안과 대화 내용을 분석하여 예상되는 개선 점수를 계산하세요.
+    # 개선된 점수 계산 지시
+    has_improvements = improvement_plans and any(v and v.strip() for v in improvement_plans.values())
+    original_score = feasibility.get('feasibility_score', 0)
 
-계산 기준:
-1. 구체적이고 실행 가능한 개선 계획만 점수에 반영
-2. 항목당 최대 +3점 상향 가능
-3. 막연한 계획은 반영하지 않음
-4. 점수는 상향만 가능 (하향 불가)"""
-
-        improved_feasibility_field = f'''"improved_feasibility": {{
-    "score": "개선 후 총점 (숫자, 원본: {original_score})",
-    "score_change": "점수 변화량 (숫자)",
-    "breakdown": {{
-      "data_access": {{ "original_score": {simple_breakdown.get('data_access', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
-      "decision_clarity": {{ "original_score": {simple_breakdown.get('decision_clarity', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
-      "error_tolerance": {{ "original_score": {simple_breakdown.get('error_tolerance', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
-      "latency": {{ "original_score": {simple_breakdown.get('latency', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }},
-      "integration": {{ "original_score": {simple_breakdown.get('integration', 0)}, "improved_score": "개선후점수", "improvement_reason": "이유" }}
-    }},
-    "summary": "전체 개선 점수 요약 (1-2문장)"
-  }},'''
-        improved_feasibility_instruction = "- improved_feasibility를 반드시 계산하여 포함하세요. null로 두지 마세요."
+    improved_feasibility_rules = ""
+    if has_improvements:
+        improved_feasibility_rules = f"""
+7. improved_feasibility를 반드시 계산하여 포함하세요 (null 금지). 계산 기준:
+   - 구체적이고 실행 가능한 개선 계획만 점수에 반영
+   - 항목당 최대 +3점 상향 가능, 막연한 계획은 반영하지 않음
+   - 점수는 상향만 가능 (하향 불가)
+   - score: 개선 후 총점 (숫자, 원본: {original_score}), score_change: 변화량 (숫자)
+   - breakdown: 5개 항목별 original_score, improved_score(숫자), improvement_reason"""
+    else:
+        improved_feasibility_rules = "7. 개선 방안이 없으므로 improved_feasibility는 null로 설정하세요."
 
     # 아키텍처 판단을 위한 추가 정보
     process_count = len(form_data.get('processSteps', []))
     human_loop = form_data.get('humanLoop', '')
 
     if conversation_text is not None:
-        conversation_section = f"다음은 지금까지의 패턴 분석 대화입니다:\n\n{conversation_text}"
+        conversation_xml = f"<conversation>\n{conversation_text}\n</conversation>"
     else:
-        conversation_section = "위 대화 내용을 참고하여 최종 분석을 수행하세요."
+        conversation_xml = "<conversation>\n위 대화 내용(SDK messages)을 참고하여 최종 분석을 수행하세요.\n</conversation>"
 
-    return f"""{conversation_section}
+    # JSON 출력 스키마를 dict로 구성
+    output_schema = {
+        "pain_point": form_data.get('painPoint', ''),
+        "input_type": form_data.get('inputType', ''),
+        "input_detail": "INPUT 상세 설명",
+        "process_steps": ["단계1: 설명", "단계2: 설명"],
+        "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
+        "output_detail": "OUTPUT 상세 설명",
+        "human_loop": form_data.get('humanLoop', ''),
+        "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
+        "recommended_architecture": "single-agent 또는 multi-agent",
+        "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null",
+        "automation_level": "ai-assisted-workflow 또는 agentic-ai",
+        "automation_level_reason": "자동화 수준 판단 근거",
+        "updated_autonomy": {"score": 0, "reason": "대화 기반 자율성 재판단 설명 (2-3문장)"},
+        "architecture_reason": "권장 아키텍처 이유",
+        "pattern_reason": "패턴 선택 이유 (Feasibility 연계)",
+        "feasibility_breakdown": simple_breakdown,
+        "feasibility_score": feasibility.get('feasibility_score', 0),
+        "improved_feasibility": None,
+        "recommendation": "추천 사항",
+        "risks": ["리스크1", "리스크2"],
+        "next_steps": ["Phase 1: 설명", "Phase 2: 설명", "Phase 3: 설명"]
+    }
 
-**Feasibility 정보**:
-- 총점: {feasibility.get('feasibility_score', 0)}/50
-- 판정: {feasibility.get('judgment', '')}
-- 자율성 요구도: {feasibility.get('autonomy_requirement', {}).get('score', 'N/A')}/10
-{improvement_section}
+    return f"""{conversation_xml}
 
-**아키텍처 권장 판단 정보**:
-- PROCESS 단계 수: {process_count}개
-- Human-in-Loop: {human_loop}
-- 아키텍처 권장 기준:
-  - 🔵 싱글 에이전트: PROCESS 3개 이하, 도구 1-2개, Human-in-Loop None/Review, 순차 처리
-  - 🟣 멀티 에이전트: PROCESS 4개 이상, 도구 3개 이상, Human-in-Loop Collaborate, 병렬 처리 필요
-
+<feasibility>
+총점: {feasibility.get('feasibility_score', 0)}/50
+판정: {feasibility.get('judgment', '')}
+항목별 점수: {json.dumps(simple_breakdown, ensure_ascii=False)}
+자율성 요구도: {feasibility.get('autonomy_requirement', {}).get('score', 'N/A')}/10
+</feasibility>
+{improvement_xml}
+<architecture_guide>
+PROCESS 단계 수: {process_count}개
+Human-in-Loop: {human_loop}
+아키텍처 권장 기준:
+- 싱글 에이전트: PROCESS 3개 이하, 도구 1-2개, Human-in-Loop None/Review, 순차 처리
+- 멀티 에이전트: PROCESS 4개 이상, 도구 3개 이상, Human-in-Loop Collaborate, 병렬 처리 필요
 스킬 문서에 정의된 Agent 패턴 정보를 참조하세요.
+</architecture_guide>
 
-이제 최종 분석을 수행하세요. 다음을 JSON 형식으로 출력:
-{improved_feasibility_prompt}
-{{
-  "pain_point": {json.dumps(form_data.get('painPoint', ''), ensure_ascii=False)},
-  "input_type": {json.dumps(form_data.get('inputType', ''), ensure_ascii=False)},
-  "input_detail": "INPUT 상세",
-  "process_steps": ["단계1: 설명", "단계2: 설명", "..."],
-  "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
-  "output_detail": "OUTPUT 상세",
-  "human_loop": {json.dumps(form_data.get('humanLoop', ''), ensure_ascii=False)},
-  "pattern": "ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop (조합 가능)",
-  "recommended_architecture": "single-agent 또는 multi-agent (위 기준에 따라 판단)",
-  "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null (싱글 에이전트인 경우 null)",
-  "automation_level": "ai-assisted-workflow 또는 agentic-ai (자율성 요구도 기반 판단)",
-  "automation_level_reason": "자동화 수준 판단 근거. 자율성 요구도 점수, 프로세스 특성, 오류 허용도 등을 종합하여 설명",
-  "updated_autonomy": {{
-    "score": "대화를 통해 재판단된 자율성 요구도 점수 (0-10 숫자). 원본과 동일하면 원본 점수 유지.",
-    "reason": "대화 결과를 반영한 자율성 요구도에 대한 완전한 새 설명 (2-3문장). 원본 설명을 복사하지 말고, 대화에서 확인된 구체적 정보를 바탕으로 새로 작성하세요."
-  }},
-  "architecture_reason": "권장 아키텍처 이유 (문제의 특성 - 프로세스 단계 수, 도구 수, 협업 방식 기반으로 설명. 멀티 에이전트인 경우 선택한 협업 패턴의 적합성도 설명)",
-  "pattern_reason": "패턴 선택 이유 (Feasibility와 연계하여 설명)",
-  "feasibility_breakdown": {json.dumps(simple_breakdown)},
-  "feasibility_score": {feasibility.get('feasibility_score', 0)},
-  {improved_feasibility_field}
-  "recommendation": "추천 사항",
-  "risks": ["리스크1", "리스크2"],
-  "next_steps": [
-    "Phase 1: 핵심 기능 프로토타입 - 설명",
-    "Phase 2: 검증 및 테스트 - 설명",
-    "Phase 3: (선택적) 개선 및 확장 - 설명"
-  ]
-}}
+<output_schema>
+다음 JSON 스키마에 맞춰 출력하세요. 모든 숫자 필드는 반드시 숫자 타입으로 출력하세요 (문자열 금지).
+```json
+{json.dumps(output_schema, ensure_ascii=False, indent=2)}
+```
+</output_schema>
 
-중요:
-- pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
-- recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나로 출력하세요.
-- multi_agent_pattern은 멀티 에이전트인 경우 반드시 "agents-as-tools", "swarm", "graph", "workflow" 중 하나로 출력하세요. 싱글 에이전트인 경우 null.
-- architecture_reason은 왜 해당 아키텍처를 권장하는지 문제 특성을 기반으로 설명하세요. 멀티 에이전트인 경우 협업 패턴 선택 이유도 포함하세요.
-- automation_level은 반드시 "ai-assisted-workflow" 또는 "agentic-ai" 중 하나로 출력하세요. 자율성 요구도 ≤5이면 "ai-assisted-workflow", ≥6이면 "agentic-ai"를 기본으로 하되, 경계 영역(5-6)은 오류 허용도, 프로세스 복잡도 등을 추가 고려하세요.
-- updated_autonomy.score는 대화를 통해 재판단된 자율성 점수(0-10)입니다. 대화에서 자율성 요구가 변했다면 반영하고, automation_level과 일관되게 유지하세요 (≤5→ai-assisted-workflow, ≥6→agentic-ai).
-- {improved_feasibility_instruction}
-- JSON만 출력하세요."""
+<rules>
+1. pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
+2. recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나. multi_agent_pattern은 멀티인 경우 "agents-as-tools"/"swarm"/"graph"/"workflow" 중 하나, 싱글인 경우 null.
+3. automation_level은 "ai-assisted-workflow" 또는 "agentic-ai" 중 하나. 자율성 요구도 <=5이면 ai-assisted-workflow, >=6이면 agentic-ai 기본. 경계 영역(5-6)은 오류 허용도, 프로세스 복잡도를 추가 고려.
+4. updated_autonomy.score는 대화를 통해 재판단된 자율성 점수(0-10 숫자). automation_level과 일관되게 유지 (<=5 → ai-assisted-workflow, >=6 → agentic-ai).
+5. 대화 중 잠정 추천한 패턴/아키텍처와 최종 결론이 다른 경우, architecture_reason과 pattern_reason에 변경 근거를 반드시 명시하세요 (예: "대화에서 확인된 X 정보에 따라 멀티→싱글로 변경").
+6. 모든 숫자 필드(score, feasibility_score, score_change, original_score, improved_score)는 반드시 JSON 숫자 타입으로 출력하세요. 문자열("8")은 금지입니다.
+{improved_feasibility_rules}
+</rules>
+
+JSON만 출력하세요."""

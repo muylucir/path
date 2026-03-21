@@ -13,6 +13,7 @@ import re
 from safe_tools import safe_file_read
 from strands_utils import strands_utils, get_skill_prompt
 from token_tracker import extract_usage
+from schemas import FeasibilityEvaluation, PatternAnalysis
 from prompts import (
     FEASIBILITY_SYSTEM_PROMPT,
     get_feasibility_evaluation_prompt,
@@ -56,6 +57,25 @@ def _extract_json(response_text: str, context: str = "response") -> Dict[str, An
     raise ValueError(f"Failed to extract JSON from {context}")
 
 
+def _validate_feasibility(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Pydantic으로 Feasibility 평가 결과를 검증하고 타입을 강제 변환한다.
+    검증 실패 시 원본 dict를 그대로 반환 (graceful degradation)."""
+    try:
+        validated = FeasibilityEvaluation(**raw)
+        return validated.model_dump(exclude_none=False)
+    except Exception:
+        return raw
+
+
+def _validate_analysis(raw: Dict[str, Any]) -> Dict[str, Any]:
+    """Pydantic으로 패턴 확정 결과를 검증하고 타입을 강제 변환한다."""
+    try:
+        validated = PatternAnalysis(**raw)
+        return validated.model_dump(exclude_none=False)
+    except Exception:
+        return raw
+
+
 class FeasibilityAgent:
     """Step2: Feasibility 평가 전용 Agent"""
 
@@ -78,6 +98,7 @@ class FeasibilityAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
         parsed = _extract_json(response_text, "feasibility evaluation")
+        parsed = _validate_feasibility(parsed)
         parsed["_usage"] = extract_usage(result)
         return parsed
 
@@ -129,6 +150,7 @@ class FeasibilityAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
         parsed = _extract_json(response_text, "feasibility evaluation")
+        parsed = _validate_feasibility(parsed)
         parsed["_usage"] = extract_usage(result)
         return parsed
 
@@ -138,6 +160,7 @@ class FeasibilityAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
         parsed = _extract_json(response_text, "feasibility re-evaluation")
+        parsed = _validate_feasibility(parsed)
         parsed["_usage"] = extract_usage(result)
         return parsed
 
@@ -317,14 +340,7 @@ class PatternAnalyzerAgent:
         result = self.agent(prompt)
         response_text = result.message['content'][0]['text']
         parsed = _extract_json(response_text, "pattern finalization")
-
-        # improved_feasibility 유효성 검증: 불완전한 객체 방어
-        improved = parsed.get("improved_feasibility")
-        if improved is not None:
-            if (not isinstance(improved, dict)
-                or not isinstance(improved.get("score"), (int, float))
-                or not isinstance(improved.get("score_change"), (int, float))):
-                parsed["improved_feasibility"] = None
+        parsed = _validate_analysis(parsed)
 
         parsed["_usage"] = extract_usage(result)
         return parsed
