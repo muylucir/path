@@ -265,17 +265,6 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
         </SpaceBetween>
       )}
 
-      {/* Claude Process Analysis */}
-      <Container header={<Header variant="h2">AI Agent 동작 PROCESS</Header>}>
-        <TextContent>
-          <ol>
-            {analysis.process_steps?.map((step, idx) => (
-              <li key={idx}>{step}</li>
-            ))}
-          </ol>
-        </TextContent>
-      </Container>
-
       {/* Analysis Risks */}
       {risks && risks.length > 0 && (
         <Alert type="warning" header="리스크 및 고려사항">
