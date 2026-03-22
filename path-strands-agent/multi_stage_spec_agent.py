@@ -246,13 +246,23 @@ class MermaidValidator:
 class DesignAgent:
     """1단계: Agent 설계 (프레임워크 독립적)"""
 
-    # 패턴명 → reference 파일 매핑
+    # 패턴명 → reference 파일 매핑 (Layer 2: LLM Workflows + Layer 1: Agent Patterns)
     PATTERN_REFERENCE_MAP = {
+        # Layer 2: LLM Workflows
         'ReAct': 'react-pattern.md',
         'Reflection': 'reflection-pattern.md',
-        'Tool Use': 'tool-use-pattern.md',
         'Planning': 'planning-pattern.md',
+        'Prompt Chaining': 'prompt-chaining.md',
+        'Routing': 'routing-pattern.md',
+        'Parallelization': 'parallelization.md',
         'Human-in-the-Loop': 'human-in-loop-pattern.md',
+        # Layer 1: Agent Patterns
+        'Tool Use': 'tool-agent.md',
+        'RAG': 'rag-agent.md',
+        'Tool Server': 'tool-server-agent.md',
+        'Coding': 'coding-agent.md',
+        'Memory': 'memory-agent.md',
+        'Observer': 'observer-agent.md',
     }
 
     def __init__(self):
@@ -333,15 +343,15 @@ class DesignAgent:
         if ref_file:
             ref_instructions += (
                 f'\n**필수 2단계**: file_read로 '
-                f'"./skills/universal-agent-patterns/references/{ref_file}"를 읽으세요.'
+                f'"./skills/agent-patterns/references/{ref_file}"를 읽으세요.'
             )
         # 멀티 에이전트 아키텍처인 경우 추가 reference
         recommended_arch = analysis.get('recommended_architecture', '')
         if recommended_arch == 'multi-agent':
             ref_instructions += (
                 '\n**필수 추가**: file_read로 '
-                '"./skills/universal-agent-patterns/references/multi-agent-pattern.md"와 '
-                '"./skills/universal-agent-patterns/references/state-management.md"를 읽으세요.'
+                '"./skills/agent-patterns/references/multi-agent-pattern.md"와 '
+                '"./skills/agent-patterns/references/state-management.md"를 읽으세요.'
             )
 
         # 자동화 수준 안내
@@ -362,7 +372,7 @@ class DesignAgent:
 - 전체 흐름은 워크플로우 엔진/코드가 제어하고, AI는 개별 단계(요약, 분류, 생성 등)에서만 활용
 - 각 AI 호출 지점(Integration Point)의 입출력 스키마를 명확히 정의
 - 폴백 전략 필수: AI 실패 시 기본값 또는 사람 에스컬레이션
-- AI 단계별 적합한 모델 선택 (분류: Haiku, 생성: Sonnet)
+- AI 단계별 적합한 모델 선택 (분류: 경량 모델, 생성: 중간 이상 모델)
 
 **파이프라인 패턴 선택:**
 - 순차 처리 → Sequential Pipeline
@@ -370,20 +380,16 @@ class DesignAgent:
 - AI 판단 기반 분기 → Conditional Pipeline
 - 외부 이벤트 반응 → Event-driven Pipeline
 
-**구현 기술:**
-- AWS Step Functions + Lambda + Bedrock (서버리스 권장)
-- 또는 코드 기반 파이프라인 (단순한 경우)
-
-**필수 참조**: file_read로 "./skills/ai-assisted-workflow/SKILL.md"를 읽고,
-"./skills/ai-assisted-workflow/references/pipeline-patterns.md"와
-"./skills/ai-assisted-workflow/references/ai-integration-guide.md"를 참조하세요.
+**필수 참조**: file_read로 "./skills/agent-patterns/SKILL.md"를 읽고,
+"./skills/agent-patterns/references/pipeline-patterns.md"를 참조하세요.
 """
         elif automation_level == 'agentic-ai':
             automation_guidance = """
 **자동화 수준: Agentic AI**
 이 프로젝트는 에이전트가 자율적으로 도구를 선택하고 판단하는 방식입니다.
+- 3계층 택소노미로 설계: Agent Pattern(에이전트 유형) × LLM Workflow(인지 패턴) × Agentic Workflow(협업 방식)
 - Agent가 상황에 따라 동적으로 경로와 도구를 결정
-- ReAct, Planning 등 에이전트 패턴을 적극 활용하세요
+- 적합한 Agent Pattern(RAG, Tool-based, Memory 등)과 LLM Workflow(ReAct, Planning, Routing 등)를 조합하세요
 """
 
         prompt = f"""다음 분석 결과를 바탕으로 프레임워크 독립적인 Agent 설계를 수행하세요:
@@ -394,7 +400,7 @@ class DesignAgent:
 {context_section}
 {improvement_section}
 
-**필수 1단계**: file_read로 "universal-agent-patterns" 스킬의 SKILL.md를 읽으세요.
+**필수 1단계**: file_read로 "./skills/agent-patterns/SKILL.md"를 읽으세요.
 {ref_instructions}
 **필수 최종단계**: 스킬과 reference를 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
@@ -408,9 +414,11 @@ class DesignAgent:
 
 ## 2. Agent Design Pattern
 
-### 2.1 Pattern Selection
-- **Primary Pattern**: [ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop]
-- **Pattern Combination**: [조합 패턴, 해당시]
+### 2.1 Pattern Selection (3-Layer Taxonomy)
+- **Layer 1 — Agent Pattern**: [RAG/Tool-based/Tool Server/Coding/Memory/Observer 등 에이전트 유형]
+- **Layer 2 — LLM Workflow**: [ReAct/Reflection/Planning/Prompt Chaining/Routing/Parallelization/Human-in-the-Loop]
+- **Layer 3 — Agentic Workflow**: [싱글 에이전트 / Agents as Tools / Swarm / Graph / Workflow] (멀티 에이전트 시)
+- **Pattern Combination**: [3계층 조합 요약, 예: "RAG + ReAct + Agents as Tools"]
 - **Selection Rationale**: [선택 이유 2-3문장]
 
 ### 2.2 Agent Components
