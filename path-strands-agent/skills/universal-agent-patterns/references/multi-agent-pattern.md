@@ -187,7 +187,7 @@ Round 3:
 
 ### 3. Graph (그래프)
 
-방향성 그래프(DAG)로 정보 흐름과 실행 경로를 정의합니다.
+결정적 방향 그래프 기반 오케스트레이션 시스템입니다. Agent, 커스텀 노드, 또는 다른 멀티 에이전트 시스템이 그래프의 노드가 되어 정의된 의존관계에 따라 실행됩니다.
 
 ```
 Planner → Agent1 → Agent4 ↘
@@ -199,74 +199,105 @@ Planner → Agent1 → Agent4 ↘
 
 | 항목 | 설명 |
 |------|------|
-| **구조** | 방향성 비순환 그래프 (DAG) |
-| **통신** | 정의된 경로를 따라 흐름 |
-| **적합** | 복잡한 다단계 결정, 조건부 분기 필요 |
-| **장점** | 세밀한 제어, 예측 가능한 실행 흐름 |
-| **단점** | 설계 노력 필요, 유연성 낮음 |
+| **구조** | 방향성 그래프 (DAG 또는 순환 그래프) |
+| **통신** | 엣지를 따라 출력 전파, 조건부 엣지로 동적 라우팅 |
+| **적합** | 복잡한 다단계 결정, 조건부 분기, 병렬 처리+집계 |
+| **장점** | 세밀한 실행 제어, 예측 가능한 흐름, 병렬 실행, 순환 지원 |
+| **단점** | 설계 노력 필요, 그래프 구조 사전 정의 필수 |
+
+#### 핵심 구성요소
+
+| 구성요소 | 역할 |
+|---------|------|
+| **GraphNode** | 그래프의 노드 (Agent, A2AAgent, MultiAgentBase 등) |
+| **GraphEdge** | 노드 간 연결 (조건부 함수로 동적 라우팅 가능) |
+| **GraphBuilder** | 그래프 구성 인터페이스 (add_node, add_edge, set_entry_point, build) |
+
+#### 주요 토폴로지
+
+**1. Sequential Pipeline (순차 파이프라인)**
+
+```
+Research → Analysis → Review → Report
+```
+
+각 노드가 이전 노드에 의존하는 선형 체인. 다단계 순차 처리에 적합.
+
+**2. Parallel Processing with Aggregation (병렬 처리 + 집계)**
+
+```
+        ┌→ Worker 1 ┐
+Coordinator → Worker 2 → Aggregator
+        └→ Worker 3 ┘
+```
+
+여러 전문 에이전트가 병렬 처리 후 결과를 하나로 합침. 독립적 분석을 분산 처리할 때 적합.
+
+**3. Branching Logic (조건부 분기)**
+
+```
+Classifier ─→ Technical Branch → Technical Report
+           └→ Business Branch → Business Report
+```
+
+분류 결과에 따라 서로 다른 전문가 경로로 라우팅. 조건부 엣지(condition function)로 구현.
+
+**4. Feedback Loop (피드백 루프)**
+
+```
+Draft Writer → Reviewer → {Needs Revision? → Draft Writer | Approved → Publisher}
+```
+
+반복적 개선이 필요한 품질 보증 워크플로우. `set_max_node_executions()`로 무한 루프 방지 필수.
 
 #### 적합한 상황
 
 - 복잡한 계층적 의사결정
 - 보안/데이터 흐름 제어가 중요한 경우
 - 조건부 분기가 필요한 워크플로우
+- 병렬 처리 후 결과 집계가 필요한 경우
+- 반복적 품질 개선 루프가 필요한 경우
 
 #### 구현 예시
 
 ```python
-# Strands Agents - Graph Pattern
+# Strands Agents - Graph Pattern (GraphBuilder API)
 from strands import Agent
-from typing import Dict, Any
+from strands.multiagent.graph import GraphBuilder
 
-class AgentGraph:
-    def __init__(self):
-        self.nodes: Dict[str, Agent] = {}
-        self.edges: Dict[str, list] = {}
-        self.conditions: Dict[str, callable] = {}
+# 에이전트 정의
+validator = Agent(system_prompt="문서 유효성을 검증하세요. 결과에 '유효' 또는 '무효'를 포함하세요.")
+legal_review = Agent(system_prompt="법률 관점에서 문서를 검토하세요.")
+finance_review = Agent(system_prompt="재무 관점에서 문서를 검토하세요. 결과에 '승인' 또는 '반려'를 포함하세요.")
+final_approver = Agent(system_prompt="최종 승인을 처리하세요.")
+rejector = Agent(system_prompt="반려 사유를 정리하세요.")
 
-    def add_node(self, name: str, agent: Agent):
-        self.nodes[name] = agent
-        self.edges[name] = []
+# GraphBuilder로 그래프 구성
+graph = (
+    GraphBuilder()
+    .add_node("validator", validator)
+    .add_node("legal_review", legal_review)
+    .add_node("finance_review", finance_review)
+    .add_node("final_approver", final_approver)
+    .add_node("rejector", rejector)
+    .set_entry_point("validator")
+    # 조건부 엣지: validator 결과에 따라 분기
+    .add_edge("validator", "legal_review", condition=lambda result: "유효" in str(result))
+    .add_edge("validator", "rejector", condition=lambda result: "무효" in str(result))
+    .add_edge("legal_review", "finance_review")
+    # 조건부 엣지: finance_review 결과에 따라 분기
+    .add_edge("finance_review", "final_approver", condition=lambda result: "승인" in str(result))
+    .add_edge("finance_review", "rejector", condition=lambda result: "반려" in str(result))
+    # 실행 안전장치
+    .set_max_node_executions(20)
+    .set_execution_timeout(300)
+    .build()
+)
 
-    def add_edge(self, from_node: str, to_node: str, condition=None):
-        self.edges[from_node].append((to_node, condition))
-
-    def execute(self, start: str, input_data: str) -> str:
-        current = start
-        result = input_data
-        visited = set()
-
-        while current and current not in visited:
-            visited.add(current)
-            agent = self.nodes[current]
-            result = agent(result).message['content'][0]['text']
-
-            # 다음 노드 결정 (조건부 분기)
-            next_node = None
-            for to_node, condition in self.edges[current]:
-                if condition is None or condition(result):
-                    next_node = to_node
-                    break
-            current = next_node
-
-        return result
-
-# Graph 구성 예시: 문서 승인 프로세스
-graph = AgentGraph()
-
-# 노드 추가
-graph.add_node("validator", Agent(system_prompt="문서 유효성 검증..."))
-graph.add_node("legal_review", Agent(system_prompt="법률 검토..."))
-graph.add_node("finance_review", Agent(system_prompt="재무 검토..."))
-graph.add_node("final_approver", Agent(system_prompt="최종 승인..."))
-graph.add_node("rejector", Agent(system_prompt="반려 처리..."))
-
-# 엣지 추가 (조건부 분기)
-graph.add_edge("validator", "legal_review", lambda r: "유효" in r)
-graph.add_edge("validator", "rejector", lambda r: "무효" in r)
-graph.add_edge("legal_review", "finance_review")
-graph.add_edge("finance_review", "final_approver", lambda r: "승인" in r)
-graph.add_edge("finance_review", "rejector", lambda r: "반려" in r)
+# 실행
+result = graph("계약서 검토 요청: ...")
+print(result.status)           # COMPLETED / FAILED
+print(result.execution_order)  # ['validator', 'legal_review', ...]
 ```
 
 #### 실행 흐름
@@ -285,8 +316,17 @@ graph.add_edge("finance_review", "rejector", lambda r: "반려" in r)
     ├─ (승인) → [Final Approver] → 최종 승인
     └─ (반려) → [Rejector] → 반려
 
-[Output] 승인/반려 결과
+[Output] 승인/반려 결과 + execution_order + 노드별 메트릭
 ```
+
+#### 실행 안전장치
+
+| 설정 | 용도 |
+|------|------|
+| `set_max_node_executions(n)` | 전체 노드 실행 횟수 제한 (순환 그래프 무한 루프 방지) |
+| `set_execution_timeout(sec)` | 그래프 전체 실행 시간 제한 |
+| `set_node_timeout(sec)` | 개별 노드 실행 시간 제한 |
+| `reset_on_revisit(bool)` | 순환 시 노드 상태 초기화 여부 |
 
 ---
 
@@ -439,4 +479,5 @@ result = workflow.execute(
 ## 참고 자료
 
 - [AWS Blog: Multi-Agent collaboration patterns with Strands Agents](https://aws.amazon.com/blogs/machine-learning/multi-agent-collaboration-patterns-with-strands-agents-and-amazon-nova/)
-- [Strands Agents SDK Documentation](https://strandsagents.com/latest/documentation/docs/user-guide/concepts/multi-agent/)
+- [Strands Agents SDK - Graph Pattern](https://strandsagents.com/docs/user-guide/concepts/multi-agent/graph/)
+- [Strands Agents SDK - Multi-Agent Overview](https://strandsagents.com/docs/user-guide/concepts/multi-agent/)
