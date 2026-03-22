@@ -40,6 +40,22 @@ class FeasibilityItemDetail(BaseModel):
         return v
 
 
+class LayerHints(BaseModel):
+    """3계층 택소노미 힌트 (내부용)"""
+    agent_patterns: list[str] = Field(default_factory=list)
+    llm_workflows: list[str] = Field(default_factory=list)
+    agentic_workflow: Optional[str] = None
+
+
+class DesignSignals(BaseModel):
+    """설계 신호 — 내부 분석용, 프론트엔드에 노출하지 않음.
+    PatternAnalyzerAgent의 컨텍스트로 전달되어 초기 분석 품질을 높인다."""
+    reasoning_characteristics: list[str] = Field(default_factory=list)
+    collaboration_characteristics: list[str] = Field(default_factory=list)
+    layer_hints: Optional[LayerHints] = None
+    rationale: str = ""
+
+
 class FeasibilityEvaluation(BaseModel):
     """Step 2: Feasibility 평가 전체 결과"""
     feasibility_breakdown: dict[str, FeasibilityItemDetail]
@@ -49,6 +65,8 @@ class FeasibilityEvaluation(BaseModel):
     weak_items: list[dict] = Field(default_factory=list)
     risks: list[str] = Field(default_factory=list)
     summary: str
+    # 내부용: 패턴 분석 에이전트의 컨텍스트로 활용 (프론트엔드 미노출)
+    design_signals: Optional[DesignSignals] = None
     # 재평가 전용
     previous_score: Optional[int] = None
     score_change: Optional[int] = None
