@@ -8,6 +8,7 @@ export default auth((req) => {
   const isPublicPath =
     pathname === "/" ||
     pathname.startsWith("/guide") ||
+    pathname.startsWith("/patterns") ||
     pathname.startsWith("/auth") ||
     pathname.startsWith("/api/health") ||
     pathname.startsWith("/api/auth");
@@ -41,5 +42,5 @@ export default auth((req) => {
 
 export const config = {
   matcher:
-    "/((?!guide|auth|api/health|api/auth|_next/static|_next/image|favicon\\.ico|.*\\.woff2$).*)",
+    "/((?!guide|patterns|auth|api/health|api/auth|_next/static|_next/image|favicon\\.ico|.*\\.woff2$).*)",
 };
