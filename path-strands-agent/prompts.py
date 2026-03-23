@@ -1047,6 +1047,7 @@ Human-in-Loop: {human_loop}
 6. 모든 숫자 필드(score, feasibility_score, score_change, original_score, improved_score)는 반드시 JSON 숫자 타입으로 출력하세요. 문자열("8")은 금지입니다.
 7. pattern 필드는 반드시 "Layer1(패턴 + 패턴) + Layer2(패턴 + 패턴) + Layer3(패턴)" 형식으로 작성하세요. 각 Layer 내부 패턴은 +로 결합하고, 각 Layer는 Layer1()/Layer2()/Layer3() 접두사와 괄호로 감싸고, Layer 간은 +로 결합합니다. 예시: "Layer1(RAG + Tool-based) + Layer2(ReAct + Routing) + Layer3(Workflow)". 다른 구분자(x, ., /, 등) 사용 금지.
 {improved_feasibility_rules}
+9. next_steps의 Phase 1은 반드시 E2E로 동작하는 최소 파이프라인(MVP)이어야 합니다. 기술 컴포넌트별(Agent별)로 Phase를 나누지 마세요. Phase 1만으로 사용자가 실제로 사용할 수 있는 결과물이 나와야 합니다. 예: "수집+분석+작성 전체를 간소화된 형태로 구현" (O), "수집 Agent만 구축" (X).
 </rules>
 
 JSON만 출력하세요."""
