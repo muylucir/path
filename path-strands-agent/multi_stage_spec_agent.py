@@ -722,11 +722,11 @@ class PromptAgent:
         )
 
     def _create_per_agent_instance(self):
-        """병렬 호출용 경량 Agent 인스턴스 생성 (max_tokens=16000)"""
+        """병렬 호출용 Agent 인스턴스 생성 (max_tokens=20000)"""
         return strands_utils.get_agent(
             system_prompts=self._enhanced_prompt,
             model_id=DEFAULT_MODEL_ID,
-            max_tokens=16000,
+            max_tokens=20000,
             temperature=0.3,
             tools=[safe_file_read]
         )
