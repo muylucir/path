@@ -134,14 +134,29 @@ export const GLOSSARY = {
   triggerType: { term: "트리거 타입", description: "Agent가 작동을 시작하는 조건 (이벤트, 일정, 요청 등)" },
   humanInLoop: { term: "Human-in-Loop", description: "AI가 작업하는 과정에서 사람이 개입하는 방식과 시점" },
   errorTolerance: { term: "오류 허용도", description: "AI의 실수가 비즈니스에 미치는 영향의 크기" },
-  // Step 3 용어
-  agentPattern: { term: "Agent 패턴", description: "AI Agent가 문제를 해결하는 방식 (예: 생각→행동→관찰 반복)" },
+  // Step 3 용어 — 3계층 택소노미
+  threeLayerTaxonomy: { term: "3계층 택소노미", description: "Agent Pattern(유형) × LLM Workflow(추론) × Agentic Workflow(협업)로 에이전트를 설계하는 체계" },
+  agentPattern: { term: "Agent Pattern", description: "에이전트의 기본 유형 (RAG, Tool-based, Coding, Memory 등)" },
+  llmWorkflow: { term: "LLM Workflow", description: "에이전트 내부의 추론 방식 (ReAct, Reflection, Planning 등)" },
+  agenticWorkflow: { term: "Agentic Workflow", description: "여러 에이전트 간의 조율 방식 (Agents as Tools, Swarm, Graph 등)" },
   singleAgent: { term: "싱글 에이전트", description: "하나의 AI Agent가 모든 작업을 순차 처리" },
   multiAgent: { term: "멀티 에이전트", description: "여러 전문 AI Agent가 역할을 나눠 협업" },
+  // Layer 1: Agent Patterns
+  rag: { term: "RAG", description: "외부 지식을 검색하여 LLM의 응답을 사실 기반으로 보강하는 에이전트 유형" },
+  toolBased: { term: "Tool-based Agent", description: "외부 도구/API를 호출하여 실제 작업을 수행하는 에이전트" },
+  memoryAgent: { term: "Memory Agent", description: "단기/장기 메모리로 대화 맥락과 사용자 선호를 기억하는 에이전트" },
+  // Layer 2: LLM Workflows
+  react: { term: "ReAct", description: "생각(Think) → 행동(Act) → 관찰(Observe)을 반복하는 추론 방식" },
+  reflection: { term: "Reflection", description: "생성 → 평가 → 개선을 반복하여 출력 품질을 높이는 방식" },
+  promptChaining: { term: "Prompt Chaining", description: "여러 LLM 호출을 순차 연결하여 복잡한 작업을 단계별로 처리" },
+  routing: { term: "Routing", description: "LLM이 입력의 의도를 분류하고 전문 처리기로 분배하는 방식" },
+  parallelization: { term: "Parallelization", description: "독립적 작업을 병렬로 처리한 뒤 결과를 합산하는 방식" },
+  // Layer 3: Agentic Workflows
   agentsAsTools: { term: "Agents as Tools", description: "지휘자 Agent가 전문 Agent를 도구처럼 호출하는 방식" },
   swarm: { term: "Swarm", description: "동등한 Agent들이 서로 작업을 넘겨주며(handoff) 협업하는 방식" },
   graph: { term: "Graph", description: "방향성 그래프로 Agent 간 정보 흐름과 의사결정 경로를 정의" },
   workflow: { term: "Workflow", description: "미리 정의된 순서대로 Agent가 단계별로 실행하는 파이프라인" },
+  // 자동화 수준
   aiAssistedWorkflow: { term: "AI-Assisted Workflow", description: "전체 흐름은 고정하고, 특정 단계에서만 AI를 활용하는 방식 (예: 요약, 분류)" },
   agenticAI: { term: "Agentic AI", description: "AI가 스스로 판단하고 도구를 선택하며 자율적으로 작업하는 방식" },
   feasibility: { term: "Feasibility (준비도)", description: "아이디어를 AI Agent로 구현할 수 있는 기술적 준비 상태" },

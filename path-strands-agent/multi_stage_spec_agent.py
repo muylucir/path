@@ -246,13 +246,23 @@ class MermaidValidator:
 class DesignAgent:
     """1단계: Agent 설계 (프레임워크 독립적)"""
 
-    # 패턴명 → reference 파일 매핑
+    # 패턴명 → reference 파일 매핑 (Layer 2: LLM Workflows + Layer 1: Agent Patterns)
     PATTERN_REFERENCE_MAP = {
+        # Layer 2: LLM Workflows
         'ReAct': 'react-pattern.md',
         'Reflection': 'reflection-pattern.md',
-        'Tool Use': 'tool-use-pattern.md',
         'Planning': 'planning-pattern.md',
+        'Prompt Chaining': 'prompt-chaining.md',
+        'Routing': 'routing-pattern.md',
+        'Parallelization': 'parallelization.md',
         'Human-in-the-Loop': 'human-in-loop-pattern.md',
+        # Layer 1: Agent Patterns
+        'Tool Use': 'tool-agent.md',
+        'RAG': 'rag-agent.md',
+        'Tool Server': 'tool-server-agent.md',
+        'Coding': 'coding-agent.md',
+        'Memory': 'memory-agent.md',
+        'Observer': 'observer-agent.md',
     }
 
     def __init__(self):
@@ -333,15 +343,15 @@ class DesignAgent:
         if ref_file:
             ref_instructions += (
                 f'\n**필수 2단계**: file_read로 '
-                f'"./skills/universal-agent-patterns/references/{ref_file}"를 읽으세요.'
+                f'"./skills/agent-patterns/references/{ref_file}"를 읽으세요.'
             )
         # 멀티 에이전트 아키텍처인 경우 추가 reference
         recommended_arch = analysis.get('recommended_architecture', '')
         if recommended_arch == 'multi-agent':
             ref_instructions += (
                 '\n**필수 추가**: file_read로 '
-                '"./skills/universal-agent-patterns/references/multi-agent-pattern.md"와 '
-                '"./skills/universal-agent-patterns/references/state-management.md"를 읽으세요.'
+                '"./skills/agent-patterns/references/multi-agent-pattern.md"와 '
+                '"./skills/agent-patterns/references/state-management.md"를 읽으세요.'
             )
 
         # 자동화 수준 안내
@@ -362,7 +372,7 @@ class DesignAgent:
 - 전체 흐름은 워크플로우 엔진/코드가 제어하고, AI는 개별 단계(요약, 분류, 생성 등)에서만 활용
 - 각 AI 호출 지점(Integration Point)의 입출력 스키마를 명확히 정의
 - 폴백 전략 필수: AI 실패 시 기본값 또는 사람 에스컬레이션
-- AI 단계별 적합한 모델 선택 (분류: Haiku, 생성: Sonnet)
+- AI 단계별 적합한 모델 선택 (분류: 경량 모델, 생성: 중간 이상 모델)
 
 **파이프라인 패턴 선택:**
 - 순차 처리 → Sequential Pipeline
@@ -370,20 +380,18 @@ class DesignAgent:
 - AI 판단 기반 분기 → Conditional Pipeline
 - 외부 이벤트 반응 → Event-driven Pipeline
 
-**구현 기술:**
-- AWS Step Functions + Lambda + Bedrock (서버리스 권장)
-- 또는 코드 기반 파이프라인 (단순한 경우)
+**출력 헤딩 변환**: "## 2. Agent Design Pattern" 대신 "## 2. 파이프라인 아키텍처"를 사용하세요. 하위 ### 헤딩은 그대로 유지합니다.
 
-**필수 참조**: file_read로 "./skills/ai-assisted-workflow/SKILL.md"를 읽고,
-"./skills/ai-assisted-workflow/references/pipeline-patterns.md"와
-"./skills/ai-assisted-workflow/references/ai-integration-guide.md"를 참조하세요.
+**필수 참조**: file_read로 "./skills/agent-patterns/SKILL.md"를 읽고,
+"./skills/agent-patterns/references/pipeline-patterns.md"를 참조하세요.
 """
         elif automation_level == 'agentic-ai':
             automation_guidance = """
 **자동화 수준: Agentic AI**
 이 프로젝트는 에이전트가 자율적으로 도구를 선택하고 판단하는 방식입니다.
+- 3계층 택소노미로 설계: Agent Pattern(에이전트 유형) × LLM Workflow(인지 패턴) × Agentic Workflow(협업 방식)
 - Agent가 상황에 따라 동적으로 경로와 도구를 결정
-- ReAct, Planning 등 에이전트 패턴을 적극 활용하세요
+- 적합한 Agent Pattern(RAG, Tool-based, Memory 등)과 LLM Workflow(ReAct, Planning, Routing 등)를 조합하세요
 """
 
         prompt = f"""다음 분석 결과를 바탕으로 프레임워크 독립적인 Agent 설계를 수행하세요:
@@ -394,7 +402,7 @@ class DesignAgent:
 {context_section}
 {improvement_section}
 
-**필수 1단계**: file_read로 "universal-agent-patterns" 스킬의 SKILL.md를 읽으세요.
+**필수 1단계**: file_read로 "./skills/agent-patterns/SKILL.md"를 읽으세요.
 {ref_instructions}
 **필수 최종단계**: 스킬과 reference를 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
@@ -405,12 +413,15 @@ class DesignAgent:
 - **특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지**
 
 **출력 형식:**
+**[필수] 출력의 첫 줄은 반드시 "## 2. Agent Design Pattern" (또는 AI-Assisted Workflow의 경우 "## 2. 파이프라인 아키텍처")으로 시작하세요. 이 줄을 생략하면 최종 문서 구조가 깨집니다. 절대 ## 2.1로 바로 시작하지 마세요.**
 
 ## 2. Agent Design Pattern
 
-### 2.1 Pattern Selection
-- **Primary Pattern**: [ReAct/Reflection/Tool Use/Planning/Multi-Agent/Human-in-the-Loop]
-- **Pattern Combination**: [조합 패턴, 해당시]
+### 2.1 Pattern Selection (3-Layer Taxonomy)
+- **Layer 1 — Agent Pattern**: [RAG/Tool-based/Tool Server/Coding/Memory/Observer 등 에이전트 유형]
+- **Layer 2 — LLM Workflow**: [ReAct/Reflection/Planning/Prompt Chaining/Routing/Parallelization/Human-in-the-Loop]
+- **Layer 3 — Agentic Workflow**: [싱글 에이전트 / Agents as Tools / Swarm / Graph / Workflow] (멀티 에이전트 시)
+- **Pattern Combination**: [3계층 조합, 예: "Layer1(RAG) + Layer2(ReAct) + Layer3(Agents as Tools)"]
 - **Selection Rationale**: [선택 이유 2-3문장]
 
 ### 2.2 Agent Components
@@ -627,13 +638,42 @@ def _build_analysis_context_section(analysis: Dict[str, Any]) -> str:
 - **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}{automation_line}"""
 
 
-class PromptAgent:
-    """3a단계: Agent Prompt 설계"""
+def _parse_agent_names(design_result: str) -> List[str]:
+    """design_result의 '### 2.2 Agent Components' 테이블에서 Agent 이름 목록을 추출.
 
-    def __init__(self):
-        skill_prompt = get_skill_prompt()
+    마크다운 테이블의 첫 번째 컬럼(Agent Name / Stage Name)을 파싱한다.
+    파싱 실패 시 빈 리스트를 반환하여 fallback(단일 호출)을 유도한다.
+    """
+    # 2.2 섹션 찾기 (Agent Components 또는 워크플로우 단계)
+    section_match = re.search(
+        r'#+\s+2\.2\s+.+',
+        design_result
+    )
+    if not section_match:
+        return []
 
-        system_prompt = """당신은 AI Agent 프롬프트 엔지니어링 전문가입니다.
+    # 해당 섹션부터 다음 ## 또는 ### 헤딩까지 추출
+    start = section_match.end()
+    next_heading = re.search(r'\n#+\s+\d', design_result[start:])
+    section_text = design_result[start:start + next_heading.start()] if next_heading else design_result[start:]
+
+    # 테이블 행 추출 (| ... | 형태)
+    table_rows = re.findall(r'^\s*\|(.+)\|', section_text, re.MULTILINE)
+    if len(table_rows) < 3:  # 최소 헤더 + 구분선 + 데이터 1행
+        return []
+
+    agent_names = []
+    for row in table_rows[2:]:  # 헤더(0), 구분선(1) 스킵
+        cols = [col.strip() for col in row.split('|')]
+        first_col = cols[0].strip() if cols else ''
+        if first_col and first_col != '---' and not re.match(r'^[-:]+$', first_col):
+            agent_names.append(first_col)
+
+    return agent_names
+
+
+# PromptAgent 공통 프롬프트 상수
+_PROMPT_AGENT_SYSTEM = """당신은 AI Agent 프롬프트 엔지니어링 전문가입니다.
 
 ## 전문 영역
 - Agent System Prompt 설계 (역할, 지시사항, 제약조건)
@@ -651,18 +691,151 @@ class PromptAgent:
 ## 금지 사항
 - 구현 코드 포함 금지
 - 플레이스홀더(TODO, TBD 등)만으로 채우기 금지"""
-        enhanced_prompt = system_prompt + "\n" + skill_prompt
 
+_PROMPT_HEADING_RULES = """**중요 — 헤딩 레벨 규칙:**
+- System Prompt 코드 블록(```) 안에서 마크다운 헤딩(#, ##, ###)을 절대 사용하지 마세요.
+- 코드 블록 내부에서 섹션을 구분해야 하면 XML 태그(<section>, <phase>), 대문자 레이블(PHASE 1:), 또는 구분선(---)을 사용하세요.
+- 이 규칙을 어기면 최종 문서의 헤더 구조가 깨집니다."""
+
+_PROMPT_OUTPUT_RULES = """**중요 - 출력 규칙**:
+- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
+- "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
+- 바로 설계 결과만 출력하세요"""
+
+_PROMPT_EDGE_CASE_RULE = """**주의**: Edge Case Example은 반드시 실패 경로를 다뤄야 합니다 (예: 도구 호출 실패, 신뢰도 임계값 미달, 필수 입력 누락, 타임아웃 등). Happy path만 제공하지 마세요."""
+
+
+class PromptAgent:
+    """3a단계: Agent Prompt 설계 — 3개 이상 에이전트 시 병렬 분할(Scatter-Gather)"""
+
+    def __init__(self):
+        self._skill_prompt = get_skill_prompt()
+        self._enhanced_prompt = _PROMPT_AGENT_SYSTEM + "\n" + self._skill_prompt
+
+        # fallback용 단일 호출 에이전트 (1-2개 에이전트 또는 파싱 실패 시)
         self.agent = strands_utils.get_agent(
-            system_prompts=enhanced_prompt,
+            system_prompts=self._enhanced_prompt,
             model_id=DEFAULT_MODEL_ID,
             max_tokens=32000,
             temperature=0.3,
             tools=[safe_file_read]
         )
 
-    def generate_prompts(self, design_result: str, analysis: Dict[str, Any]) -> str:
-        """Agent Prompt 설계 생성"""
+    def _create_per_agent_instance(self):
+        """병렬 호출용 Agent 인스턴스 생성 (max_tokens=20000)"""
+        return strands_utils.get_agent(
+            system_prompts=self._enhanced_prompt,
+            model_id=DEFAULT_MODEL_ID,
+            max_tokens=20000,
+            temperature=0.3,
+            tools=[safe_file_read]
+        )
+
+    def _build_single_agent_prompt(self, agent_name: str, agent_index: int,
+                                   design_result: str, context_section: str) -> str:
+        """1개 에이전트 전용 프롬프트 구성"""
+        return f"""다음 Agent 설계에서 **"{agent_name}"** 에이전트의 프롬프트만 작성하세요.
+
+{design_result}
+
+{context_section}
+
+**필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
+**필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
+**필수 최종단계**: 위 스킬과 reference를 참고하여 프롬프트를 설계하세요.
+
+{_PROMPT_OUTPUT_RULES}
+
+{_PROMPT_HEADING_RULES}
+
+**출력 형식 — "{agent_name}" 에이전트만 작성:**
+
+### 4.{agent_index} {agent_name}
+**System Prompt:**
+```
+당신은 [역할]입니다.
+[구체적인 지시사항]
+```
+
+**Example User Prompt:**
+```
+[예시 사용자 입력]
+```
+
+**Expected Output:**
+```
+[예상 출력 형식]
+```
+
+**Edge Case Example:**
+```
+[에러/예외 상황의 예시 입력]
+```
+
+**Edge Case Expected Output:**
+```
+[에러/예외 상황의 예상 출력]
+```
+
+{_PROMPT_EDGE_CASE_RULE}
+"""
+
+    def _generate_single_agent_prompt(self, agent_name: str, agent_index: int,
+                                      design_result: str, context_section: str) -> tuple:
+        """1개 에이전트의 프롬프트를 생성 (스레드에서 실행)"""
+        agent = self._create_per_agent_instance()
+        prompt = self._build_single_agent_prompt(agent_name, agent_index, design_result, context_section)
+        result = agent(prompt)
+        text = _extract_final_text(result)
+        usage = extract_usage(result)
+        return (text, usage)
+
+    def _generate_prompts_parallel(self, agent_names: List[str],
+                                   design_result: str, analysis: Dict[str, Any]) -> str:
+        """Scatter-Gather: 에이전트별 병렬 프롬프트 생성"""
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+        from functools import reduce
+
+        context_section = _build_analysis_context_section(analysis)
+        results: List[Optional[str]] = [None] * len(agent_names)
+        usages = []
+
+        logger.info(f"PromptAgent 병렬 모드: {len(agent_names)}개 에이전트 ({', '.join(agent_names)})")
+
+        with ThreadPoolExecutor(max_workers=min(len(agent_names), 6)) as executor:
+            future_to_index = {}
+            for i, name in enumerate(agent_names):
+                future = executor.submit(
+                    self._generate_single_agent_prompt,
+                    name, i + 1, design_result, context_section
+                )
+                future_to_index[future] = i
+
+            for future in as_completed(future_to_index):
+                idx = future_to_index[future]
+                text, usage = future.result()
+                results[idx] = text
+                usages.append(usage)
+                logger.info(f"PromptAgent 병렬: {agent_names[idx]} 완료 ({idx + 1}/{len(agent_names)})")
+
+        # Gather: ## 4. 헤딩 + 에이전트별 결과 조합
+        assembled = "## 4. Agent Prompts\n\n"
+        cleaner = AssemblerAgent()
+        for i, text in enumerate(results):
+            if text:
+                cleaned = cleaner._clean_internal_comments(text)
+                assembled += cleaned.strip() + "\n\n"
+
+        # 토큰 사용량 집계
+        if usages:
+            self._last_usage = reduce(merge_usage, usages)
+        else:
+            self._last_usage = {}
+
+        return assembled.strip()
+
+    def _generate_prompts_single(self, design_result: str, analysis: Dict[str, Any]) -> str:
+        """기존 단일 호출 방식 (1-2개 에이전트 또는 fallback)"""
         context_section = _build_analysis_context_section(analysis)
 
         prompt = f"""다음 Agent 설계를 기반으로 각 Agent의 프롬프트를 정의하세요:
@@ -675,12 +848,11 @@ class PromptAgent:
 **필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
 **필수 최종단계**: 위 스킬과 reference를 참고하여 프롬프트를 설계하세요.
 
-**중요 - 출력 규칙**:
-- 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
-- "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
-- 바로 설계 결과만 출력하세요
+{_PROMPT_OUTPUT_RULES}
 
-**출력 형식:**
+**출력 형식 (반드시 아래 헤딩 구조를 그대로 따르세요 — "## 4." 상위 헤딩 생략 금지):**
+
+{_PROMPT_HEADING_RULES}
 
 ## 4. Agent Prompts
 
@@ -702,10 +874,37 @@ class PromptAgent:
 ```
 [예상 출력 형식]
 ```
+
+**Edge Case Example:**
+```
+[에러/예외 상황의 예시 입력]
+```
+
+**Edge Case Expected Output:**
+```
+[에러/예외 상황의 예상 출력]
+```
+
+{_PROMPT_EDGE_CASE_RULE}
 """
         result = self.agent(prompt)
         self._last_usage = extract_usage(result)
         return _extract_final_text(result)
+
+    def generate_prompts(self, design_result: str, analysis: Dict[str, Any]) -> str:
+        """Agent Prompt 설계 생성 — 3개 이상 에이전트 시 자동으로 병렬 분할"""
+        agent_names = _parse_agent_names(design_result)
+
+        if len(agent_names) >= 3:
+            logger.info(f"PromptAgent: {len(agent_names)}개 에이전트 감지 → 병렬 모드")
+            try:
+                return self._generate_prompts_parallel(agent_names, design_result, analysis)
+            except Exception as e:
+                logger.warning(f"PromptAgent 병렬 실패, 단일 호출로 fallback: {e}")
+                return self._generate_prompts_single(design_result, analysis)
+        else:
+            logger.info(f"PromptAgent: {len(agent_names)}개 에이전트 → 단일 호출 모드")
+            return self._generate_prompts_single(design_result, analysis)
 
 
 class ToolAgent:
@@ -811,13 +1010,13 @@ class ToolAgent:
 - "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
 - 바로 설계 결과만 출력하세요
 
-**출력 형식:**
+**출력 형식 (반드시 아래 헤딩 구조를 그대로 따르세요 — "## 5." 상위 헤딩 생략 금지, 각 도구는 반드시 ### 레벨):**
 
 ## 5. Tool Definitions
 
 **중요: Compact Signature 형식 사용 (JSON Schema 금지)**
 
-필요한 각 Tool에 대해 아래 형식으로 작성:
+필요한 각 Tool에 대해 아래 형식으로 작성 (반드시 ### 레벨 헤딩 사용, ## 사용 금지):
 
 ### 5.1 [tool_name]
 - **Purpose**: [도구의 목적 1문장]

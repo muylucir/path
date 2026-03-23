@@ -234,23 +234,26 @@ export default function GuidePage() {
                   ]}
                 />
 
-                <Header variant="h3">Agent 구조 추천</Header>
+                <Header variant="h3">3계층 택소노미 기반 설계</Header>
+                <TextContent>
+                  <p>Agent 구조는 3개 계층의 조합으로 결정됩니다:</p>
+                </TextContent>
                 <Table
                   variant="embedded"
                   columnDefinitions={[
-                    { id: "type", header: "구조", cell: (item) => <strong>{item.type}</strong>, width: 150 },
-                    { id: "fit", header: "적합한 경우", cell: (item) => item.fit },
+                    { id: "layer", header: "계층", cell: (item) => <strong>{item.layer}</strong>, width: 200 },
+                    { id: "question", header: "핵심 질문", cell: (item) => item.question },
                     { id: "example", header: "예시", cell: (item) => item.example },
                   ]}
                   items={[
-                    { type: "단계적 추론형", fit: "정보를 모아서 판단해야 하는 업무", example: "고객 문의 분석 → 답변 생성" },
-                    { type: "자가 검토형", fit: "결과물의 품질이 중요한 업무", example: "보고서 작성 후 스스로 검토/수정" },
-                    { type: "도구 활용형", fit: "외부 시스템을 조회하거나 실행해야 하는 업무", example: "DB 조회, API 호출, 파일 처리" },
-                    { type: "계획 수립형", fit: "여러 단계를 순서대로 처리해야 하는 업무", example: "다단계 승인 프로세스" },
-                    { type: "다중 Agent 협업형", fit: "역할을 나눠야 할 만큼 복잡한 업무", example: "분석 + 작성 + 검수를 각각 담당" },
-                    { type: "사람 검토 포함형", fit: "최종 판단에 사람이 필요한 업무", example: "법무/재무 검토가 포함된 프로세스" },
+                    { layer: "Layer 1: Agent Pattern", question: "어떤 유형의 에이전트인가?", example: "RAG, Tool-based, Coding, Memory, Observer" },
+                    { layer: "Layer 2: LLM Workflow", question: "어떻게 추론하는가?", example: "ReAct, Reflection, Planning, Routing" },
+                    { layer: "Layer 3: Agentic Workflow", question: "어떻게 협업하는가?", example: "싱글, Agents as Tools, Swarm, Graph, Workflow" },
                   ]}
                 />
+                <Alert type="info">
+                  각 계층의 상세한 패턴 설명은 <Link href="/patterns"><strong>에이전트 패턴</strong></Link> 페이지에서 확인할 수 있습니다.
+                </Alert>
                 <TextContent>
                   <p>추천 후에는 AI와 대화하며 결정을 다듬을 수 있습니다.</p>
                   <ul>

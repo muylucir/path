@@ -300,9 +300,9 @@ export function Step2Readiness({
           />
 
           {/* Score Change */}
-          {feasibility.score_change !== undefined && (
-            <StatusIndicator type={feasibility.score_change >= 0 ? "success" : "error"}>
-              {feasibility.score_change >= 0 ? "+" : ""}{feasibility.score_change}점 변화 (이전: {feasibility.previous_score}점)
+          {feasibility.score_change != null && feasibility.score_change !== 0 && feasibility.previous_score != null && (
+            <StatusIndicator type={feasibility.score_change > 0 ? "success" : "error"}>
+              {feasibility.score_change > 0 ? "+" : ""}{feasibility.score_change}점 변화 (이전: {feasibility.previous_score}점)
             </StatusIndicator>
           )}
 

@@ -7,6 +7,7 @@ import Box from "@cloudscape-design/components/box";
 import StatusIndicator from "@cloudscape-design/components/status-indicator";
 import Badge from "@cloudscape-design/components/badge";
 import Icon from "@cloudscape-design/components/icon";
+import ColumnLayout from "@cloudscape-design/components/column-layout";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import { AnalysisTab } from "@/components/steps/results/AnalysisTab";
 import { ChatHistoryTab } from "@/components/steps/results/ChatHistoryTab";
@@ -14,6 +15,7 @@ import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
 import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, TokenUsage } from "@/lib/types";
 import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS, MULTI_AGENT_PATTERN_DESCRIPTIONS, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
+import { parsePatternLayers } from "@/lib/utils";
 
 interface Step3ResultsProps {
   analysis: Analysis;
@@ -43,12 +45,14 @@ export function Step3Results({
   const avgScore = feasibility_score / 5;
   const baseLevel = getReadinessLevel(avgScore);
 
+  const parsedLayers = parsePatternLayers(pattern);
+
   return (
     <SpaceBetween size="l">
       {/* Pattern Card (full width) */}
       <div id="print-hide-pattern">
         <Container>
-          <SpaceBetween size="xs">
+          <SpaceBetween size="m">
             <SpaceBetween direction="horizontal" size="xs">
               <Box variant="awsui-key-label">추천 패턴</Box>
               {analysis.recommended_architecture && (
@@ -67,7 +71,44 @@ export function Step3Results({
                 </Badge>
               )}
             </SpaceBetween>
-            <Box variant="h2">{pattern}</Box>
+
+            {parsedLayers ? (
+              <ColumnLayout columns={3}>
+                <div>
+                  <Box variant="awsui-key-label" margin={{ bottom: "xxs" }}>
+                    <GlossaryTerm glossaryKey="agentPattern" />
+                    <Box variant="small" color="text-body-secondary" display="inline"> (Layer 1)</Box>
+                  </Box>
+                  <SpaceBetween direction="horizontal" size="xxs">
+                    {parsedLayers.layer1.map((item, idx) => <Badge key={idx} color="blue">{item}</Badge>)}
+                    {parsedLayers.layer1.length === 0 && <Box variant="small" color="text-body-secondary">-</Box>}
+                  </SpaceBetween>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label" margin={{ bottom: "xxs" }}>
+                    <GlossaryTerm glossaryKey="llmWorkflow" />
+                    <Box variant="small" color="text-body-secondary" display="inline"> (Layer 2)</Box>
+                  </Box>
+                  <SpaceBetween direction="horizontal" size="xxs">
+                    {parsedLayers.layer2.map((item, idx) => <Badge key={idx} color="grey">{item}</Badge>)}
+                    {parsedLayers.layer2.length === 0 && <Box variant="small" color="text-body-secondary">-</Box>}
+                  </SpaceBetween>
+                </div>
+                <div>
+                  <Box variant="awsui-key-label" margin={{ bottom: "xxs" }}>
+                    <GlossaryTerm glossaryKey="agenticWorkflow" />
+                    <Box variant="small" color="text-body-secondary" display="inline"> (Layer 3)</Box>
+                  </Box>
+                  <SpaceBetween direction="horizontal" size="xxs">
+                    {parsedLayers.layer3.map((item, idx) => <Badge key={idx} color="green">{item}</Badge>)}
+                    {parsedLayers.layer3.length === 0 && <Box variant="small" color="text-body-secondary">-</Box>}
+                  </SpaceBetween>
+                </div>
+              </ColumnLayout>
+            ) : (
+              <Box variant="h2">{pattern}</Box>
+            )}
+
             {(analysis.pattern_reason || analysis.architecture_reason) && (
               <Box variant="p" color="text-body-secondary">
                 {analysis.pattern_reason || analysis.architecture_reason}

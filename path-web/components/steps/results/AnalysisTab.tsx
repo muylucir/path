@@ -13,8 +13,9 @@ import Icon from "@cloudscape-design/components/icon";
 import Button from "@cloudscape-design/components/button";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import type { Analysis, FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
-import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, MULTI_AGENT_PATTERN_LABELS, AUTONOMY_REQUIREMENT_INFO, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
+import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
+import { parsePatternLayers } from "@/lib/utils";
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
@@ -46,7 +47,19 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
         <div className="print-summary-cards">
           <div className="print-summary-card">
             <div className="print-card-label">추천 패턴</div>
-            <div className="print-card-value">{analysis.pattern}</div>
+            {(() => {
+              const layers = parsePatternLayers(analysis.pattern);
+              if (layers) {
+                return (
+                  <div className="print-card-value" style={{ fontSize: "0.9em" }}>
+                    <div><strong>Layer 1:</strong> {layers.layer1.join(", ") || "-"}</div>
+                    <div><strong>Layer 2:</strong> {layers.layer2.join(", ") || "-"}</div>
+                    <div><strong>Layer 3:</strong> {layers.layer3.join(", ") || "-"}</div>
+                  </div>
+                );
+              }
+              return <div className="print-card-value">{analysis.pattern}</div>;
+            })()}
             {(analysis.pattern_reason || analysis.architecture_reason) && (
               <div className="print-card-reason">{analysis.pattern_reason || analysis.architecture_reason}</div>
             )}
