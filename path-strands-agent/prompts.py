@@ -970,14 +970,14 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
     improved_feasibility_rules = ""
     if has_improvements:
         improved_feasibility_rules = f"""
-7. improved_feasibility를 반드시 계산하여 포함하세요 (null 금지). 계산 기준:
+8. improved_feasibility를 반드시 계산하여 포함하세요 (null 금지). 계산 기준:
    - 구체적이고 실행 가능한 개선 계획만 점수에 반영
    - 항목당 최대 +3점 상향 가능, 막연한 계획은 반영하지 않음
    - 점수는 상향만 가능 (하향 불가)
    - score: 개선 후 총점 (숫자, 원본: {original_score}), score_change: 변화량 (숫자)
    - breakdown: 5개 항목별 original_score, improved_score(숫자), improvement_reason"""
     else:
-        improved_feasibility_rules = "7. 개선 방안이 없으므로 improved_feasibility는 null로 설정하세요."
+        improved_feasibility_rules = "8. 개선 방안이 없으므로 improved_feasibility는 null로 설정하세요."
 
     # 아키텍처 판단을 위한 추가 정보
     process_count = len(form_data.get('processSteps', []))
@@ -997,7 +997,7 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
         "output_types": ["OUTPUT 타입1", "OUTPUT 타입2"],
         "output_detail": "OUTPUT 상세 설명",
         "human_loop": form_data.get('humanLoop', ''),
-        "pattern": "3계층 조합: Layer1(RAG/Tool-based/Coding/Memory/Observer) + Layer2(ReAct/Reflection/Planning/Prompt Chaining/Routing/Parallelization/Human-in-the-Loop) + Layer3(싱글/Agents as Tools/Swarm/Graph/Workflow)",
+        "pattern": "Layer1(RAG + Tool-based) + Layer2(ReAct + Routing) + Layer3(Workflow)",
         "recommended_architecture": "single-agent 또는 multi-agent",
         "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null",
         "automation_level": "ai-assisted-workflow 또는 agentic-ai",
@@ -1045,6 +1045,7 @@ Human-in-Loop: {human_loop}
 4. updated_autonomy.score는 대화를 통해 재판단된 자율성 점수(0-10 숫자). automation_level과 일관되게 유지 (<=5 → ai-assisted-workflow, >=6 → agentic-ai).
 5. 대화 중 잠정 추천한 패턴/아키텍처와 최종 결론이 다른 경우, architecture_reason과 pattern_reason에 변경 근거를 반드시 명시하세요 (예: "대화에서 확인된 X 정보에 따라 멀티→싱글로 변경").
 6. 모든 숫자 필드(score, feasibility_score, score_change, original_score, improved_score)는 반드시 JSON 숫자 타입으로 출력하세요. 문자열("8")은 금지입니다.
+7. pattern 필드는 반드시 "Layer1(패턴 + 패턴) + Layer2(패턴 + 패턴) + Layer3(패턴)" 형식으로 작성하세요. 각 Layer 내부 패턴은 +로 결합하고, 각 Layer는 Layer1()/Layer2()/Layer3() 접두사와 괄호로 감싸고, Layer 간은 +로 결합합니다. 예시: "Layer1(RAG + Tool-based) + Layer2(ReAct + Routing) + Layer3(Workflow)". 다른 구분자(x, ., /, 등) 사용 금지.
 {improved_feasibility_rules}
 </rules>
 

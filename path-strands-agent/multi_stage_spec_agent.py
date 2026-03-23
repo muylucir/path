@@ -380,6 +380,8 @@ class DesignAgent:
 - AI 판단 기반 분기 → Conditional Pipeline
 - 외부 이벤트 반응 → Event-driven Pipeline
 
+**출력 헤딩 변환**: "## 2. Agent Design Pattern" 대신 "## 2. 파이프라인 아키텍처"를 사용하세요. 하위 ### 헤딩은 그대로 유지합니다.
+
 **필수 참조**: file_read로 "./skills/agent-patterns/SKILL.md"를 읽고,
 "./skills/agent-patterns/references/pipeline-patterns.md"를 참조하세요.
 """
@@ -410,7 +412,7 @@ class DesignAgent:
 - 바로 분석 결과만 출력하세요
 - **특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지**
 
-**출력 형식:**
+**출력 형식 (반드시 아래 헤딩 구조를 그대로 따르세요 — "## 2." 상위 헤딩 생략 금지):**
 
 ## 2. Agent Design Pattern
 
@@ -418,7 +420,7 @@ class DesignAgent:
 - **Layer 1 — Agent Pattern**: [RAG/Tool-based/Tool Server/Coding/Memory/Observer 등 에이전트 유형]
 - **Layer 2 — LLM Workflow**: [ReAct/Reflection/Planning/Prompt Chaining/Routing/Parallelization/Human-in-the-Loop]
 - **Layer 3 — Agentic Workflow**: [싱글 에이전트 / Agents as Tools / Swarm / Graph / Workflow] (멀티 에이전트 시)
-- **Pattern Combination**: [3계층 조합 요약, 예: "RAG + ReAct + Agents as Tools"]
+- **Pattern Combination**: [3계층 조합, 예: "Layer1(RAG) + Layer2(ReAct) + Layer3(Agents as Tools)"]
 - **Selection Rationale**: [선택 이유 2-3문장]
 
 ### 2.2 Agent Components
@@ -688,7 +690,7 @@ class PromptAgent:
 - "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
 - 바로 설계 결과만 출력하세요
 
-**출력 형식:**
+**출력 형식 (반드시 아래 헤딩 구조를 그대로 따르세요 — "## 4." 상위 헤딩 생략 금지):**
 
 ## 4. Agent Prompts
 
@@ -710,6 +712,18 @@ class PromptAgent:
 ```
 [예상 출력 형식]
 ```
+
+**Edge Case Example:**
+```
+[에러/예외 상황의 예시 입력 — 도구 호출 실패, 낮은 신뢰도, 입력 데이터 누락 등]
+```
+
+**Edge Case Expected Output:**
+```
+[에러/예외 상황의 예상 출력 — 에러 처리, 폴백, 에스컬레이션 경로를 보여주는 출력]
+```
+
+**주의**: 각 Agent의 Edge Case Example은 반드시 실패 경로를 다뤄야 합니다 (예: 도구 호출 실패, 신뢰도 임계값 미달, 필수 입력 누락, 타임아웃 등). Happy path만 제공하지 마세요.
 """
         result = self.agent(prompt)
         self._last_usage = extract_usage(result)
