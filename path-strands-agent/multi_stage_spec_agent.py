@@ -412,7 +412,8 @@ class DesignAgent:
 - 바로 분석 결과만 출력하세요
 - **특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지**
 
-**출력 형식 (반드시 아래 헤딩 구조를 그대로 따르세요 — "## 2." 상위 헤딩 생략 금지):**
+**출력 형식:**
+**[필수] 출력의 첫 줄은 반드시 "## 2. Agent Design Pattern" (또는 AI-Assisted Workflow의 경우 "## 2. 파이프라인 아키텍처")으로 시작하세요. 이 줄을 생략하면 최종 문서 구조가 깨집니다. 절대 ## 2.1로 바로 시작하지 마세요.**
 
 ## 2. Agent Design Pattern
 
