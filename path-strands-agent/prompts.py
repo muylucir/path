@@ -1039,6 +1039,13 @@ Human-in-Loop: {human_loop}
 </output_schema>
 
 <rules>
+**[최우선 규칙] next_steps Phase 1은 반드시 E2E로 동작하는 최소 파이프라인(MVP)이어야 합니다.**
+- Phase를 기술 컴포넌트별(Agent별)로 나누는 것은 금지합니다. Phase 1만으로 사용자가 입력(예: URL, 이벤트)을 넣으면 최종 결과물(문서, 알림, 보고서)을 받을 수 있어야 합니다.
+- Phase 1은 전체 파이프라인을 간소화한 수직 슬라이스(Vertical Slice)입니다. 복잡한 기능(ReAct 반복, Reflection, RAG 참조 등)은 생략하되, 입력→처리→출력의 E2E 흐름은 반드시 완성합니다.
+- 올바른 예: "Collector + Writer를 결합하여 데이터 수집→간소화된 분석→문서 생성의 E2E 파이프라인 구축. 고급 분석(LGTM ReAct)과 품질 검증(Reflection)은 Phase 2에서 추가"
+- 잘못된 예: "Phase 1: Collector Agent 구축, Phase 2: Analyzer Agent 구축, Phase 3: Writer + 통합"
+- Phase 2 이후는 Phase 1 MVP에 기능을 점진적으로 추가하는 방식으로 구성합니다.
+
 1. pain_point는 위에 지정된 원문을 그대로 사용하세요. 요약하거나 변경하지 마세요.
 2. recommended_architecture는 반드시 "single-agent" 또는 "multi-agent" 중 하나. multi_agent_pattern은 멀티인 경우 "agents-as-tools"/"swarm"/"graph"/"workflow" 중 하나, 싱글인 경우 null.
 3. automation_level은 "ai-assisted-workflow" 또는 "agentic-ai" 중 하나. 자율성 요구도 <=5이면 ai-assisted-workflow, >=6이면 agentic-ai 기본. 경계 영역(5-6)은 오류 허용도, 프로세스 복잡도를 추가 고려.
@@ -1047,7 +1054,6 @@ Human-in-Loop: {human_loop}
 6. 모든 숫자 필드(score, feasibility_score, score_change, original_score, improved_score)는 반드시 JSON 숫자 타입으로 출력하세요. 문자열("8")은 금지입니다.
 7. pattern 필드는 반드시 "Layer1(패턴 + 패턴) + Layer2(패턴 + 패턴) + Layer3(패턴)" 형식으로 작성하세요. 각 Layer 내부 패턴은 +로 결합하고, 각 Layer는 Layer1()/Layer2()/Layer3() 접두사와 괄호로 감싸고, Layer 간은 +로 결합합니다. 예시: "Layer1(RAG + Tool-based) + Layer2(ReAct + Routing) + Layer3(Workflow)". 다른 구분자(x, ., /, 등) 사용 금지.
 {improved_feasibility_rules}
-9. next_steps의 Phase 1은 반드시 E2E로 동작하는 최소 파이프라인(MVP)이어야 합니다. 기술 컴포넌트별(Agent별)로 Phase를 나누지 마세요. Phase 1만으로 사용자가 실제로 사용할 수 있는 결과물이 나와야 합니다. 예: "수집+분석+작성 전체를 간소화된 형태로 구현" (O), "수집 Agent만 구축" (X).
 </rules>
 
 JSON만 출력하세요."""
