@@ -43,10 +43,10 @@ def _get_chat_agent_module():
 
 
 def _get_spec_agent_module():
-    """multi_stage_spec_agent 모듈을 최초 요청 시 임포트"""
+    """spec 패키지를 최초 요청 시 임포트"""
     global _spec_agent_module
     if _spec_agent_module is None:
-        import multi_stage_spec_agent as mod
+        import spec as mod
         _spec_agent_module = mod
     return _spec_agent_module
 

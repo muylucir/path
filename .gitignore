@@ -88,7 +88,7 @@ infra/cdk.out/
 CLAUDE.md
 .claude/
 .gitignore
-spec/
+
 .mcp.json
 img/
 

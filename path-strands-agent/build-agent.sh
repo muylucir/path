@@ -45,11 +45,13 @@ echo "[3/4] Copying agent code..."
 # 핵심 Python 파일
 cp agentcore_entrypoint.py "$PACKAGE_DIR/"
 cp chat_agent.py "$PACKAGE_DIR/"
-cp multi_stage_spec_agent.py "$PACKAGE_DIR/"
 cp prompts.py "$PACKAGE_DIR/"
 cp strands_utils.py "$PACKAGE_DIR/"
 cp safe_tools.py "$PACKAGE_DIR/"
 cp token_tracker.py "$PACKAGE_DIR/"
+
+# spec 패키지
+cp -r spec/ "$PACKAGE_DIR/spec/"
 
 # agentskills 패키지
 cp -r agentskills/ "$PACKAGE_DIR/agentskills/"

@@ -11,6 +11,9 @@ import os
 import botocore.config
 from agentskills import discover_skills, generate_skills_prompt
 
+# Default model ID - can be overridden via environment variable
+DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
+
 
 # Bedrock API 호출 타임아웃 및 재시도 설정
 BEDROCK_CLIENT_CONFIG = botocore.config.Config(
@@ -90,3 +93,23 @@ def get_skill_prompt():
         _cached_skills = discover_skills(_skills_dir)
         _cached_skill_prompt = generate_skills_prompt(_cached_skills)
     return _cached_skill_prompt
+
+
+def create_spec_agent(system_prompt: str, max_tokens: int = 8192,
+                      model_id: str = None, temperature: float = 0.3,
+                      tools=None):
+    """Skill 프롬프트 자동 병합 + 표준 기본값으로 Agent 생성.
+
+    모든 spec 서브에이전트의 공통 초기화 보일러플레이트를 제거한다.
+    """
+    from safe_tools import safe_file_read  # lazy import to avoid circular
+
+    skill_prompt = get_skill_prompt()
+    enhanced_prompt = system_prompt + "\n" + skill_prompt
+    return strands_utils.get_agent(
+        system_prompts=enhanced_prompt,
+        model_id=model_id or DEFAULT_MODEL_ID,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        tools=tools if tools is not None else [safe_file_read]
+    )
