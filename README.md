@@ -93,6 +93,7 @@ path/
 │   │   ├── page.tsx                   # 소개 (내러티브)
 │   │   ├── design/                    # 메인 Wizard (Step 1-4 통합)
 │   │   ├── guide/                     # P.A.T.H 가이드
+│   │   ├── patterns/                  # 에이전트 패턴 레퍼런스
 │   │   ├── sessions/                  # 세션 이력
 │   │   ├── auth/                      # 인증 (Cognito)
 │   │   └── api/                       # API Routes (AgentCore 프록시, 세션, 인증)
@@ -103,8 +104,9 @@ path/
 │   ├── Dockerfile                     # Frontend Docker 빌드
 │   └── buildspec.yml                  # CodeBuild 스펙 (ECR 푸시)
 ├── path-strands-agent/                # Backend (Strands Agents + AgentCore)
-│   ├── agentcore_entrypoint.py        # AgentCore Runtime 엔트리포인트 (6개 액션 dispatch)
+│   ├── agentcore_entrypoint.py        # AgentCore Runtime 엔트리포인트 (7개 액션 dispatch)
 │   ├── chat_agent.py                  # FeasibilityAgent, PatternAnalyzerAgent
+│   ├── schemas.py                    # Pydantic 모델 (FeasibilityEvaluation, PatternAnalysis)
 │   ├── multi_stage_spec_agent.py      # 5단계 Spec Pipeline (DesignAgent, DiagramAgent, PromptAgent, ToolAgent, AssemblerAgent)
 │   ├── prompts.py                     # 시스템 프롬프트 및 템플릿
 │   ├── strands_utils.py               # Strands Agent 유틸리티 (BedrockModel 생성)
@@ -113,13 +115,12 @@ path/
 │   ├── build-agent.sh                 # 배포 패키지 빌더 (ARM64 ZIP)
 │   ├── agentskills/                   # Skill 로딩 라이브러리
 │   └── skills/                        # Agent Skills
-│       ├── universal-agent-patterns/  # 프레임워크 독립적 Agent 패턴
+│       ├── agent-patterns/             # 3계층 Agent 설계 패턴 (Agent Pattern × LLM Workflow × Agentic Workflow)
 │       ├── mermaid-diagrams/          # Mermaid 다이어그램 템플릿
 │       ├── ascii-diagram/             # ASCII 다이어그램 템플릿
 │       ├── prompt-engineering/        # 프롬프트 설계 가이드
 │       ├── tool-schema/               # 도구 정의 가이드
-│       ├── feasibility-evaluation/    # Feasibility 평가 기준
-│       └── ai-assisted-workflow/      # AI-Assisted Workflow 가이드
+│       └── feasibility-evaluation/    # Feasibility 평가 기준
 ├── docs/                              # 문서
 │   ├── PATH-customer-narrative.md     # 고객용 소개 (내러티브)
 │   ├── PATH-customer-guide.md         # 고객용 가이드 (구조화)
@@ -135,6 +136,7 @@ path/
 |-------|------|------|
 | 소개 | `/` | P.A.T.H 소개 (내러티브) |
 | 가이드 | `/guide` | P.A.T.H 가이드 (구조화) |
+| 패턴 레퍼런스 | `/patterns` | 3계층 Agent 패턴 택소노미 |
 | 디자인 | `/design` | 메인 Wizard (Step 1~4 통합) |
 | 세션 관리 | `/sessions` | 세션 이력 관리 |
 | 인증 | `/auth/signin` | Cognito 로그인 (선택) |

@@ -32,6 +32,7 @@
 |--------|------|------|------|
 | **소개** | `/` | P.A.T.H 소개 및 시나리오 안내 | 공개 |
 | **가이드** | `/guide` | 각 단계별 상세 사용 가이드 | 공개 |
+| **패턴 레퍼런스** | `/patterns` | 3계층 Agent 패턴 택소노미 | 공개 |
 | **디자인 위자드** | `/design` | Step 1~4 통합 위자드 (메인 워크플로우) | 필요 |
 | **세션 목록** | `/sessions` | 저장된 분석 세션 목록 및 조회 | 필요 |
 | **로그인** | `/auth/signin` | Cognito Managed Login 리다이렉트 | - |
@@ -137,16 +138,17 @@ Pain Point를 4가지 요소로 분해합니다.
 
 `PatternAnalyzerAgent`가 준비도 결과를 기반으로 Agent 패턴을 분석합니다.
 
-### Agent 패턴
+### 3계층 Agent 패턴 택소노미
 
-| 패턴 | 설명 | 적합한 경우 |
-|------|------|------------|
-| **ReAct** | Reasoning + Acting 반복 | 단계적 추론 필요 |
-| **Reflection** | 자가 검토 및 개선 | 품질 향상 필요 |
-| **Tool Use** | 외부 도구 활용 | 외부 연동 필요 |
-| **Planning** | 계획 수립 후 실행 | 복잡한 워크플로우 |
-| **Multi-Agent** | 여러 Agent 협업 | 역할 분담 필요 |
-| **Human-in-the-Loop** | 사람 검토 포함 | 검증 필수 |
+에이전트 시스템은 3개 계층의 조합으로 설계합니다:
+
+| Layer | 질문 | 설명 |
+|-------|------|------|
+| **Layer 1: Agent Pattern** | 어떤 유형의 에이전트인가? | RAG, Tool-based, Coding, Memory 등 |
+| **Layer 2: LLM Workflow** | 어떻게 추론하는가? | ReAct, Reflection, Planning, Routing 등 |
+| **Layer 3: Agentic Workflow** | 어떻게 협업하는가? | Agents as Tools, Swarm, Graph, Workflow 등 |
+
+> 상세 패턴 목록은 `/patterns` 페이지 또는 `agent-patterns` 스킬 참조
 
 ### 아키텍처 권장
 
@@ -206,7 +208,7 @@ AssemblerAgent (95-100%)   ← LLM 없이 문자열 조합
 |------|-------|--------|------|
 | 1 | **DesignAgent** | 0-40% | 프레임워크 독립적 Agent 설계 패턴 분석 |
 | 2a | **DiagramAgent** | 40-95% | Mermaid 다이어그램 생성 (검증 + 재시도) |
-| 2b | **PromptAgent** | 40-95% | Agent별 System Prompt 설계 |
+| 2b | **PromptAgent** | 40-95% | Agent별 System Prompt 설계 (3+ Agent 시 Scatter-Gather 병렬 생성) |
 | 2c | **ToolAgent** | 40-95% | Tool 스키마 정의 (Compact Signature) |
 | 3 | **AssemblerAgent** | 95-100% | 최종 Markdown 조합 (LLM 미사용) |
 
@@ -227,13 +229,12 @@ AssemblerAgent (95-100%)   ← LLM 없이 문자열 조합
 
 | 스킬명 | 역할 | 사용 Agent |
 |--------|------|-----------|
-| `universal-agent-patterns` | Agent 설계 패턴 가이드 | DesignAgent |
+| `agent-patterns` | 3계층 Agent 설계 패턴 가이드 | DesignAgent |
 | `feasibility-evaluation` | Feasibility 평가 기준 | FeasibilityAgent |
 | `mermaid-diagrams` | Mermaid 다이어그램 생성 가이드 | DiagramAgent |
 | `prompt-engineering` | System Prompt 작성 가이드 | PromptAgent |
 | `tool-schema` | Tool 스키마 정의 가이드 | ToolAgent |
 | `ascii-diagram` | ASCII 다이어그램 가이드 | PatternAnalyzerAgent (채팅) |
-| `ai-assisted-workflow` | AI-Assisted Workflow 가이드 | DesignAgent (자율성 낮을 때) |
 
 각 스킬은 `SKILL.md` (메타데이터 + 지시사항) + `references/` (참조 문서)로 구성되며, Agent가 `file_read` 도구로 런타임에 읽습니다.
 
@@ -433,6 +434,6 @@ Next.js API Routes (/api/bedrock/*)
 | **인증** | NextAuth v5 + Amazon Cognito (OIDC) |
 | **세션 저장** | Amazon DynamoDB (`path-agent-sessions` 테이블, GSI: `user-sessions-index`) |
 | **통신** | SSE (Server-Sent Events) — AgentCore → Next.js API Route → 브라우저 릴레이 |
-| **스킬 시스템** | agentskills.io 스펙 기반 (7개 스킬, file_read 도구로 동적 로딩) |
+| **스킬 시스템** | agentskills.io 스펙 기반 (6개 스킬, file_read 도구로 동적 로딩) |
 | **토큰 추적** | Claude Opus 4.6 가격 기준 비용 추산 (input $15/M, output $75/M) |
 | **보안** | Zod 스키마 검증, 프롬프트 인젝션 필터링, safe_file_read 경로 제한, Cognito 인증 |

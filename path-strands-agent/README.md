@@ -59,13 +59,12 @@ Next.js API Route
 
 ```
 skills/
-├── universal-agent-patterns/  # 프레임워크 독립적 Agent 패턴 가이드
-├── mermaid-diagrams/          # Mermaid 다이어그램 템플릿
+├── agent-patterns/            # 3계층 Agent 설계 패턴 (Agent Pattern × LLM Workflow × Agentic Workflow)
 ├── ascii-diagram/             # ASCII 다이어그램 템플릿
-├── prompt-engineering/        # 프롬프트 설계 가이드
-├── tool-schema/               # 도구 정의 가이드
 ├── feasibility-evaluation/    # Feasibility 평가 기준
-└── ai-assisted-workflow/      # AI-Assisted Workflow 파이프라인 가이드
+├── mermaid-diagrams/          # Mermaid 다이어그램 템플릿
+├── prompt-engineering/        # 프롬프트 설계 가이드
+└── tool-schema/               # 도구 정의 가이드
 ```
 
 ## 설치
@@ -88,11 +87,12 @@ pip install -r requirements.txt
 bedrock-agentcore
 strands-agents>=1.26.0
 strands-agents-tools
-strands-agents[otel]>=0.1.0
-aws-opentelemetry-distro
+pydantic>=2.0.0
 boto3
 pyyaml
 strictyaml
+strands-agents[otel]>=0.1.0
+aws-opentelemetry-distro
 ```
 
 ### 3. AWS 자격증명 설정
@@ -152,6 +152,7 @@ path-strands-agent/
 ├── chat_agent.py                 # Agent 정의
 │                                 # - FeasibilityAgent (Step 2)
 │                                 # - PatternAnalyzerAgent (Step 3)
+├── schemas.py                    # Pydantic 출력 모델 (FeasibilityEvaluation, PatternAnalysis)
 ├── multi_stage_spec_agent.py     # MultiStageSpecAgent (5개 서브 에이전트)
 │                                 # - DesignAgent, DiagramAgent, PromptAgent, ToolAgent, AssemblerAgent
 │                                 # - MermaidValidator (다이어그램 문법 검증)
@@ -178,13 +179,12 @@ path-strands-agent/
 │       ├── agent_skill.py
 │       └── skill.py
 ├── skills/                       # Agent Skill 디렉토리
-│   ├── universal-agent-patterns/ # 프레임워크 독립적 패턴
-│   ├── mermaid-diagrams/         # Mermaid 다이어그램
+│   ├── agent-patterns/           # 3계층 Agent 설계 패턴
 │   ├── ascii-diagram/            # ASCII 다이어그램
-│   ├── prompt-engineering/       # 프롬프트 설계
-│   ├── tool-schema/              # 도구 정의
 │   ├── feasibility-evaluation/   # Feasibility 평가
-│   └── ai-assisted-workflow/     # AI-Assisted Workflow 가이드
+│   ├── mermaid-diagrams/         # Mermaid 다이어그램
+│   ├── prompt-engineering/       # 프롬프트 설계
+│   └── tool-schema/              # 도구 정의
 ├── requirements.txt              # Python 의존성
 └── README.md                     # 이 파일
 ```
@@ -239,11 +239,13 @@ Feasibility 평가 결과를 바탕으로 Agent 패턴을 분석합니다.
 
 | 단계 | Agent | 진행률 | Skill | 역할 |
 |------|-------|--------|-------|------|
-| 1 | DesignAgent | 0-40% | universal-agent-patterns | Agent 설계 패턴 분석 |
+| 1 | DesignAgent | 0-40% | agent-patterns | Agent 설계 패턴 분석 |
 | 2a | DiagramAgent | 40-95% (병렬) | mermaid-diagrams, ascii-diagram | 다이어그램 생성 + MermaidValidator 검증 |
 | 2b | PromptAgent | 40-95% (병렬) | prompt-engineering | Agent 프롬프트 설계 |
 | 2c | ToolAgent | 40-95% (병렬) | tool-schema | 도구 정의 |
 | 3 | AssemblerAgent | 95-100% | - | 최종 Markdown 조립 (LLM 미사용) |
+
+> PromptAgent는 DesignAgent 결과에서 3개 이상의 Agent가 감지되면 **Scatter-Gather 패턴**으로 Agent별 프롬프트를 병렬 생성합니다 (ThreadPoolExecutor, 최대 6 워커).
 
 **MermaidValidator**: DiagramAgent가 생성한 Mermaid 다이어그램의 문법을 검증합니다. 검증 항목:
 - 다이어그램 타입 선언 확인
@@ -317,13 +319,12 @@ skill_prompt = generate_skills_prompt(skills)
 
 | Skill | 용도 | 사용 Agent |
 |-------|------|-----------|
-| `universal-agent-patterns` | 프레임워크 독립적 Agent 패턴 | DesignAgent |
+| `agent-patterns` | 3계층 Agent 설계 패턴 가이드 | DesignAgent |
 | `mermaid-diagrams` | Mermaid 다이어그램 문법 | DiagramAgent |
 | `ascii-diagram` | ASCII 다이어그램 템플릿 | DiagramAgent, PatternAnalyzerAgent (chat) |
 | `prompt-engineering` | 프롬프트 설계 가이드 | PromptAgent |
 | `tool-schema` | 도구 정의 스키마 | ToolAgent |
 | `feasibility-evaluation` | Feasibility 평가 기준 | FeasibilityAgent |
-| `ai-assisted-workflow` | AI-Assisted Workflow 파이프라인 가이드 | DesignAgent |
 
 ## 개발 노트
 

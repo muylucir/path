@@ -43,6 +43,7 @@ Browser → Next.js API Routes (agentcore-client.ts)
 |-------|------|------|
 | **소개 (Intro)** | `/` | P.A.T.H 소개 (내러티브) |
 | **가이드 (Guide)** | `/guide` | P.A.T.H 가이드 (구조화) |
+| **패턴 레퍼런스** | `/patterns` | 3계층 Agent 패턴 택소노미 |
 | **에이전트 디자인** | `/design` | Wizard UI (Step 1~4 통합) |
 | **세션 목록** | `/sessions` | 세션 이력 관리 |
 | **로그인** | `/auth/signin` | Cognito 로그인 (자동 리다이렉트) |
@@ -143,7 +144,7 @@ docker run -p 3009:3009 path-web
 | 엔드포인트 | 설명 | AgentCore Action |
 |----------|------|-----------------|
 | `POST /api/bedrock/feasibility` | 초기 Feasibility 평가 (SSE) | `feasibility` |
-| `POST /api/bedrock/feasibility/update` | 개선 방안 반영 재평가 (JSON) | `feasibility_update` |
+| `POST /api/bedrock/feasibility/update` | 개선 방안 반영 재평가 (SSE) | `feasibility_update` |
 | `POST /api/bedrock/pattern/analyze` | 초기 패턴 분석 (SSE) | `pattern_analyze` |
 | `POST /api/bedrock/pattern/chat` | 대화형 분석 (SSE) | `pattern_chat` |
 | `POST /api/bedrock/pattern/finalize` | 최종 분석 (JSON) | `pattern_finalize` |
@@ -154,7 +155,7 @@ docker run -p 3009:3009 path-web
 | 엔드포인트 | 설명 |
 |----------|------|
 | `/api/sessions` | 세션 목록 조회 (GET), 세션 생성 (POST) |
-| `/api/sessions/[id]` | 세션 조회 (GET), 세션 업데이트 (PUT) |
+| `/api/sessions/[id]` | 세션 조회 (GET), 세션 업데이트 (PUT), 세션 삭제 (DELETE) |
 | `/api/health` | Frontend 헬스 체크 |
 
 ### 인증
@@ -173,7 +174,7 @@ NextAuth.js v5 + Amazon Cognito를 사용한 인증:
 
 ### 미들웨어 (`middleware.ts`)
 
-- **공개 경로** (인증 불필요): `/`, `/guide`, `/auth/*`, `/api/health`, `/api/auth/*`
+- **공개 경로** (인증 불필요): `/`, `/guide`, `/patterns`, `/auth/*`, `/api/health`, `/api/auth/*`
 - **보호 경로**: 그 외 모든 경로 (미인증 시 `/auth/signin`으로 리다이렉트)
 - API 요청은 미인증 시 `401` 응답
 
@@ -226,6 +227,7 @@ path-web/
 │   │   ├── layout.tsx                # Design 레이아웃 (메타데이터)
 │   │   └── page.tsx                  # Step 1~4 Wizard
 │   ├── guide/page.tsx                # P.A.T.H 가이드
+│   ├── patterns/page.tsx             # 에이전트 패턴 레퍼런스
 │   ├── sessions/page.tsx             # 세션 관리
 │   ├── auth/                         # 인증 페이지
 │   │   ├── signin/
@@ -237,6 +239,7 @@ path-web/
 │   ├── results/page.tsx              # /design 리다이렉트
 │   ├── error.tsx                     # Error boundary
 │   ├── not-found.tsx                 # 404 페이지
+│   ├── loading.tsx                   # 글로벌 로딩 스피너
 │   ├── layout.tsx                    # Root layout
 │   ├── globals.css                   # 글로벌 스타일
 │   └── api/                          # API Routes
