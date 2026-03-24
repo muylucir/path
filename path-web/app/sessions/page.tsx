@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Table, { type TableProps } from "@cloudscape-design/components/table";
 import Header from "@cloudscape-design/components/header";
@@ -16,6 +16,8 @@ import { useFlash } from "@/components/cloudscape/FlashbarProvider";
 import { formatKST } from "@/lib/utils";
 import { getJudgmentBadge } from "@/lib/readiness";
 import type { SessionListItem } from "@/lib/types";
+
+const PAGE_SIZE = 15;
 
 const getFinalScore = (session: SessionListItem) =>
   session.improved_feasibility?.score ?? session.feasibility_score;
@@ -62,11 +64,9 @@ const COLUMN_DEFINITIONS: TableProps.ColumnDefinition<SessionListItem>[] = [
 
 export default function SessionsPage() {
   const router = useRouter();
-  const [sessions, setSessions] = useState<SessionListItem[]>([]);
+  const [allSessions, setAllSessions] = useState<SessionListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [hasNextPage, setHasNextPage] = useState(false);
-  const [pageKeys, setPageKeys] = useState<any[]>([undefined]);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedItems, setSelectedItems] = useState<SessionListItem[]>([]);
   const [filteringText, setFilteringText] = useState("");
@@ -76,34 +76,39 @@ export default function SessionsPage() {
   const [sortingDescending, setSortingDescending] = useState(true);
   const { addFlash } = useFlash();
 
+  const fetchPage = useCallback(async (lastKey?: Record<string, unknown>) => {
+    const url = lastKey
+      ? `/api/sessions?lastKey=${encodeURIComponent(JSON.stringify(lastKey))}`
+      : "/api/sessions";
+    const response = await fetch(url);
+    return response.json();
+  }, []);
+
+  // Initial load: fetch all pages from server
   useEffect(() => {
-    loadSessions();
-  }, [currentPage]);
-
-  const loadSessions = async () => {
-    setIsLoading(true);
-    try {
-      const lastKey = pageKeys[currentPage - 1];
-      const url = lastKey
-        ? `/api/sessions?lastKey=${encodeURIComponent(JSON.stringify(lastKey))}`
-        : "/api/sessions";
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      setSessions(data.sessions || []);
-      setHasNextPage(!!data.lastEvaluatedKey);
-
-      if (data.lastEvaluatedKey && !pageKeys[currentPage]) {
-        setPageKeys((prev) => [...prev, data.lastEvaluatedKey]);
+    let cancelled = false;
+    const loadAll = async () => {
+      setIsLoading(true);
+      try {
+        const accumulated: SessionListItem[] = [];
+        let cursor: Record<string, unknown> | undefined;
+        do {
+          const data = await fetchPage(cursor);
+          if (cancelled) return;
+          accumulated.push(...(data.sessions || []));
+          cursor = data.lastEvaluatedKey;
+        } while (cursor);
+        setAllSessions(accumulated);
+      } catch (error) {
+        console.error("Error loading sessions:", error);
+        addFlash("error", "세션 목록을 불러오는데 실패했습니다");
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error loading sessions:", error);
-      addFlash("error", "세션 목록을 불러오는데 실패했습니다");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    loadAll();
+    return () => { cancelled = true; };
+  }, [fetchPage, addFlash]);
 
   const handleLoad = async (sessionId: string) => {
     try {
@@ -167,7 +172,7 @@ export default function SessionsPage() {
 
     try {
       await fetch(`/api/sessions/${sessionId}`, { method: "DELETE" });
-      setSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
+      setAllSessions((prev) => prev.filter((s) => s.session_id !== sessionId));
       setSelectedItems([]);
       addFlash("success", "세션이 삭제되었습니다");
     } catch (error) {
@@ -179,10 +184,10 @@ export default function SessionsPage() {
   };
 
   const filteredSessions = useMemo(() => {
-    if (!filteringText) return sessions;
+    if (!filteringText) return allSessions;
     const lower = filteringText.toLowerCase();
-    return sessions.filter((s) => (s.pain_point || "").toLowerCase().includes(lower));
-  }, [sessions, filteringText]);
+    return allSessions.filter((s) => (s.pain_point || "").toLowerCase().includes(lower));
+  }, [allSessions, filteringText]);
 
   const sortedSessions = useMemo(() => {
     const comparator = (sortingColumn as any).sortingComparator as
@@ -193,6 +198,12 @@ export default function SessionsPage() {
     const sorted = [...filteredSessions].sort(comparator);
     return sortingDescending ? sorted.reverse() : sorted;
   }, [filteredSessions, sortingColumn, sortingDescending]);
+
+  const pagesCount = Math.max(1, Math.ceil(sortedSessions.length / PAGE_SIZE));
+  const paginatedSessions = useMemo(
+    () => sortedSessions.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [sortedSessions, currentPage]
+  );
 
   // Build column definitions with the handleLoad closure for the actions column
   const columns: TableProps.ColumnDefinition<SessionListItem>[] = useMemo(() => {
@@ -225,7 +236,7 @@ export default function SessionsPage() {
         onSelectionChange={({ detail }) =>
           setSelectedItems(detail.selectedItems)
         }
-        items={sortedSessions}
+        items={paginatedSessions}
         loading={isLoading}
         loadingText="세션을 불러오는 중..."
         columnDefinitions={columns}
@@ -238,7 +249,7 @@ export default function SessionsPage() {
         header={
           <Header
             variant="awsui-h1-sticky"
-            counter={`(${filteredSessions.length}/${sessions.length})`}
+            counter={`(${filteredSessions.length})`}
             description="이전에 저장한 분석 결과를 확인하고 관리합니다"
             actions={
               <SpaceBetween direction="horizontal" size="xs">
@@ -268,7 +279,10 @@ export default function SessionsPage() {
           <TextFilter
             filteringPlaceholder="Pain Point 검색"
             filteringText={filteringText}
-            onChange={({ detail }) => setFilteringText(detail.filteringText)}
+            onChange={({ detail }) => {
+              setFilteringText(detail.filteringText);
+              setCurrentPage(1);
+            }}
           />
         }
         empty={
@@ -291,7 +305,7 @@ export default function SessionsPage() {
         pagination={
           <Pagination
             currentPageIndex={currentPage}
-            pagesCount={hasNextPage ? currentPage + 1 : currentPage}
+            pagesCount={pagesCount}
             onChange={({ detail }) => setCurrentPage(detail.currentPageIndex)}
           />
         }

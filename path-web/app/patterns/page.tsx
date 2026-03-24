@@ -19,6 +19,7 @@ const PATTERN_ANCHORS = [
   { text: "Layer 1: Agent Patterns", href: "#layer1", level: 1 },
   { text: "Layer 2: LLM Workflows", href: "#layer2", level: 1 },
   { text: "Layer 3: Agentic Workflows", href: "#layer3", level: 1 },
+  { text: "스케일링 원칙", href: "#scaling-principles", level: 1 },
   { text: "패턴 조합 예시", href: "#combinations", level: 1 },
   { text: "선택 가이드", href: "#selection-guide", level: 1 },
 ];
@@ -186,36 +187,101 @@ export default function PatternsPage() {
                 </TextContent>
 
                 <Header variant="h3">싱글 vs 멀티 에이전트 판단</Header>
+                <TextContent>
+                  <p>
+                    멀티 에이전트 도입 여부는 단순히 처리 단계 수나 도구 수로 결정되지 않습니다.
+                    가장 중요한 판단 기준은 <strong>태스크의 분해 가능성</strong>과 <strong>순차 의존성</strong>입니다.
+                  </p>
+                </TextContent>
                 <Table
                   variant="embedded"
                   columnDefinitions={[
-                    { id: "condition", header: "조건", cell: (item) => <strong>{item.condition}</strong>, width: 180 },
-                    { id: "single", header: "싱글 에이전트", cell: (item) => item.single },
-                    { id: "multi", header: "멀티 에이전트", cell: (item) => item.multi },
+                    { id: "condition", header: "판단 기준", cell: (item) => <strong>{item.condition}</strong>, width: 200 },
+                    { id: "single", header: "싱글 에이전트 유리", cell: (item) => item.single },
+                    { id: "multi", header: "멀티 에이전트 유리", cell: (item) => item.multi },
                   ]}
                   items={[
-                    { condition: "처리 단계 수", single: "3개 이하", multi: "4개 이상" },
-                    { condition: "도구/연동 수", single: "1-2개", multi: "3개 이상" },
-                    { condition: "전문성 분리", single: "불필요", multi: "필요" },
-                    { condition: "병렬 처리", single: "불필요", multi: "필요" },
+                    { condition: "태스크 분해 가능성", single: "순차 의존성이 높음 (이전 결과가 다음 입력)", multi: "독립적 서브태스크로 병렬 분해 가능" },
+                    { condition: "싱글 에이전트 기준 성능", single: "이미 충분한 성능 달성", multi: "싱글로는 부족한 성능" },
+                    { condition: "전문성 분리 필요성", single: "단일 역할로 처리 가능", multi: "상이한 도메인 지식/역할이 필요" },
+                    { condition: "도구 복잡도", single: "도구가 많더라도 한 흐름에서 순차 사용", multi: "서로 다른 도구를 독립적으로 병렬 활용" },
                   ]}
                 />
+                <Alert type="warning">
+                  단계 수나 도구 수가 많다고 반드시 멀티 에이전트가 유리한 것은 아닙니다.
+                  순차적으로 상태가 변하는 태스크(예: 게임 플래닝, 단계별 승인)는 멀티 에이전트로 분리하면
+                  조율 오버헤드가 추론 능력을 잠식하여 오히려 성능이 저하됩니다.
+                </Alert>
 
                 <Header variant="h3">멀티 에이전트 협업 패턴</Header>
                 <Table
                   variant="embedded"
                   columnDefinitions={[
-                    { id: "pattern", header: "패턴", cell: (item) => <strong>{item.pattern}</strong>, width: 180 },
+                    { id: "pattern", header: "패턴", cell: (item) => <strong>{item.pattern}</strong>, width: 160 },
                     { id: "structure", header: "구조", cell: (item) => item.structure },
                     { id: "fit", header: "적합 상황", cell: (item) => item.fit },
+                    { id: "caution", header: "주의사항", cell: (item) => item.caution },
                   ]}
                   items={[
-                    { pattern: "Agents as Tools", structure: "Orchestrator가 전문 Agent를 도구처럼 호출", fit: "독립적 서브태스크 분해" },
-                    { pattern: "Swarm", structure: "동등한 Agent 간 핸드오프 협업", fit: "브레인스토밍, 반복적 개선" },
-                    { pattern: "Graph", structure: "방향성 그래프로 흐름 정의 (조건부 분기)", fit: "복잡한 조건부/계층적 흐름" },
-                    { pattern: "Workflow", structure: "사전 정의된 순차 파이프라인", fit: "명확한 단계별 프로세스" },
+                    { pattern: "Agents as Tools", structure: "Orchestrator가 전문 Agent를 도구처럼 호출", fit: "병렬 분해 가능한 분석·조사 태스크", caution: "Orchestrator가 단일 실패점. 결과 검증 로직 필수" },
+                    { pattern: "Swarm", structure: "동등한 Agent 간 핸드오프 협업", fit: "탐색적 작업, 다관점 분석, 반복 개선", caution: "합의 수렴에 시간 소요. 타임아웃 관리 필요" },
+                    { pattern: "Graph", structure: "방향성 그래프로 흐름 정의 (조건부 분기)", fit: "조건부 분기와 병렬 처리가 모두 필요한 복합 흐름", caution: "조율 오버헤드가 가장 큼. 단순 태스크에는 과도한 설계" },
+                    { pattern: "Workflow", structure: "사전 정의된 순차 파이프라인", fit: "단계가 명확한 데이터 처리 파이프라인", caution: "순차 태스크는 싱글 에이전트 + Prompt Chaining이 더 효율적일 수 있음" },
                   ]}
                 />
+              </SpaceBetween>
+            </Container>
+          </div>
+
+          {/* Scaling Principles */}
+          <div id="scaling-principles">
+            <Container header={<Header variant="h2">멀티 에이전트 스케일링 원칙</Header>}>
+              <SpaceBetween size="m">
+                <TextContent>
+                  <p>
+                    멀티 에이전트 시스템의 효과는 &ldquo;에이전트를 많이 쓸수록 좋다&rdquo;는 단순한 공식을 따르지 않습니다.
+                    아래 원칙은 멀티 에이전트 설계 시 흔히 발생하는 실패를 예방하기 위한 가이드입니다.
+                  </p>
+                </TextContent>
+                <Table
+                  variant="embedded"
+                  columnDefinitions={[
+                    { id: "principle", header: "원칙", cell: (item) => <strong>{item.principle}</strong>, width: 200 },
+                    { id: "desc", header: "설명", cell: (item) => item.desc },
+                    { id: "guidance", header: "실무 가이드", cell: (item) => item.guidance },
+                  ]}
+                  items={[
+                    {
+                      principle: "분해 가능성이 핵심",
+                      desc: "멀티 에이전트의 효과는 에이전트 수가 아니라 태스크가 독립적 서브태스크로 얼마나 잘 나뉘는지에 달려있습니다.",
+                      guidance: "서브태스크 간 데이터 의존성이 낮을수록 멀티 에이전트가 효과적입니다. 순차 의존성이 높으면 싱글 에이전트를 유지하세요.",
+                    },
+                    {
+                      principle: "싱글로 충분하면 싱글 유지",
+                      desc: "싱글 에이전트만으로 이미 만족스러운 성능을 달성하고 있다면, 멀티로 전환해도 추가 이점이 거의 없습니다.",
+                      guidance: "프로토타입을 싱글 에이전트로 먼저 검증하세요. 성능이 충분하면 복잡도를 높일 이유가 없습니다.",
+                    },
+                    {
+                      principle: "조율 오버헤드는 공짜가 아님",
+                      desc: "에이전트 간 메시지 교환, 결과 종합, 상태 동기화에 소비되는 토큰과 시간은 실제 추론에 쓸 자원을 줄입니다.",
+                      guidance: "에이전트 수는 3-4개 이하로 시작하세요. 고정 토큰 예산에서 에이전트가 많아질수록 개별 추론 능력이 희석됩니다.",
+                    },
+                    {
+                      principle: "구조 없는 협업은 오류를 증폭",
+                      desc: "검증 메커니즘 없이 에이전트 결과를 단순 합산하면, 개별 에이전트의 실수가 걸러지지 않고 최종 결과에 누적됩니다.",
+                      guidance: "반드시 구조화된 토폴로지(Orchestrator, Graph 등)를 사용하고, 결과를 검증하는 중앙 지점을 포함하세요.",
+                    },
+                    {
+                      principle: "도구가 많다고 멀티가 아님",
+                      desc: "도구 수가 많은 환경에서 멀티 에이전트는 조율에 토큰을 소비하여 정작 도구 활용 능력이 떨어질 수 있습니다.",
+                      guidance: "도구가 많은 태스크는 싱글 에이전트가 오히려 효율적입니다. 도구를 도메인별로 분리해야 할 때만 멀티를 고려하세요.",
+                    },
+                  ]}
+                />
+                <Alert type="info">
+                  이 원칙은 Google DeepMind의 에이전트 시스템 스케일링 연구에 기반합니다.
+                  P.A.T.H의 패턴 분석(Step 3)에서 이 원칙들을 자동으로 고려하여 아키텍처를 추천합니다.
+                </Alert>
               </SpaceBetween>
             </Container>
           </div>
@@ -274,12 +340,22 @@ export default function PatternsPage() {
                       <li><strong>Layer 1 선택</strong> — 데이터 유형과 환경에 따라 Agent Pattern을 결정합니다 (RAG, Tool-based, Coding 등)</li>
                       <li><strong>Layer 2 선택</strong> — 추론 요구사항에 따라 LLM Workflow를 결정합니다 (ReAct, Reflection, Planning 등)</li>
                       <li>
-                        <strong>Layer 3 선택</strong> — 처리 단계 수에 따라 판단합니다
+                        <strong>Layer 3 선택</strong> — 태스크 특성에 따라 판단합니다
                         <ul>
-                          <li>3개 이하 &rarr; 싱글 에이전트</li>
-                          <li>4개 이상 &rarr; 멀티 에이전트 (Agents as Tools / Swarm / Graph / Workflow 중 선택)</li>
+                          <li>순차 의존성이 높은 태스크 &rarr; <strong>싱글 에이전트</strong> (Prompt Chaining으로 해결)</li>
+                          <li>독립적으로 분해 가능한 태스크 &rarr; <strong>Agents as Tools</strong> (Orchestrator가 서브태스크 위임)</li>
+                          <li>탐색적/다관점 분석이 필요 &rarr; <strong>Swarm</strong> (에이전트 간 핸드오프)</li>
+                          <li>조건부 분기 + 병렬 처리 복합 &rarr; <strong>Graph</strong> (단, 조율 오버헤드 주의)</li>
+                          <li>고정된 순서의 데이터 파이프라인 &rarr; <strong>Workflow</strong> (싱글로 충분한지 먼저 확인)</li>
                         </ul>
                       </li>
+                    </ul>
+                    <h4>멀티 에이전트 도입 전 체크리스트</h4>
+                    <ul>
+                      <li>싱글 에이전트로 프로토타입을 먼저 검증했는가?</li>
+                      <li>서브태스크가 독립적으로 실행 가능한가? (순차 의존성 확인)</li>
+                      <li>결과를 검증하는 중앙 지점(Orchestrator 등)이 설계에 포함되어 있는가?</li>
+                      <li>에이전트 수가 3-4개 이하인가? (그 이상은 조율 오버헤드가 급격히 증가)</li>
                     </ul>
                   </TextContent>
                 </Container>
