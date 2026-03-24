@@ -19,6 +19,7 @@ import SpaceBetween from "@cloudscape-design/components/space-between";
 import FormField from "@cloudscape-design/components/form-field";
 import Textarea from "@cloudscape-design/components/textarea";
 import Select from "@cloudscape-design/components/select";
+import Tiles from "@cloudscape-design/components/tiles";
 import ColumnLayout from "@cloudscape-design/components/column-layout";
 
 interface Step1FormProps {
@@ -74,16 +75,6 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
     value: t.label,
     label: t.label,
     description: t.example,
-  }));
-  const humanLoopTiles = HUMAN_LOOP_OPTIONS.map((o) => ({
-    value: o.label,
-    label: o.label,
-    description: o.example,
-  }));
-  const errorToleranceTiles = ERROR_TOLERANCE_OPTIONS.map((o) => ({
-    value: o.label,
-    label: o.label,
-    description: o.example,
   }));
 
   return (
@@ -200,12 +191,15 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                 label={<span>Human-in-Loop <GlossaryTerm glossaryKey="humanInLoop" /></span>}
                 errorText={errors.humanLoop?.message}
               >
-                <SelectableTiles
-                  items={humanLoopTiles}
-                  selectedValues={field.value ? [field.value] : []}
-                  onChange={(values) => field.onChange(values[0] ?? "")}
-                  selectionType="single"
+                <Tiles
+                  value={field.value || null}
+                  onChange={({ detail }) => field.onChange(detail.value)}
                   columns={1}
+                  items={HUMAN_LOOP_OPTIONS.map((o) => ({
+                    value: o.label,
+                    label: o.label,
+                    description: o.example,
+                  }))}
                 />
               </FormField>
             )}
@@ -218,12 +212,15 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                 label={<span>오류 허용도 <GlossaryTerm glossaryKey="errorTolerance" /></span>}
                 errorText={errors.errorTolerance?.message}
               >
-                <SelectableTiles
-                  items={errorToleranceTiles}
-                  selectedValues={field.value ? [field.value] : []}
-                  onChange={(values) => field.onChange(values[0] ?? "")}
-                  selectionType="single"
+                <Tiles
+                  value={field.value || null}
+                  onChange={({ detail }) => field.onChange(detail.value)}
                   columns={1}
+                  items={ERROR_TOLERANCE_OPTIONS.map((o) => ({
+                    value: o.label,
+                    label: o.label,
+                    description: o.example,
+                  }))}
                 />
               </FormField>
             )}
