@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import Wizard from "@cloudscape-design/components/wizard";
 import Spinner from "@cloudscape-design/components/spinner";
 import Box from "@cloudscape-design/components/box";
 import Modal from "@cloudscape-design/components/modal";
 import Button from "@cloudscape-design/components/button";
 import SpaceBetween from "@cloudscape-design/components/space-between";
+import { HorizontalWizard } from "@/components/cloudscape/HorizontalWizard";
 import { Step1Form } from "@/components/steps/Step1Form";
 import { Step2Readiness } from "@/components/steps/Step2Readiness";
 import { Step3PatternAnalysis } from "@/components/steps/Step3PatternAnalysis";
@@ -272,7 +272,7 @@ export default function DesignWizardPage() {
   // Don't render until sessionStorage has been read
   if (!isRestored) {
     return (
-      <AppLayoutShell contentType="wizard" breadcrumbs={[{ text: "에이전트 디자인", href: "/design" }]}>
+      <AppLayoutShell contentType="default" breadcrumbs={[{ text: "에이전트 디자인", href: "/design" }]}>
         <Box textAlign="center" padding={{ vertical: "xxxl" }}>
           <Spinner size="large" />
         </Box>
@@ -281,22 +281,18 @@ export default function DesignWizardPage() {
   }
 
   return (
-    <AppLayoutShell contentType="wizard" breadcrumbs={[{ text: "에이전트 디자인", href: "/design" }]}>
-      <Wizard
+    <AppLayoutShell contentType="default" breadcrumbs={[{ text: "에이전트 디자인", href: "/design" }]}>
+      <HorizontalWizard
         activeStepIndex={activeStepIndex}
         isLoadingNextStep={isLoadingNextStep}
-        allowSkipTo
         onNavigate={handleNavigate}
         onCancel={handleCancel}
         onSubmit={handleSubmit}
         i18nStrings={{
-          stepNumberLabel: (n) => `Step ${n}`,
-          collapsedStepsLabel: (n, total) => `Step ${n} / ${total}`,
           cancelButton: "취소",
           previousButton: "이전",
           nextButton: "다음",
           submitButton: "저장",
-          optional: "선택",
         }}
         steps={[
           {
