@@ -278,10 +278,7 @@ export default function PatternsPage() {
                     },
                   ]}
                 />
-                <Alert type="info">
-                  이 원칙은 Google DeepMind의 에이전트 시스템 스케일링 연구에 기반합니다.
-                  P.A.T.H의 패턴 분석(Step 3)에서 이 원칙들을 자동으로 고려하여 아키텍처를 추천합니다.
-                </Alert>
+
               </SpaceBetween>
             </Container>
           </div>
