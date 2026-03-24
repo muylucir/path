@@ -12,14 +12,14 @@ import {
   ERROR_TOLERANCE_OPTIONS,
 } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
+import { SelectableTiles } from "@/components/cloudscape/SelectableTiles";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
 import FormField from "@cloudscape-design/components/form-field";
 import Textarea from "@cloudscape-design/components/textarea";
 import Select from "@cloudscape-design/components/select";
-import Cards from "@cloudscape-design/components/cards";
-import Box from "@cloudscape-design/components/box";
+import ColumnLayout from "@cloudscape-design/components/column-layout";
 
 interface Step1FormProps {
   onSubmit: (data: FormValues) => void;
@@ -55,7 +55,7 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
     }
   }, [initialData, reset]);
 
-  // Expose form submit trigger to parent (Wizard)
+  // Expose form submit trigger to parent
   useEffect(() => {
     if (submitRef) {
       submitRef.current = handleSubmit(onSubmit);
@@ -65,255 +65,185 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
   const watchedProcessSteps = watch("processSteps") || [];
   const watchedOutputTypes = watch("outputTypes") || [];
 
-  const processStepItems = PROCESS_STEPS.map((s) => ({ label: s.label, example: s.example }));
-  const outputTypeItems = OUTPUT_TYPES.map((t) => ({ label: t.label, example: t.example }));
-  const humanLoopItems = HUMAN_LOOP_OPTIONS.map((o) => ({ label: o.label, example: o.example }));
-  const errorToleranceItems = ERROR_TOLERANCE_OPTIONS.map((o) => ({ label: o.label, example: o.example }));
+  const processStepTiles = PROCESS_STEPS.map((s) => ({
+    value: s.label,
+    label: s.label,
+    description: s.example,
+  }));
+  const outputTypeTiles = OUTPUT_TYPES.map((t) => ({
+    value: t.label,
+    label: t.label,
+    description: t.example,
+  }));
+  const humanLoopTiles = HUMAN_LOOP_OPTIONS.map((o) => ({
+    value: o.label,
+    label: o.label,
+    description: o.example,
+  }));
+  const errorToleranceTiles = ERROR_TOLERANCE_OPTIONS.map((o) => ({
+    value: o.label,
+    label: o.label,
+    description: o.example,
+  }));
 
   return (
-    <div style={{ maxWidth: "80%" }}>
     <SpaceBetween size="l">
-      {/* Pain Point */}
+      {/* Pain Point - full width */}
       <Container header={<Header variant="h2" description="AI Agent로 자동화하고 싶은 Pain Point를 구체적으로 작성하세요">해결하고 싶은 문제</Header>}>
-            <Controller
-              name="painPoint"
-              control={control}
-              render={({ field }) => (
-                <div className="full-width-control">
-                  <FormField
-                    label={<span>Pain Point <GlossaryTerm glossaryKey="painPoint" /></span>}
-                    description="현재 상황, 문제점, 소요 시간/비용, 관련 이해관계자를 포함하면 더 정확한 분석이 가능합니다."
-                    constraintText="필수, 최소 10자"
-                    errorText={errors.painPoint?.message}
-                  >
-                    <Textarea
-                      value={field.value}
-                      onChange={({ detail }) => field.onChange(detail.value)}
-                      placeholder="예: 채용팀 3명이 월 150건 이력서를 수동 검토하며, 1건당 20분 소요. 담당자마다 평가 기준이 달라 일관성이 떨어지고, 우수 후보자가 경쟁사로 이탈하는 경우가 월 5건 이상 발생"
-                      rows={5}
-                    />
-                  </FormField>
-                </div>
-              )}
+        <Controller
+          name="painPoint"
+          control={control}
+          render={({ field }) => (
+            <div className="full-width-control">
+              <FormField
+                label={<span>Pain Point <GlossaryTerm glossaryKey="painPoint" /></span>}
+                description="현재 상황, 문제점, 소요 시간/비용, 관련 이해관계자를 포함하면 더 정확한 분석이 가능합니다."
+                constraintText="필수, 최소 10자"
+                errorText={errors.painPoint?.message}
+              >
+                <Textarea
+                  value={field.value}
+                  onChange={({ detail }) => field.onChange(detail.value)}
+                  placeholder="예: 채용팀 3명이 월 150건 이력서를 수동 검토하며, 1건당 20분 소요. 담당자마다 평가 기준이 달라 일관성이 떨어지고, 우수 후보자가 경쟁사로 이탈하는 경우가 월 5건 이상 발생"
+                  rows={5}
+                />
+              </FormField>
+            </div>
+          )}
+        />
+      </Container>
+
+      {/* Trigger + Data Sources - side by side */}
+      <Container header={<Header variant="h2" description="Agent의 실행 조건과 활용할 리소스를 설정하세요">실행 환경</Header>}>
+        <ColumnLayout columns={2}>
+          <Controller
+            name="inputType"
+            control={control}
+            render={({ field }) => (
+              <FormField
+                label={<span>트리거 타입 <GlossaryTerm glossaryKey="triggerType" /></span>}
+                errorText={errors.inputType?.message}
+              >
+                <Select
+                  selectedOption={field.value ? { label: field.value, value: field.value } : null}
+                  onChange={({ detail }) => field.onChange(detail.selectedOption.value || "")}
+                  options={INPUT_TYPES.map((type) => ({ label: type, value: type }))}
+                  placeholder="트리거 타입을 선택하세요"
+                />
+              </FormField>
+            )}
+          />
+          <Controller
+            name="additionalSources"
+            control={control}
+            render={({ field }) => (
+              <FormField
+                label="데이터 소스 (선택)"
+                description="DB, API, MCP 서버 등"
+              >
+                <Textarea
+                  value={field.value || ""}
+                  onChange={({ detail }) => field.onChange(detail.value)}
+                  placeholder="예: PostgreSQL 고객 DB, Slack API, S3 버킷, Bedrock KB 등"
+                  rows={3}
+                />
+              </FormField>
+            )}
+          />
+        </ColumnLayout>
+      </Container>
+
+      {/* Process Steps - 3 columns */}
+      <Container header={<Header variant="h2" description="Agent가 수행할 작업을 선택하세요 (복수 선택)">수행 작업</Header>}>
+        <div className="full-width-control">
+          <FormField errorText={errors.processSteps?.message}>
+            <SelectableTiles
+              items={processStepTiles}
+              selectedValues={watchedProcessSteps}
+              onChange={(values) => setValue("processSteps", values, { shouldValidate: true })}
+              selectionType="multi"
+              columns={3}
             />
-          </Container>
+          </FormField>
+        </div>
+      </Container>
 
-          {/* Trigger Settings */}
-          <Container header={<Header variant="h2" description="Agent가 언제 실행되나요?">실행 조건</Header>}>
-            <Controller
-              name="inputType"
-              control={control}
-              render={({ field }) => (
-                <div className="full-width-control">
-                  <FormField
-                    label={<span>트리거 타입 <GlossaryTerm glossaryKey="triggerType" /></span>}
-                    errorText={errors.inputType?.message}
-                  >
-                    <Select
-                      selectedOption={field.value ? { label: field.value, value: field.value } : null}
-                      onChange={({ detail }) => field.onChange(detail.selectedOption.value || "")}
-                      options={INPUT_TYPES.map((type) => ({ label: type, value: type }))}
-                      placeholder="트리거 타입을 선택하세요"
-                    />
-                  </FormField>
-                </div>
-              )}
+      {/* Output Types - 2 columns */}
+      <Container header={<Header variant="h2" description="Agent가 만들어낼 최종 결과물을 선택하세요 (복수 선택)">산출물</Header>}>
+        <div className="full-width-control">
+          <FormField errorText={errors.outputTypes?.message}>
+            <SelectableTiles
+              items={outputTypeTiles}
+              selectedValues={watchedOutputTypes}
+              onChange={(values) => setValue("outputTypes", values, { shouldValidate: true })}
+              selectionType="multi"
+              columns={2}
             />
-          </Container>
+          </FormField>
+        </div>
+      </Container>
 
-          {/* Agent Behavior - Process Steps & Output Types */}
-          <Container header={<Header variant="h2" description="Agent가 수행할 작업과 산출물을 선택하세요">Agent 동작 정의</Header>}>
-            <SpaceBetween size="l">
-              {/* Process Steps */}
-              <div className="full-width-control">
-                <FormField
-                  label="수행 작업"
-                  description="Agent가 하는 일 (필수, 복수 선택)"
-                  errorText={errors.processSteps?.message}
-                >
-                  <div className="equal-height-cards">
-                    <Cards
-                      selectionType="multi"
-                      selectedItems={processStepItems.filter((s) => watchedProcessSteps.includes(s.label))}
-                      onSelectionChange={({ detail }) =>
-                        setValue("processSteps", detail.selectedItems.map((i) => i.label), { shouldValidate: true })
-                      }
-                      trackBy="label"
-                      cardDefinition={{
-                        header: (item) => item.label,
-                        sections: [
-                          {
-                            id: "example",
-                            content: (item) => (
-                              <Box color="text-body-secondary" variant="small">{item.example}</Box>
-                            ),
-                          },
-                        ],
-                      }}
-                      items={processStepItems}
-                      cardsPerRow={[{ cards: 2 }]}
-                    />
-                  </div>
-                </FormField>
-              </div>
+      {/* Human-in-Loop + Error Tolerance - side by side */}
+      <Container header={<Header variant="h2" description="사람 개입 수준과 오류 허용도를 설정하세요">운영 정책</Header>}>
+        <ColumnLayout columns={2}>
+          <Controller
+            name="humanLoop"
+            control={control}
+            render={({ field }) => (
+              <FormField
+                label={<span>Human-in-Loop <GlossaryTerm glossaryKey="humanInLoop" /></span>}
+                errorText={errors.humanLoop?.message}
+              >
+                <SelectableTiles
+                  items={humanLoopTiles}
+                  selectedValues={field.value ? [field.value] : []}
+                  onChange={(values) => field.onChange(values[0] ?? "")}
+                  selectionType="single"
+                  columns={1}
+                />
+              </FormField>
+            )}
+          />
+          <Controller
+            name="errorTolerance"
+            control={control}
+            render={({ field }) => (
+              <FormField
+                label={<span>오류 허용도 <GlossaryTerm glossaryKey="errorTolerance" /></span>}
+                errorText={errors.errorTolerance?.message}
+              >
+                <SelectableTiles
+                  items={errorToleranceTiles}
+                  selectedValues={field.value ? [field.value] : []}
+                  onChange={(values) => field.onChange(values[0] ?? "")}
+                  selectionType="single"
+                  columns={1}
+                />
+              </FormField>
+            )}
+          />
+        </ColumnLayout>
+      </Container>
 
-              {/* Output Types */}
-              <div className="full-width-control">
-                <FormField
-                  label="산출물"
-                  description="최종 결과물 (필수, 복수 선택)"
-                  errorText={errors.outputTypes?.message}
-                >
-                  <div className="equal-height-cards">
-                    <Cards
-                      selectionType="multi"
-                      selectedItems={outputTypeItems.filter((t) => watchedOutputTypes.includes(t.label))}
-                      onSelectionChange={({ detail }) =>
-                        setValue("outputTypes", detail.selectedItems.map((i) => i.label), { shouldValidate: true })
-                      }
-                      trackBy="label"
-                      cardDefinition={{
-                        header: (item) => item.label,
-                        sections: [
-                          {
-                            id: "example",
-                            content: (item) => (
-                              <Box color="text-body-secondary" variant="small">{item.example}</Box>
-                            ),
-                          },
-                        ],
-                      }}
-                      items={outputTypeItems}
-                      cardsPerRow={[{ cards: 2 }]}
-                    />
-                  </div>
-                </FormField>
-              </div>
-            </SpaceBetween>
-          </Container>
-
-          {/* Agent Resources */}
-          <Container header={<Header variant="h2" description="Agent가 접근하거나 활용할 외부 시스템, API, 데이터베이스 등을 설명하세요">Agent가 활용할 리소스 (선택)</Header>}>
-            <Controller
-              name="additionalSources"
-              control={control}
-              render={({ field }) => (
-                <div className="full-width-control">
-                  <FormField
-                    label="데이터 소스 (선택)"
-                    description="데이터베이스, API, MCP 서버, 클라우드 서비스 등 Agent가 사용할 리소스를 자유롭게 입력하세요"
-                  >
-                    <Textarea
-                      value={field.value || ""}
-                      onChange={({ detail }) => field.onChange(detail.value)}
-                      placeholder="예: PostgreSQL 고객 DB, Slack API로 알림 전송, S3 버킷에서 문서 조회, Bedrock Knowledge Base 검색 등"
-                      rows={4}
-                    />
-                  </FormField>
-                </div>
-              )}
-            />
-          </Container>
-
-          {/* Additional Settings - Human Loop & Error Tolerance */}
-          <Container header={<Header variant="h2" description="Human-in-Loop, 오류 허용도를 설정하세요">추가 설정</Header>}>
-            <SpaceBetween size="l">
-              {/* Human-in-Loop */}
-              <Controller
-                name="humanLoop"
-                control={control}
-                render={({ field }) => (
-                  <div className="full-width-control">
-                    <FormField
-                      label={<span>Human-in-Loop <GlossaryTerm glossaryKey="humanInLoop" /></span>}
-                      description="사람이 언제 개입하나요? (단일 선택)"
-                      errorText={errors.humanLoop?.message}
-                    >
-                      <div className="equal-height-cards">
-                        <Cards
-                          selectionType="single"
-                          selectedItems={humanLoopItems.filter((i) => i.label === field.value)}
-                          onSelectionChange={({ detail }) => field.onChange(detail.selectedItems[0]?.label ?? "")}
-                          trackBy="label"
-                          cardDefinition={{
-                            header: (item) => item.label,
-                            sections: [
-                              {
-                                id: "example",
-                                content: (item) => (
-                                  <Box color="text-body-secondary" variant="small">{item.example}</Box>
-                                ),
-                              },
-                            ],
-                          }}
-                          items={humanLoopItems}
-                          cardsPerRow={[{ cards: 2 }]}
-                        />
-                      </div>
-                    </FormField>
-                  </div>
-                )}
-              />
-
-              {/* Error Tolerance */}
-              <Controller
-                name="errorTolerance"
-                control={control}
-                render={({ field }) => (
-                  <div className="full-width-control">
-                    <FormField
-                      label={<span>오류 허용도 <GlossaryTerm glossaryKey="errorTolerance" /></span>}
-                      description="AI 실수의 허용 범위는? (단일 선택)"
-                      errorText={errors.errorTolerance?.message}
-                    >
-                      <div className="equal-height-cards">
-                        <Cards
-                          selectionType="single"
-                          selectedItems={errorToleranceItems.filter((i) => i.label === field.value)}
-                          onSelectionChange={({ detail }) => field.onChange(detail.selectedItems[0]?.label ?? "")}
-                          trackBy="label"
-                          cardDefinition={{
-                            header: (item) => item.label,
-                            sections: [
-                              {
-                                id: "example",
-                                content: (item) => (
-                                  <Box color="text-body-secondary" variant="small">{item.example}</Box>
-                                ),
-                              },
-                            ],
-                          }}
-                          items={errorToleranceItems}
-                          cardsPerRow={[{ cards: 2 }]}
-                        />
-                      </div>
-                    </FormField>
-                  </div>
-                )}
-              />
-            </SpaceBetween>
-          </Container>
-
-          {/* Additional Context */}
-          <Container header={<Header variant="h2" description="선택사항: 추가로 알려주고 싶은 내용이 있다면 작성하세요">추가 정보</Header>}>
-            <Controller
-              name="additionalContext"
-              control={control}
-              render={({ field }) => (
-                <div className="full-width-control">
-                  <FormField label="추가 컨텍스트 (선택)">
-                    <Textarea
-                      value={field.value || ""}
-                      onChange={({ detail }) => field.onChange(detail.value)}
-                      placeholder="예: 과거 데이터 1000건 있음, 법무팀 검토 필수, 실시간 처리 필요 등"
-                      rows={4}
-                    />
-                  </FormField>
-                </div>
-              )}
-            />
-          </Container>
+      {/* Additional Context - full width */}
+      <Container header={<Header variant="h2" description="선택사항: 추가로 알려주고 싶은 내용이 있다면 작성하세요">추가 정보</Header>}>
+        <Controller
+          name="additionalContext"
+          control={control}
+          render={({ field }) => (
+            <div className="full-width-control">
+              <FormField label="추가 컨텍스트 (선택)">
+                <Textarea
+                  value={field.value || ""}
+                  onChange={({ detail }) => field.onChange(detail.value)}
+                  placeholder="예: 과거 데이터 1000건 있음, 법무팀 검토 필수, 실시간 처리 필요 등"
+                  rows={4}
+                />
+              </FormField>
+            </div>
+          )}
+        />
+      </Container>
     </SpaceBetween>
-    </div>
   );
 }

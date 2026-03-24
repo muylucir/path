@@ -232,6 +232,102 @@ body {
   height: auto;
 }
 
+/* ===== Selectable Tiles ===== */
+
+.selectable-tiles-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.selectable-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 2px solid var(--color-border-divider-default, #d5dbdb);
+  border-radius: 12px;
+  background: var(--color-background-container-content, #fff);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  font-size: inherit;
+  transition: border-color 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+
+.selectable-tile:hover {
+  border-color: var(--color-text-accent, #0972d3);
+  background-color: var(--color-background-dropdown-item-hover, #f2f8fd);
+}
+
+.selectable-tile.selected {
+  border-color: var(--color-text-accent, #0972d3);
+  background-color: var(--color-background-dropdown-item-hover, #f2f8fd);
+  box-shadow: 0 0 0 1px var(--color-text-accent, #0972d3);
+}
+
+.selectable-tile-indicator {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.selectable-tile-checkbox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border-divider-default, #7d8998);
+  border-radius: 4px;
+  background: var(--color-background-container-content, #fff);
+  color: #fff;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.selectable-tile-checkbox.checked {
+  background: var(--color-text-accent, #0972d3);
+  border-color: var(--color-text-accent, #0972d3);
+}
+
+.selectable-tile-radio {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border-divider-default, #7d8998);
+  border-radius: 50%;
+  background: var(--color-background-container-content, #fff);
+  position: relative;
+  transition: border-color 0.15s;
+}
+
+.selectable-tile-radio.checked {
+  border-color: var(--color-text-accent, #0972d3);
+}
+
+.selectable-tile-radio.checked::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-text-accent, #0972d3);
+}
+
+.selectable-tile-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.selectable-tile-label {
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-body-default, #000716);
+}
+
 /* ===== Horizontal Wizard ===== */
 
 .horizontal-wizard {
