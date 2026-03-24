@@ -113,13 +113,13 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
         />
       </Container>
 
-      {/* Trigger + Data Sources - side by side */}
-      <Container header={<Header variant="h2" description="Agent의 실행 조건과 활용할 리소스를 설정하세요">실행 환경</Header>}>
-        <ColumnLayout columns={2}>
-          <Controller
-            name="inputType"
-            control={control}
-            render={({ field }) => (
+      {/* Trigger Type */}
+      <Container header={<Header variant="h2" description="Agent가 언제 실행되나요?">실행 조건</Header>}>
+        <Controller
+          name="inputType"
+          control={control}
+          render={({ field }) => (
+            <div className="full-width-control">
               <FormField
                 label={<span>트리거 타입 <GlossaryTerm glossaryKey="triggerType" /></span>}
                 errorText={errors.inputType?.message}
@@ -131,26 +131,9 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
                   placeholder="트리거 타입을 선택하세요"
                 />
               </FormField>
-            )}
-          />
-          <Controller
-            name="additionalSources"
-            control={control}
-            render={({ field }) => (
-              <FormField
-                label="데이터 소스 (선택)"
-                description="DB, API, MCP 서버 등"
-              >
-                <Textarea
-                  value={field.value || ""}
-                  onChange={({ detail }) => field.onChange(detail.value)}
-                  placeholder="예: PostgreSQL 고객 DB, Slack API, S3 버킷, Bedrock KB 등"
-                  rows={3}
-                />
-              </FormField>
-            )}
-          />
-        </ColumnLayout>
+            </div>
+          )}
+        />
       </Container>
 
       {/* Process Steps - 3 columns */}
@@ -181,6 +164,29 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
             />
           </FormField>
         </div>
+      </Container>
+
+      {/* Data Sources */}
+      <Container header={<Header variant="h2" description="Agent가 접근하거나 활용할 외부 시스템, API, 데이터베이스 등을 설명하세요">Agent가 활용할 리소스 (선택)</Header>}>
+        <Controller
+          name="additionalSources"
+          control={control}
+          render={({ field }) => (
+            <div className="full-width-control">
+              <FormField
+                label="데이터 소스 (선택)"
+                description="데이터베이스, API, MCP 서버, 클라우드 서비스 등 Agent가 사용할 리소스를 자유롭게 입력하세요"
+              >
+                <Textarea
+                  value={field.value || ""}
+                  onChange={({ detail }) => field.onChange(detail.value)}
+                  placeholder="예: PostgreSQL 고객 DB, Slack API로 알림 전송, S3 버킷에서 문서 조회, Bedrock Knowledge Base 검색 등"
+                  rows={4}
+                />
+              </FormField>
+            </div>
+          )}
+        />
       </Container>
 
       {/* Human-in-Loop + Error Tolerance - side by side */}
