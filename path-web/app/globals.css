@@ -232,6 +232,47 @@ body {
   height: auto;
 }
 
+/* ===== Checkbox Card Grid ===== */
+
+.checkbox-card-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.checkbox-card-grid.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.checkbox-card-grid.cols-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.checkbox-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 2px solid var(--color-border-divider-default, #d5dbdb);
+  border-radius: 12px;
+  background: var(--color-background-container-content, #fff);
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+.checkbox-card:hover {
+  border-color: var(--color-text-accent, #0972d3);
+  background-color: var(--color-background-dropdown-item-hover, #f2f8fd);
+}
+
+.checkbox-card.checked {
+  border-color: var(--color-text-accent, #0972d3);
+  background-color: var(--color-background-dropdown-item-hover, #f2f8fd);
+}
+
+.checkbox-card-label {
+  font-weight: 600;
+}
+
 /* ===== Selectable Tiles ===== */
 
 .selectable-tiles-grid {
