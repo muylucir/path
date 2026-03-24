@@ -8,10 +8,9 @@ PatternAnalyzerAgent: Step 3 패턴 분석 + 대화 + 확정
 from strands import Agent
 from typing import Dict, List, Any, AsyncIterator
 import json
-import os
 import re
 from safe_tools import safe_file_read
-from strands_utils import strands_utils, get_skill_prompt
+from strands_utils import strands_utils, get_skill_prompt, DEFAULT_MODEL_ID
 from token_tracker import extract_usage
 from schemas import FeasibilityEvaluation, PatternAnalysis
 from prompts import (
@@ -24,8 +23,6 @@ from prompts import (
     get_pattern_finalize_prompt,
 )
 
-# Default model ID - can be overridden via environment variable
-DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
 
 def _extract_json(response_text: str, context: str = "response") -> Dict[str, Any]:
     """LLM 응답에서 JSON을 추출하고 파싱.

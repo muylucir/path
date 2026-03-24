@@ -153,11 +153,19 @@ path-strands-agent/
 │                                 # - FeasibilityAgent (Step 2)
 │                                 # - PatternAnalyzerAgent (Step 3)
 ├── schemas.py                    # Pydantic 출력 모델 (FeasibilityEvaluation, PatternAnalysis)
-├── multi_stage_spec_agent.py     # MultiStageSpecAgent (5개 서브 에이전트)
-│                                 # - DesignAgent, DiagramAgent, PromptAgent, ToolAgent, AssemblerAgent
-│                                 # - MermaidValidator (다이어그램 문법 검증)
+├── spec/                         # MultiStageSpecAgent 패키지 (Step 4 명세서 생성)
+│   ├── __init__.py               #   MultiStageSpecAgent 재수출
+│   ├── _helpers.py               #   공유 유틸리티 (텍스트 추출, 컨텍스트 빌더, 메타코멘터리 제거)
+│   ├── mermaid_validator.py      #   Mermaid 다이어그램 문법 검증기
+│   ├── design_agent.py           #   DesignAgent (1단계: Agent 설계)
+│   ├── diagram_agent.py          #   DiagramAgent (2단계: 다이어그램 생성)
+│   ├── prompt_agent.py           #   PromptAgent (3a단계: 프롬프트 설계, Scatter-Gather)
+│   ├── tool_agent.py             #   ToolAgent (3b단계: 도구 정의)
+│   ├── assembler.py              #   AssemblerAgent (4단계: 최종 조합, LLM 미사용)
+│   └── orchestrator.py           #   MultiStageSpecAgent (오케스트레이터)
 ├── prompts.py                    # 시스템 프롬프트 및 템플릿
 ├── strands_utils.py              # Strands Agent 유틸리티 함수
+│                                 # - DEFAULT_MODEL_ID, create_spec_agent 팩토리
 │                                 # - BedrockModel 생성 (prompt caching 포함)
 │                                 # - Skill 프롬프트 캐싱
 ├── safe_tools.py                 # 안전한 도구 정의 (skills/ 디렉토리만 접근 허용)
