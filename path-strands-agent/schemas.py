@@ -216,17 +216,22 @@ class PatternAnalysis(BaseModel):
     @classmethod
     def normalize_architecture(cls, v):
         v = str(v).lower().strip()
-        if "multi" in v:
+        if "multi" in v or "distributed" in v or "team" in v or "collaborative" in v:
             return "multi-agent"
-        return "single-agent"
+        if "single" in v or "solo" in v or "mono" in v:
+            return "single-agent"
+        # 어느 쪽에도 매칭되지 않으면 원본 유지 (Pydantic이 검증)
+        return v
 
     @field_validator("automation_level", mode="before")
     @classmethod
     def normalize_automation(cls, v):
         v = str(v).lower().strip()
-        if "agentic" in v:
+        if "agentic" in v or "autonomous" in v or "agent-driven" in v:
             return "agentic-ai"
-        return "ai-assisted-workflow"
+        if "assisted" in v or "pipeline" in v or "workflow" in v:
+            return "ai-assisted-workflow"
+        return v
 
     @field_validator("improved_feasibility", mode="before")
     @classmethod
