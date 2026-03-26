@@ -121,7 +121,7 @@ def load_metadata(skill_dir: str | Path):
         license=frontmatter.get("license"),
         compatibility=frontmatter.get("compatibility"),
         allowed_tools=frontmatter.get("allowed-tools"),
-        metadata=frontmatter.get("metadata"),
+        metadata=frontmatter.get("metadata") or {},
     )
 
 

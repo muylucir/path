@@ -80,7 +80,19 @@ class MultiStageSpecAgent:
                     stage_text = " & ".join(stages_status) + " 생성 중..."
                     yield {'progress': progress, 'stage': stage_text}
 
-            diagram_result, prompt_result, tool_result = await asyncio.gather(diagram_task, prompt_task, tool_task)
+            raw_results = await asyncio.gather(diagram_task, prompt_task, tool_task, return_exceptions=True)
+
+            # 부분 실패 처리: 실패한 서브에이전트는 빈 문자열로 대체
+            sub_names = ["DiagramAgent", "PromptAgent", "ToolAgent"]
+            resolved: list[str] = []
+            for i, r in enumerate(raw_results):
+                if isinstance(r, BaseException):
+                    logger.error(f"{sub_names[i]} 실패: {r}", exc_info=r)
+                    resolved.append("")
+                else:
+                    resolved.append(r)
+
+            diagram_result, prompt_result, tool_result = resolved
             yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
@@ -95,18 +107,21 @@ class MultiStageSpecAgent:
                 yield chunk_data
 
             # 서브 에이전트 토큰 사용량 집계
-            total_usage = merge_usage(
-                merge_usage(
-                    getattr(self.design_agent, '_last_usage', {}) or {},
-                    getattr(self.diagram_agent, '_last_usage', {}) or {}
-                ),
-                merge_usage(
-                    getattr(self.prompt_agent, '_last_usage', {}) or {},
-                    getattr(self.tool_agent, '_last_usage', {}) or {}
+            try:
+                total_usage = merge_usage(
+                    merge_usage(
+                        getattr(self.design_agent, '_last_usage', {}) or {},
+                        getattr(self.diagram_agent, '_last_usage', {}) or {}
+                    ),
+                    merge_usage(
+                        getattr(self.prompt_agent, '_last_usage', {}) or {},
+                        getattr(self.tool_agent, '_last_usage', {}) or {}
+                    )
                 )
-            )
-            if total_usage.get("totalTokens", 0) > 0:
-                yield {'usage': total_usage}
+                if total_usage.get("totalTokens", 0) > 0:
+                    yield {'usage': total_usage}
+            except Exception as e:
+                logger.warning(f"Usage 집계 실패: {e}")
 
             # 최종 100% 도달
             yield {'progress': 100, 'stage': '완료'}

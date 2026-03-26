@@ -151,6 +151,33 @@ class UpdatedAutonomy(BaseModel):
         return v
 
 
+class ThreeAxisScores(BaseModel):
+    """3축 점수 평가 결과 (싱글/멀티 에이전트 판단 근거)"""
+    axis1_tool_complexity: int = Field(ge=0, le=2)
+    axis2_role_separation: int = Field(ge=0, le=2)
+    axis3_flow_complexity: int = Field(ge=0, le=2)
+    total: int = Field(ge=0, le=6)
+    reasoning: str = ""
+
+    @field_validator("axis1_tool_complexity", "axis2_role_separation",
+                     "axis3_flow_complexity", "total", mode="before")
+    @classmethod
+    def coerce_score(cls, v):
+        if isinstance(v, str):
+            return int(v)
+        if isinstance(v, float):
+            return int(v)
+        return v
+
+    @model_validator(mode="after")
+    def validate_total(self):
+        """total이 3축 합산과 일치하지 않으면 자동 교정"""
+        expected = self.axis1_tool_complexity + self.axis2_role_separation + self.axis3_flow_complexity
+        if self.total != expected:
+            self.total = expected
+        return self
+
+
 class PatternAnalysis(BaseModel):
     """Step 3 finalize: 패턴 확정 결과"""
     pain_point: str
@@ -166,6 +193,7 @@ class PatternAnalysis(BaseModel):
     automation_level: str
     automation_level_reason: Optional[str] = None
     updated_autonomy: Optional[UpdatedAutonomy] = None
+    three_axis_scores: Optional[ThreeAxisScores] = None
     architecture_reason: Optional[str] = None
     pattern_reason: str = ""
     feasibility_breakdown: dict
@@ -188,17 +216,22 @@ class PatternAnalysis(BaseModel):
     @classmethod
     def normalize_architecture(cls, v):
         v = str(v).lower().strip()
-        if "multi" in v:
+        if "multi" in v or "distributed" in v or "team" in v or "collaborative" in v:
             return "multi-agent"
-        return "single-agent"
+        if "single" in v or "solo" in v or "mono" in v:
+            return "single-agent"
+        # 어느 쪽에도 매칭되지 않으면 원본 유지 (Pydantic이 검증)
+        return v
 
     @field_validator("automation_level", mode="before")
     @classmethod
     def normalize_automation(cls, v):
         v = str(v).lower().strip()
-        if "agentic" in v:
+        if "agentic" in v or "autonomous" in v or "agent-driven" in v:
             return "agentic-ai"
-        return "ai-assisted-workflow"
+        if "assisted" in v or "pipeline" in v or "workflow" in v:
+            return "ai-assisted-workflow"
+        return v
 
     @field_validator("improved_feasibility", mode="before")
     @classmethod

@@ -11,6 +11,13 @@ PRICING = {
 }
 
 
+_EMPTY_USAGE = {
+    "inputTokens": 0, "outputTokens": 0, "totalTokens": 0,
+    "cacheReadInputTokens": 0, "cacheWriteInputTokens": 0,
+    "estimatedCostUSD": 0.0,
+}
+
+
 def extract_usage(result) -> dict:
     """AgentResult에서 토큰 사용량 + 비용 추출.
 
@@ -20,7 +27,10 @@ def extract_usage(result) -> dict:
     Returns:
         토큰 사용량 및 추정 비용 dict
     """
-    usage = result.metrics.accumulated_usage
+    try:
+        usage = result.metrics.accumulated_usage
+    except AttributeError:
+        return dict(_EMPTY_USAGE)
     input_t = usage.get("inputTokens", 0)
     output_t = usage.get("outputTokens", 0)
     cache_read = usage.get("cacheReadInputTokens", 0)

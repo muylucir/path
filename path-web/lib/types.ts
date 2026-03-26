@@ -122,7 +122,14 @@ export interface Analysis {
   automation_level?: AutomationLevel;  // 자동화 수준 (자율성 기반)
   automation_level_reason?: string;  // 자동화 수준 판단 근거
   updated_autonomy?: { score: number; reason: string } | null;  // 대화 후 재판단된 자율성 점수
-  architecture_reason?: string;  // 권장 이유
+  three_axis_scores?: {
+    axis1_tool_complexity: number;
+    axis2_role_separation: number;
+    axis3_flow_complexity: number;
+    total: number;
+    reasoning: string;
+  } | null;
+  architecture_reason?: string;  // 권장 이유 (3축 점수 근거 포함)
   pattern_reason: string;
   feasibility_breakdown: FeasibilityBreakdown;
   feasibility_score: number;

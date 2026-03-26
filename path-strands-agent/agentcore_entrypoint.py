@@ -19,14 +19,36 @@ AgentCore 초기화 타임아웃(30초) 내에 app.run()이 시작되어야 한�
 import json
 import logging
 import asyncio
+import time
+from collections import OrderedDict
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
 logger = logging.getLogger(__name__)
 
 app = BedrockAgentCoreApp()
 
-# PatternAnalyzerAgent 세션 캐시 (runtimeSessionId → agent)
-_pattern_sessions: dict = {}
+# PatternAnalyzerAgent 세션 캐시 (TTL + 최대 크기 제한)
+_MAX_SESSIONS = 100
+_SESSION_TTL_SECONDS = 3600  # 1시간
+
+_pattern_sessions: OrderedDict = OrderedDict()
+_session_timestamps: dict = {}
+
+
+def _cleanup_sessions():
+    """만료 세션 정리 및 최대 크기 제한 적용."""
+    now = time.time()
+    expired = [
+        sid for sid, ts in _session_timestamps.items()
+        if now - ts > _SESSION_TTL_SECONDS
+    ]
+    for sid in expired:
+        _pattern_sessions.pop(sid, None)
+        _session_timestamps.pop(sid, None)
+
+    while len(_pattern_sessions) > _MAX_SESSIONS:
+        oldest_sid, _ = _pattern_sessions.popitem(last=False)
+        _session_timestamps.pop(oldest_sid, None)
 
 # Lazy-loaded 모듈 캐시
 _chat_agent_module = None
@@ -60,21 +82,76 @@ def _get_or_create_pattern_agent(
     Returns:
         (agent, is_stateful) tuple
     """
+    _cleanup_sessions()
+
     if session_id and session_id in _pattern_sessions:
+        _session_timestamps[session_id] = time.time()  # TTL 갱신
         return _pattern_sessions[session_id], True
 
     mod = _get_chat_agent_module()
     agent = mod.PatternAnalyzerAgent()
 
-    # 대화 히스토리 복원 (stateless fallback)
+    # 대화 히스토리 복원 (stateless fallback) — role 검증 포함
+    _ALLOWED_ROLES = {"user", "assistant"}
     if conversation:
         for msg in conversation:
-            agent.add_message(msg.get("role", "user"), msg.get("content", ""))
+            role = msg.get("role", "user")
+            if role not in _ALLOWED_ROLES:
+                role = "user"
+            content = msg.get("content", "")
+            if isinstance(content, str) and content:
+                agent.add_message(role, content)
 
     if session_id:
         _pattern_sessions[session_id] = agent
+        _session_timestamps[session_id] = time.time()
 
     return agent, False
+
+
+_MAX_FIELD_LEN = 10000      # 단일 문자열 필드 최대 길이
+_MAX_CONVERSATION_TURNS = 100  # 대화 히스토리 최대 턴 수
+
+
+_MAX_ARRAY_ITEMS = 50  # 배열 필드 최대 항목 수
+
+
+def _validate_payload(payload: dict):
+    """Payload 크기 기본 검증. 초과 시 ValueError."""
+    form_data = payload.get("formData", {})
+    if isinstance(form_data, dict):
+        # 문자열 필드 길이 검증
+        for key in ("painPoint", "additionalContext", "additionalSources",
+                     "inputType", "humanLoop", "errorTolerance"):
+            val = form_data.get(key, "")
+            if isinstance(val, str) and len(val) > _MAX_FIELD_LEN:
+                raise ValueError(f"Field '{key}' exceeds maximum length")
+        # 배열 필드 크기 검증
+        for key in ("processSteps", "outputTypes"):
+            arr = form_data.get(key, [])
+            if isinstance(arr, list):
+                if len(arr) > _MAX_ARRAY_ITEMS:
+                    raise ValueError(f"Field '{key}' has too many items")
+                for item in arr:
+                    if isinstance(item, str) and len(item) > _MAX_FIELD_LEN:
+                        raise ValueError(f"Item in '{key}' exceeds maximum length")
+
+    # userMessage 길이 검증
+    user_msg = payload.get("userMessage", "")
+    if isinstance(user_msg, str) and len(user_msg) > _MAX_FIELD_LEN:
+        raise ValueError("userMessage exceeds maximum length")
+
+    # conversation/chat_history 턴 수 + 개별 메시지 크기 검증
+    for conv_key in ("conversation", "chat_history"):
+        conv = payload.get(conv_key, [])
+        if isinstance(conv, list):
+            if len(conv) > _MAX_CONVERSATION_TURNS:
+                raise ValueError(f"'{conv_key}' exceeds maximum turns ({_MAX_CONVERSATION_TURNS})")
+            for msg in conv:
+                if isinstance(msg, dict):
+                    content = msg.get("content", "")
+                    if isinstance(content, str) and len(content) > _MAX_FIELD_LEN:
+                        raise ValueError(f"Message in '{conv_key}' exceeds maximum length")
 
 
 @app.entrypoint
@@ -83,7 +160,18 @@ async def invoke(payload, context):
     action_type = payload.get("type")
     session_id = getattr(context, "session_id", "") or ""
 
-    print(f"[INVOKE] action={action_type} session={session_id}", flush=True)
+    # 로그 injection 방어: 개행 문자 제거 및 길이 제한
+    safe_action = str(action_type or "").replace('\n', '').replace('\r', '')[:50]
+    safe_session = str(session_id).replace('\n', '').replace('\r', '')[:100]
+    logger.info(f"[INVOKE] action={safe_action} session={safe_session}")
+
+    # Payload 크기 검증
+    try:
+        _validate_payload(payload)
+    except ValueError as e:
+        logger.warning(f"[PAYLOAD REJECTED] {e}")
+        yield {"error": "요청 데이터가 허용 크기를 초과합니다."}
+        return
 
     try:
         if action_type == "ping":
@@ -117,20 +205,18 @@ async def invoke(payload, context):
                 yield event
 
         else:
-            yield {"error": f"Unknown action type: {action_type}"}
+            yield {"error": "Unknown action type"}
 
     except RuntimeError as e:
         if "StopIteration" in str(e):
             # Strands SDK stream_async 종료 시 StopIteration이
             # async generator로 누출되는 현상 — 정상 종료로 처리
             return
-        import traceback
-        print(f"[ENTRYPOINT ERROR] action={action_type} error={e}\n{traceback.format_exc()}", flush=True)
-        yield {"error": f"[{type(e).__name__}] {e}"}
+        logger.error(f"[ENTRYPOINT ERROR] action={safe_action} error={e}", exc_info=True)
+        yield {"error": "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
     except Exception as e:
-        import traceback
-        print(f"[ENTRYPOINT ERROR] action={action_type} error={e}\n{traceback.format_exc()}", flush=True)
-        yield {"error": f"[{type(e).__name__}] {e}"}
+        logger.error(f"[ENTRYPOINT ERROR] action={safe_action} error={e}", exc_info=True)
+        yield {"error": "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
 
 
 # ──────────────────────────────────────────────
@@ -177,10 +263,12 @@ async def _handle_pattern_analyze(payload: dict, session_id: str):
     feasibility = payload.get("feasibility", {})
     improvement_plans = payload.get("improvementPlans")
 
+    _cleanup_sessions()
     mod = _get_chat_agent_module()
     agent = mod.PatternAnalyzerAgent()
     if session_id:
         _pattern_sessions[session_id] = agent
+        _session_timestamps[session_id] = time.time()
 
     async for chunk in agent.analyze_stream(
         form_data, feasibility, improvement_plans
