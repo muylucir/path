@@ -2,7 +2,7 @@
 import os
 from strands_tools import file_read
 
-ALLOWED_BASE_DIR = os.path.abspath(
+ALLOWED_BASE_DIR = os.path.realpath(
     os.path.join(os.path.dirname(__file__), "skills")
 )
 
@@ -11,7 +11,7 @@ def safe_file_read(tool, **kwargs):
     """./skills/ 디렉토리만 접근 허용하는 file_read 래퍼"""
     tool_input = tool.get("input", {})
     path = tool_input.get("path", "")
-    resolved = os.path.abspath(os.path.expanduser(path))
+    resolved = os.path.realpath(path)
     if not resolved.startswith(ALLOWED_BASE_DIR):
         return {
             "toolUseId": tool.get("toolUseId", ""),

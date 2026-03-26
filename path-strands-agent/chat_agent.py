@@ -46,13 +46,34 @@ def _extract_json(response_text: str, context: str = "response") -> Dict[str, An
     if json_block:
         return json.loads(json_block.group(1))
 
-    # { ... } 추출
+    # { ... } 추출 — bracket depth 매칭으로 정확한 범위 탐색
     json_start = response_text.find("{")
-    json_end = response_text.rfind("}") + 1
+    if json_start == -1:
+        raise ValueError(f"Failed to extract JSON from {context}")
 
-    if json_start != -1 and json_end > json_start:
-        json_str = response_text[json_start:json_end]
-        return json.loads(json_str)
+    depth = 0
+    in_string = False
+    escape = False
+    for i in range(json_start, len(response_text)):
+        ch = response_text[i]
+        if escape:
+            escape = False
+            continue
+        if ch == '\\' and in_string:
+            escape = True
+            continue
+        if ch == '"' and not escape:
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
+        if ch == '{':
+            depth += 1
+        elif ch == '}':
+            depth -= 1
+            if depth == 0:
+                json_str = response_text[json_start:i + 1]
+                return json.loads(json_str)
 
     raise ValueError(f"Failed to extract JSON from {context}")
 

@@ -7,9 +7,12 @@ from strands import Agent
 from strands.models import BedrockModel
 from strands.models.bedrock import CacheConfig
 from typing import Any
+import logging
 import os
 import botocore.config
 from agentskills import discover_skills, generate_skills_prompt
+
+logger = logging.getLogger(__name__)
 
 # Default model ID - can be overridden via environment variable
 DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
@@ -109,6 +112,8 @@ def get_skill_prompt():
     if _cached_skill_prompt is None:
         _skills_dir = os.path.join(os.path.dirname(__file__), "skills")
         _cached_skills = discover_skills(_skills_dir)
+        if not _cached_skills:
+            logger.warning(f"No skills discovered in {_skills_dir}")
         _cached_skill_prompt = generate_skills_prompt(_cached_skills)
     return _cached_skill_prompt
 
