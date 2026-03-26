@@ -4,14 +4,28 @@ PATH 프레임워크 프롬프트 - TypeScript에서 Python으로 변환
 
 import json
 import re
+import unicodedata
+
+# 포괄적 XML-like 태그 매칭 패턴 (precompiled)
+_XML_TAG_RE = re.compile(r'</?[a-zA-Z_][a-zA-Z0-9_-]*\s*/?>', re.IGNORECASE)
 
 
 def _sanitize(text) -> str:
-    """사용자 입력에서 XML 구조를 파괴하는 패턴을 제거하여 prompt injection 완화."""
+    """사용자 입력에서 XML 구조를 파괴하는 패턴을 제거하여 prompt injection 완화.
+
+    1단계: zero-width 및 제어 문자 제거 (Unicode 우회 방지)
+    2단계: 모든 XML-like 태그 제거
+    """
     if not isinstance(text, str):
         return str(text) if text else ""
-    # XML 경계 탈출 시도 차단
-    text = re.sub(r'</?(user_input|input_data|instructions|improvement_plans|rules|system)\s*>', '', text, flags=re.IGNORECASE)
+    # 1단계: zero-width/제어 문자 제거 (개행/탭은 유지)
+    text = ''.join(
+        c for c in text
+        if unicodedata.category(c) not in ('Cf', 'Cc', 'Co')
+        or c in ('\n', '\r', '\t')
+    )
+    # 2단계: 모든 XML-like 태그 제거
+    text = _XML_TAG_RE.sub('', text)
     return text
 
 
@@ -783,7 +797,7 @@ def get_pattern_analysis_prompt(form_data: dict, feasibility: dict, improvement_
         if plans_with_content:
             improvement_section = "\n<user_improvement_plans>\n**사용자가 제출한 개선 방안:**\n"
             for item, plan in plans_with_content.items():
-                improvement_section += f"- **{item}**: {plan}\n"
+                improvement_section += f"- **{_sanitize(item)}**: {_sanitize(plan)}\n"
             improvement_section += "</user_improvement_plans>\n"
 
     # 항목별 상세 분석 포맷팅
@@ -945,12 +959,12 @@ def get_pattern_chat_prompt(user_message: str, history_text: str = None) -> str:
 
     if history_text is not None:
         # Stateless fallback: 전체 히스토리를 프롬프트에 포함
-        return f"""{history_text}
+        return f"""{_sanitize(history_text)}
 
 {instructions}"""
     else:
         # Stateful: SDK messages에 이미 히스토리 존재, 사용자 메시지만 전달
-        return f"""{user_message}
+        return f"""{_sanitize(user_message)}
 
 {instructions}"""
 
@@ -972,7 +986,7 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
     if improvement_plans:
         plans_with_content = {k: v for k, v in improvement_plans.items() if v and v.strip()}
         if plans_with_content:
-            plans_text = "\n".join([f"- {item}: {plan}" for item, plan in plans_with_content.items()])
+            plans_text = "\n".join([f"- {_sanitize(item)}: {_sanitize(plan)}" for item, plan in plans_with_content.items()])
             improvement_xml = f"\n<improvement_plans>\n{plans_text}\n</improvement_plans>\n"
 
     # 개선된 점수 계산 지시
@@ -996,7 +1010,7 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
     human_loop = form_data.get('humanLoop', '')
 
     if conversation_text is not None:
-        conversation_xml = f"<conversation>\n{conversation_text}\n</conversation>"
+        conversation_xml = f"<conversation>\n{_sanitize(conversation_text)}\n</conversation>"
     else:
         conversation_xml = "<conversation>\n위 대화 내용(SDK messages)을 참고하여 최종 분석을 수행하세요.\n</conversation>"
 

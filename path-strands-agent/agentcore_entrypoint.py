@@ -20,7 +20,6 @@ import json
 import logging
 import asyncio
 import time
-import traceback
 from collections import OrderedDict
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
@@ -114,19 +113,45 @@ _MAX_FIELD_LEN = 10000      # 단일 문자열 필드 최대 길이
 _MAX_CONVERSATION_TURNS = 100  # 대화 히스토리 최대 턴 수
 
 
+_MAX_ARRAY_ITEMS = 50  # 배열 필드 최대 항목 수
+
+
 def _validate_payload(payload: dict):
     """Payload 크기 기본 검증. 초과 시 ValueError."""
     form_data = payload.get("formData", {})
     if isinstance(form_data, dict):
-        for key in ("painPoint", "additionalContext", "additionalSources"):
+        # 문자열 필드 길이 검증
+        for key in ("painPoint", "additionalContext", "additionalSources",
+                     "inputType", "humanLoop", "errorTolerance"):
             val = form_data.get(key, "")
             if isinstance(val, str) and len(val) > _MAX_FIELD_LEN:
                 raise ValueError(f"Field '{key}' exceeds maximum length")
+        # 배열 필드 크기 검증
+        for key in ("processSteps", "outputTypes"):
+            arr = form_data.get(key, [])
+            if isinstance(arr, list):
+                if len(arr) > _MAX_ARRAY_ITEMS:
+                    raise ValueError(f"Field '{key}' has too many items")
+                for item in arr:
+                    if isinstance(item, str) and len(item) > _MAX_FIELD_LEN:
+                        raise ValueError(f"Item in '{key}' exceeds maximum length")
 
+    # userMessage 길이 검증
+    user_msg = payload.get("userMessage", "")
+    if isinstance(user_msg, str) and len(user_msg) > _MAX_FIELD_LEN:
+        raise ValueError("userMessage exceeds maximum length")
+
+    # conversation/chat_history 턴 수 + 개별 메시지 크기 검증
     for conv_key in ("conversation", "chat_history"):
         conv = payload.get(conv_key, [])
-        if isinstance(conv, list) and len(conv) > _MAX_CONVERSATION_TURNS:
-            raise ValueError(f"'{conv_key}' exceeds maximum turns ({_MAX_CONVERSATION_TURNS})")
+        if isinstance(conv, list):
+            if len(conv) > _MAX_CONVERSATION_TURNS:
+                raise ValueError(f"'{conv_key}' exceeds maximum turns ({_MAX_CONVERSATION_TURNS})")
+            for msg in conv:
+                if isinstance(msg, dict):
+                    content = msg.get("content", "")
+                    if isinstance(content, str) and len(content) > _MAX_FIELD_LEN:
+                        raise ValueError(f"Message in '{conv_key}' exceeds maximum length")
 
 
 @app.entrypoint
