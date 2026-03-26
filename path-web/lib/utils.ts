@@ -22,7 +22,8 @@ export interface ParsedLayers {
  * 형태의 패턴 문자열을 3계층으로 파싱.
  * 파싱 실패 시 null 반환 (기존 단일 문자열 표시로 fallback).
  */
-export function parsePatternLayers(pattern: string): ParsedLayers | null {
+export function parsePatternLayers(pattern: string | undefined | null): ParsedLayers | null {
+  if (!pattern) return null;
   const clean = pattern.replace(/^3계층\s*조합\s*:\s*/i, "").trim();
   const layerRegex = /Layer\s*(\d)\s*[:(（]\s*([^)）]+)[)）]/gi;
   const result: ParsedLayers = { layer1: [], layer2: [], layer3: [] };
