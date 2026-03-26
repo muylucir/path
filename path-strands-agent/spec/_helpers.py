@@ -67,6 +67,15 @@ def build_analysis_context(analysis: Dict[str, Any]) -> str:
         if automation_level_reason:
             automation_line += f" ({automation_level_reason})"
 
+    three_axis = analysis.get('three_axis_scores', {})
+    axis_line = ""
+    if three_axis and isinstance(three_axis, dict):
+        a1 = three_axis.get('axis1_tool_complexity', '?')
+        a2 = three_axis.get('axis2_role_separation', '?')
+        a3 = three_axis.get('axis3_flow_complexity', '?')
+        total = three_axis.get('total', '?')
+        axis_line = f"\n- **3-Axis Scores**: Tool={a1}, Role={a2}, Flow={a3}, Total={total}"
+
     return f"""**원본 분석 컨텍스트**:
 - **Pain Point**: {pain_point}
 - **Input Type**: {input_type}
@@ -76,7 +85,7 @@ def build_analysis_context(analysis: Dict[str, Any]) -> str:
 - **Human-in-Loop**: {human_loop}
 - **Pattern**: {pattern}
 - **Architecture**: {recommended_arch or 'single-agent'}
-- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}{automation_line}"""
+- **Multi-Agent Pattern**: {multi_agent_pattern or 'N/A'}{automation_line}{axis_line}"""
 
 
 def parse_agent_names(design_result: str) -> List[str]:
