@@ -51,9 +51,9 @@ Next.js API Route
 
 ### 세션 관리
 
-- `PatternAnalyzerAgent` 인스턴스는 모듈 레벨 dict에 캐시
+- `PatternAnalyzerAgent` 인스턴스는 `OrderedDict` 기반 캐시 (TTL 1시간, 최대 100세션)
 - AgentCore의 `runtimeSessionId`로 동일 컨테이너 라우팅
-- 대화 히스토리 복원을 위한 stateless fallback 지원
+- 대화 히스토리 복원을 위한 stateless fallback 지원 (role 검증 포함)
 
 ### Skill System
 
@@ -152,7 +152,7 @@ path-strands-agent/
 ├── chat_agent.py                 # Agent 정의
 │                                 # - FeasibilityAgent (Step 2)
 │                                 # - PatternAnalyzerAgent (Step 3)
-├── schemas.py                    # Pydantic 출력 모델 (FeasibilityEvaluation, PatternAnalysis)
+├── schemas.py                    # Pydantic 출력 모델 (FeasibilityEvaluation, PatternAnalysis, ThreeAxisScores)
 ├── spec/                         # MultiStageSpecAgent 패키지 (Step 4 명세서 생성)
 │   ├── __init__.py               #   MultiStageSpecAgent 재수출
 │   ├── _helpers.py               #   공유 유틸리티 (텍스트 추출, 컨텍스트 빌더, 메타코멘터리 제거)
@@ -163,12 +163,13 @@ path-strands-agent/
 │   ├── tool_agent.py             #   ToolAgent (3b단계: 도구 정의)
 │   ├── assembler.py              #   AssemblerAgent (4단계: 최종 조합, LLM 미사용)
 │   └── orchestrator.py           #   MultiStageSpecAgent (오케스트레이터)
-├── prompts.py                    # 시스템 프롬프트 및 템플릿
+├── prompts.py                    # 시스템 프롬프트 및 템플릿 (3축 점수 프레임워크, _sanitize)
 ├── strands_utils.py              # Strands Agent 유틸리티 함수
 │                                 # - DEFAULT_MODEL_ID, create_spec_agent 팩토리
 │                                 # - BedrockModel 생성 (prompt caching 포함)
+│                                 # - safe_extract_text (LLM 응답 안전 추출)
 │                                 # - Skill 프롬프트 캐싱
-├── safe_tools.py                 # 안전한 도구 정의 (skills/ 디렉토리만 접근 허용)
+├── safe_tools.py                 # 안전한 도구 정의 (skills/ 디렉토리만 접근 허용, realpath + 경계 검증)
 ├── token_tracker.py              # 토큰 사용량 추적 및 비용 추산
 ├── build-agent.sh                # ARM64 배포 패키지 빌더
 ├── .env                          # 환경변수 (AWS_DEFAULT_REGION, BEDROCK_MODEL_ID)
@@ -236,12 +237,13 @@ Feasibility 평가 결과를 바탕으로 Agent 패턴을 분석합니다.
 - `pattern`: 추천 패턴 (ReAct, Reflection, Tool Use, Planning, Multi-Agent, Human-in-the-Loop 등)
 - `recommended_architecture`: 권장 아키텍처 (single-agent / multi-agent)
 - `multi_agent_pattern`: 멀티 에이전트 협업 패턴 (agents-as-tools, swarm, graph, workflow)
+- `three_axis_scores`: 3축 점수 (axis1_tool_complexity, axis2_role_separation, axis3_flow_complexity, total, reasoning)
 - `automation_level`: 자동화 수준 (ai-assisted-workflow / agentic-ai)
 - `automation_level_reason`: 자동화 수준 판단 근거
 - `updated_autonomy`: 대화를 통해 재판단된 자율성 요구도 (score, reason)
 - `improved_feasibility`: 개선 방안 반영 점수
 
-### Step 4: MultiStageSpecAgent (multi_stage_spec_agent.py)
+### Step 4: MultiStageSpecAgent (spec/orchestrator.py)
 
 5개 서브 에이전트를 통해 프레임워크 독립적 명세서를 생성합니다. DiagramAgent, PromptAgent, ToolAgent는 병렬 실행됩니다.
 
@@ -333,6 +335,23 @@ skill_prompt = generate_skills_prompt(skills)
 | `prompt-engineering` | 프롬프트 설계 가이드 | PromptAgent |
 | `tool-schema` | 도구 정의 스키마 | ToolAgent |
 | `feasibility-evaluation` | Feasibility 평가 기준 | FeasibilityAgent |
+
+## 보안 및 안정성
+
+| 기능 | 구현 |
+|------|------|
+| Prompt Injection 방어 | `_sanitize()` — XML 태그 포괄 제거 + Unicode zero-width 문자 방어 |
+| Payload 크기 제한 | `_validate_payload()` — 문자열 10,000자, 배열 50항목, 대화 100턴 |
+| 세션 캐시 보호 | `OrderedDict` TTL 1시간 + 최대 100세션 + `_cleanup_sessions()` |
+| LLM 응답 안전 접근 | `safe_extract_text()` — KeyError/IndexError 방지 |
+| 파일 접근 제한 | `safe_file_read` — `os.path.realpath` + `startswith(ALLOWED_BASE_DIR + os.sep)` 경계 검증 |
+| 에러 메시지 | 내부 정보 미노출 — generic 한국어 메시지만 클라이언트 반환 |
+| 로그 injection 방어 | `action_type`/`session_id`에서 개행 문자 제거 + 길이 제한 |
+| 비동기 스트리밍 | `await task` try/except + SSE 정상 종료 보장 |
+| 병렬 작업 | `asyncio.gather(return_exceptions=True)` — 부분 실패 시 성공 결과 보존 |
+| JSON 추출 | bracket-depth 매칭 파서 (rfind 대체) |
+| Pydantic 검증 | 실패 시 graceful degradation + 경고 로깅 |
+| Conversation role | `user`/`assistant`만 허용, 그 외 `user`로 강제 |
 
 ## 개발 노트
 

@@ -106,11 +106,19 @@ path/
 ├── path-strands-agent/                # Backend (Strands Agents + AgentCore)
 │   ├── agentcore_entrypoint.py        # AgentCore Runtime 엔트리포인트 (7개 액션 dispatch)
 │   ├── chat_agent.py                  # FeasibilityAgent, PatternAnalyzerAgent
-│   ├── schemas.py                    # Pydantic 모델 (FeasibilityEvaluation, PatternAnalysis)
-│   ├── multi_stage_spec_agent.py      # 5단계 Spec Pipeline (DesignAgent, DiagramAgent, PromptAgent, ToolAgent, AssemblerAgent)
-│   ├── prompts.py                     # 시스템 프롬프트 및 템플릿
-│   ├── strands_utils.py               # Strands Agent 유틸리티 (BedrockModel 생성)
-│   ├── safe_tools.py                  # skills/ 디렉토리 접근 제한 file_read 래퍼
+│   ├── schemas.py                    # Pydantic 모델 (FeasibilityEvaluation, PatternAnalysis, ThreeAxisScores)
+│   ├── spec/                          # 5단계 Spec Pipeline (패키지)
+│   │   ├── orchestrator.py            # MultiStageSpecAgent — 서브에이전트 조율
+│   │   ├── design_agent.py            # DesignAgent — 에이전트 설계 패턴
+│   │   ├── diagram_agent.py           # DiagramAgent — Mermaid 다이어그램
+│   │   ├── prompt_agent.py            # PromptAgent — 에이전트 프롬프트
+│   │   ├── tool_agent.py              # ToolAgent — 도구 스키마
+│   │   ├── assembler.py               # AssemblerAgent — 최종 조합
+│   │   ├── _helpers.py                # 공통 헬퍼 (텍스트 추출, 컨텍스트 빌더)
+│   │   └── mermaid_validator.py       # Mermaid 문법 검증
+│   ├── prompts.py                     # 시스템 프롬프트 및 템플릿 (3축 점수 프레임워크 포함)
+│   ├── strands_utils.py               # Strands Agent 유틸리티 (BedrockModel 생성, safe_extract_text)
+│   ├── safe_tools.py                  # skills/ 디렉토리 접근 제한 file_read 래퍼 (realpath + 경계 검증)
 │   ├── token_tracker.py               # 토큰 사용량 추적 및 비용 추산
 │   ├── build-agent.sh                 # 배포 패키지 빌더 (ARM64 ZIP)
 │   ├── agentskills/                   # Skill 로딩 라이브러리
@@ -149,6 +157,7 @@ path/
 |------|------|
 | 준비도 점검 | 5개 항목 평가 (50점) + 자율성 요구도 (별도 축 0-10점) + 개선 방안 반영 재평가 |
 | 자동화 수준 판단 | 자율성 요구도 기반 AI-Assisted Workflow / Agentic AI 분류 |
+| 아키텍처 판단 | 3축 점수 평가 (도구 복잡도 × 역할 분리도 × 흐름 복잡도) 기반 싱글/멀티 에이전트 판정 |
 | 대화형 분석 | Claude Opus 4.6 기반 패턴 분석 (객관식 선택지 포함) |
 | 명세서 생성 | 5단계 파이프라인: DesignAgent → (DiagramAgent ∥ PromptAgent ∥ ToolAgent) → AssemblerAgent |
 | 세션 관리 | DynamoDB 기반 이력 저장 + AgentCore 세션 라우팅 |
