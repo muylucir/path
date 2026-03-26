@@ -8,9 +8,12 @@ PatternAnalyzerAgent: Step 3 패턴 분석 + 대화 + 확정
 from strands import Agent
 from typing import Dict, List, Any, AsyncIterator
 import json
+import logging
 import re
 from safe_tools import safe_file_read
-from strands_utils import strands_utils, get_skill_prompt, DEFAULT_MODEL_ID
+
+logger = logging.getLogger(__name__)
+from strands_utils import strands_utils, get_skill_prompt, DEFAULT_MODEL_ID, safe_extract_text
 from token_tracker import extract_usage
 from schemas import FeasibilityEvaluation, PatternAnalysis
 from prompts import (
@@ -60,7 +63,8 @@ def _validate_feasibility(raw: Dict[str, Any]) -> Dict[str, Any]:
     try:
         validated = FeasibilityEvaluation(**raw)
         return validated.model_dump(exclude_none=False)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Feasibility validation failed, using raw data: {e}")
         return raw
 
 
@@ -69,7 +73,8 @@ def _validate_analysis(raw: Dict[str, Any]) -> Dict[str, Any]:
     try:
         validated = PatternAnalysis(**raw)
         return validated.model_dump(exclude_none=False)
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Analysis validation failed, using raw data: {e}")
         return raw
 
 
@@ -93,7 +98,7 @@ class FeasibilityAgent:
         """초기 Feasibility 평가 수행"""
         prompt = get_feasibility_evaluation_prompt(form_data)
         result = self.agent(prompt)
-        response_text = result.message['content'][0]['text']
+        response_text = safe_extract_text(result)
         parsed = _extract_json(response_text, "feasibility evaluation")
         parsed = _validate_feasibility(parsed)
         parsed["_usage"] = extract_usage(result)
@@ -133,7 +138,12 @@ class FeasibilityAgent:
                 yield json.dumps({"stage": stage, "progress": progress}, ensure_ascii=False)
 
         # 결과 가져오기
-        result = await task
+        try:
+            result = await task
+        except Exception as e:
+            yield json.dumps({"stage": "오류 발생", "progress": 100, "error": "평가 중 오류가 발생했습니다."}, ensure_ascii=False)
+            return
+
         usage = result.pop("_usage", None)
 
         # 완료 및 결과 전송
@@ -145,7 +155,7 @@ class FeasibilityAgent:
     def _evaluate_sync(self, prompt: str) -> Dict[str, Any]:
         """동기 평가 (내부용)"""
         result = self.agent(prompt)
-        response_text = result.message['content'][0]['text']
+        response_text = safe_extract_text(result)
         parsed = _extract_json(response_text, "feasibility evaluation")
         parsed = _validate_feasibility(parsed)
         parsed["_usage"] = extract_usage(result)
@@ -155,7 +165,7 @@ class FeasibilityAgent:
         """개선안 반영 재평가 수행"""
         prompt = get_feasibility_reevaluation_prompt(form_data, previous_evaluation, improvement_plans)
         result = self.agent(prompt)
-        response_text = result.message['content'][0]['text']
+        response_text = safe_extract_text(result)
         parsed = _extract_json(response_text, "feasibility re-evaluation")
         parsed = _validate_feasibility(parsed)
         parsed["_usage"] = extract_usage(result)
@@ -189,7 +199,12 @@ class FeasibilityAgent:
                 stage_idx += 1
                 yield json.dumps({"stage": stage, "progress": progress}, ensure_ascii=False)
 
-        result = await task
+        try:
+            result = await task
+        except Exception as e:
+            yield json.dumps({"stage": "오류 발생", "progress": 100, "error": "재평가 중 오류가 발생했습니다."}, ensure_ascii=False)
+            return
+
         usage = result.pop("_usage", None)
 
         yield json.dumps({"stage": "재평가 완료", "progress": 100}, ensure_ascii=False)
@@ -233,7 +248,7 @@ class PatternAnalyzerAgent:
         """Feasibility 기반 초기 패턴 분석 - 동기 버전"""
         prompt = get_pattern_analysis_prompt(form_data, feasibility)
         result = self.agent(prompt)
-        response = result.message['content'][0]['text']
+        response = safe_extract_text(result)
         self.add_message("assistant", response)
         return response
 
@@ -335,7 +350,7 @@ class PatternAnalyzerAgent:
         )
 
         result = self.agent(prompt)
-        response_text = result.message['content'][0]['text']
+        response_text = safe_extract_text(result)
         parsed = _extract_json(response_text, "pattern finalization")
         parsed = _validate_analysis(parsed)
 

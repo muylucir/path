@@ -77,6 +77,24 @@ class StrandsUtils:
         return agent
 
 
+def safe_extract_text(result) -> str:
+    """AgentResult에서 텍스트를 안전하게 추출.
+
+    result.message['content'][0]['text'] 직접 접근 시 KeyError/IndexError 가능.
+    빈 응답, 거부, 비정상 구조에서도 크래시 없이 ValueError를 발생시킨다.
+    """
+    try:
+        content = result.message.get('content', [])
+        if not content:
+            raise ValueError("Empty LLM response content")
+        for block in content:
+            if isinstance(block, dict) and 'text' in block and block['text'].strip():
+                return block['text']
+        raise ValueError("No text block found in LLM response")
+    except (AttributeError, TypeError) as e:
+        raise ValueError(f"Malformed LLM response structure: {e}")
+
+
 # Singleton instance
 strands_utils = StrandsUtils()
 
