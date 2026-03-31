@@ -15,7 +15,7 @@ import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
 import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, TokenUsage } from "@/lib/types";
 import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS, MULTI_AGENT_PATTERN_DESCRIPTIONS, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
-import { parsePatternLayers } from "@/lib/utils";
+import { parsePatternLayers, parseBulletText } from "@/lib/utils";
 
 interface Step3ResultsProps {
   analysis: Analysis;
@@ -110,9 +110,9 @@ export function Step3Results({
             )}
 
             {(analysis.pattern_reason || analysis.architecture_reason) && (
-              <Box variant="p" color="text-body-secondary">
-                {analysis.pattern_reason || analysis.architecture_reason}
-              </Box>
+              <ul style={{ margin: 0, paddingLeft: 20, color: "var(--color-text-body-secondary)" }}>
+                {parseBulletText(analysis.pattern_reason || analysis.architecture_reason).map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
             )}
           </SpaceBetween>
         </Container>

@@ -22,6 +22,7 @@ import {
   AUTONOMY_REQUIREMENT_INFO,
 } from "@/lib/constants";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
+import { parseBulletText } from "@/lib/utils";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage, ConfidenceLevel } from "@/lib/types";
 
@@ -371,8 +372,12 @@ export function Step2Readiness({
                 </Alert>
               )}
 
-              <Box variant="small" color="text-body-secondary">{item.current_state}</Box>
-              <Box variant="p">{item.reason}</Box>
+              <ul style={{ margin: "0 0 4px 0", paddingLeft: 20, color: "var(--color-text-body-secondary)" }}>
+                {parseBulletText(item.current_state).map((b, i) => <li key={i} style={{ fontSize: "12px" }}>{b}</li>)}
+              </ul>
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {parseBulletText(item.reason).map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
 
               {item.changed && item.change_reason && (
                 <Alert type="success">
@@ -383,14 +388,16 @@ export function Step2Readiness({
               {showImprovement && (
                 <Alert type="warning" header="개선 제안">
                   <SpaceBetween size="s">
-                    <Box variant="p">
-                      {feasibility.weak_items.find(
-                        (w) =>
-                          w.item.includes(FEASIBILITY_ITEM_NAMES[key]) ||
-                          w.item.toLowerCase().includes(key.replace("_", " "))
-                      )?.improvement_suggestion ||
-                        "이 항목을 보완하면 준비도가 향상됩니다."}
-                    </Box>
+                    <ul style={{ margin: 0, paddingLeft: 20 }}>
+                      {parseBulletText(
+                        feasibility.weak_items.find(
+                          (w) =>
+                            w.item.includes(FEASIBILITY_ITEM_NAMES[key]) ||
+                            w.item.toLowerCase().includes(key.replace("_", " "))
+                        )?.improvement_suggestion ||
+                          "이 항목을 보완하면 준비도가 향상됩니다."
+                      ).map((b, i) => <li key={i}>{b}</li>)}
+                    </ul>
                     <FormField label="개선 방안 (선택)">
                       <Textarea
                         value={improvementPlans[key] || ""}

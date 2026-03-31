@@ -9,6 +9,7 @@ export interface HorizontalWizardStep {
   title: string;
   description?: string;
   content: ReactNode;
+  hideNextButton?: boolean;
 }
 
 interface HorizontalWizardProps {
@@ -37,6 +38,7 @@ export function HorizontalWizard({
 }: HorizontalWizardProps) {
   const isLastStep = activeStepIndex === steps.length - 1;
   const isFirstStep = activeStepIndex === 0;
+  const currentStep = steps[activeStepIndex];
 
   const handleStepClick = (index: number) => {
     if (index < activeStepIndex) {
@@ -123,11 +125,11 @@ export function HorizontalWizard({
               <Button variant="primary" onClick={onSubmit} loading={isLoadingNextStep}>
                 {i18nStrings?.submitButton || "Submit"}
               </Button>
-            ) : (
+            ) : !currentStep?.hideNextButton ? (
               <Button variant="primary" onClick={handleNext} loading={isLoadingNextStep}>
                 {i18nStrings?.nextButton || "Next"}
               </Button>
-            )}
+            ) : null}
           </SpaceBetween>
         </Box>
       </div>

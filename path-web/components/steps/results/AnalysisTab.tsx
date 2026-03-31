@@ -15,7 +15,7 @@ import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/l
 import type { Analysis, FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
 import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
-import { parsePatternLayers } from "@/lib/utils";
+import { parsePatternLayers, parseBulletText } from "@/lib/utils";
 
 type ReadinessKey = keyof typeof FEASIBILITY_ITEM_NAMES;
 
@@ -61,7 +61,9 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
               return <div className="print-card-value">{analysis.pattern}</div>;
             })()}
             {(analysis.pattern_reason || analysis.architecture_reason) && (
-              <div className="print-card-reason">{analysis.pattern_reason || analysis.architecture_reason}</div>
+              <ul className="print-card-reason" style={{ margin: 0, paddingLeft: 16 }}>
+                {parseBulletText(analysis.pattern_reason || analysis.architecture_reason).map((b, i) => <li key={i}>{b}</li>)}
+              </ul>
             )}
           </div>
           <div className="print-summary-card">
@@ -216,11 +218,15 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
                     </Alert>
                   )}
 
-                  <Box variant="p" color="text-body-secondary">{item.reason}</Box>
+                  <ul style={{ margin: 0, paddingLeft: 20, color: "var(--color-text-body-secondary)" }}>
+                    {parseBulletText(item.reason).map((b, i) => <li key={i}>{b}</li>)}
+                  </ul>
 
                   {weakItem && (
                     <Alert type="warning" header="AI 개선 제안">
-                      {weakItem.improvement_suggestion}
+                      <ul style={{ margin: 0, paddingLeft: 20 }}>
+                        {parseBulletText(weakItem.improvement_suggestion).map((b, i) => <li key={i}>{b}</li>)}
+                      </ul>
                     </Alert>
                   )}
 
@@ -268,9 +274,9 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
                   </Header>
                 }
               >
-                <SpaceBetween size="s">
-                  <Box variant="p" color="text-body-secondary">{autonomyReason}</Box>
-                </SpaceBetween>
+                <ul style={{ margin: 0, paddingLeft: 20, color: "var(--color-text-body-secondary)" }}>
+                  {parseBulletText(autonomyReason).map((b, i) => <li key={i}>{b}</li>)}
+                </ul>
               </Container>
             );
           })()}

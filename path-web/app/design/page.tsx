@@ -329,6 +329,7 @@ export default function DesignWizardPage() {
           {
             title: "패턴 분석",
             description: "적합한 Agent 구조를 분석합니다",
+            hideNextButton: true,
             content: formData && feasibility ? (
               <Step3PatternAnalysis
                 formData={formData}

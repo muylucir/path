@@ -274,44 +274,44 @@ Additional Context: {_sanitize(form_data.get('additionalContext') or '없음')}
       "score": 7,
       "confidence": "high/medium/low",
       "information_gaps": ["confidence가 high가 아닌 경우 필요한 정보 나열", "최대 3개"],
-      "reason": "이 점수를 준 구체적 근거. 언급된 데이터소스의 접근 방식, API 존재 여부, 인증 복잡도 등을 분석하여 2-3문장으로 설명",
-      "current_state": "현재 데이터 접근 상황에 대한 상세 분석. 어떤 데이터에 어떻게 접근 가능한지, 제약사항은 무엇인지"
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성. 예: '- API 접근 가능\n- 인증 복잡도 낮음'",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성. 예: '- REST API 존재\n- 인증 토큰 필요'"
     }},
     "decision_clarity": {{
       "score": 7,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "판단 기준의 명확성에 대한 구체적 근거. 규칙화 가능 여부, 예시 데이터 존재 여부, 전문가 지식 문서화 정도 등",
-      "current_state": "현재 판단 기준 상태. 어떤 판단을 내려야 하는지, 그 기준이 얼마나 명확한지 상세히 분석"
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성"
     }},
     "error_tolerance": {{
       "score": 7,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "오류 허용도에 대한 구체적 근거. 사용자가 선택한 오류 허용 수준과 실제 비즈니스 영향도 분석",
-      "current_state": "현재 오류 허용 상황. 오류 발생 시 영향, 복구 가능성, 검토 프로세스 존재 여부 등"
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성"
     }},
     "latency": {{
       "score": 7,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "지연 요구사항에 대한 구체적 근거. 입력 트리거 유형에 따른 응답 시간 요구 분석",
-      "current_state": "현재 지연 요구 상황. 실시간 필요 여부, 배치 처리 가능 여부, 예상 처리 시간 등"
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성"
     }},
     "integration": {{
       "score": 7,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "통합 복잡도에 대한 구체적 근거. 연동 인터페이스의 성숙도, MCP/SDK 존재 여부, API 문서화 수준 분석",
-      "current_state": "현재 통합 상황. 어떤 시스템들과 연동이 필요한지, 각각의 연동 복잡도는 어떤지"
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성"
     }}
   }},
   "autonomy_requirement": {{
     "score": 7,
     "confidence": "high/medium/low",
     "information_gaps": [],
-    "reason": "이 업무의 자율성 요구도에 대한 근거. 동적 판단, 예측 불가 상황, 결정적 프로세스 여부 등을 분석하여 2-3문장으로 설명",
-    "current_state": "자율성 특성 분석. PROCESS 단계의 동적/결정적 성격, 예외 처리 복잡도, 출력 자유도 등"
+    "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+    "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성"
   }},
   "feasibility_score": 35,  // 주의: 위 5개 항목(data_access~integration)만의 합계. autonomy_requirement는 별도 축이므로 포함하지 않음
   "judgment": "즉시 진행/조건부 진행/재평가 필요/대안 모색",
@@ -319,7 +319,7 @@ Additional Context: {_sanitize(form_data.get('additionalContext') or '없음')}
     {{
       "item": "항목명 (예: 데이터 접근성)",
       "score": 5,
-      "improvement_suggestion": "구체적이고 실행 가능한 개선 제안. 무엇을 어떻게 준비하면 점수가 올라갈 수 있는지 단계별로 설명 (3-4문장)"
+      "improvement_suggestion": "개선 단계를 '- '로 시작하는 블릿포인트 3-4개로 작성. 예: '- API 키 발급 신청\n- 테스트 데이터 확보'"
     }}
   ],
   "risks": ["주요 리스크에 대한 상세 설명", "또 다른 리스크와 그 영향"],
@@ -470,8 +470,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
       "score": 0-10,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "이 점수를 준 구체적 근거 (2-3문장)",
-      "current_state": "현재 데이터 접근 상황에 대한 상세 분석",
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성",
       "changed": true/false,
       "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
@@ -479,8 +479,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
       "score": 0-10,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "판단 기준 명확성에 대한 구체적 근거 (2-3문장)",
-      "current_state": "현재 판단 기준 상태에 대한 상세 분석",
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성",
       "changed": true/false,
       "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
@@ -488,8 +488,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
       "score": 0-10,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "오류 허용도에 대한 구체적 근거 (2-3문장)",
-      "current_state": "현재 오류 허용 상황에 대한 상세 분석",
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성",
       "changed": true/false,
       "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
@@ -497,8 +497,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
       "score": 0-10,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "지연 요구사항에 대한 구체적 근거 (2-3문장)",
-      "current_state": "현재 지연 요구 상황에 대한 상세 분석",
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성",
       "changed": true/false,
       "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }},
@@ -506,8 +506,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
       "score": 0-10,
       "confidence": "high/medium/low",
       "information_gaps": [],
-      "reason": "통합 복잡도에 대한 구체적 근거 (2-3문장)",
-      "current_state": "현재 통합 상황에 대한 상세 분석",
+      "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+      "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성",
       "changed": true/false,
       "change_reason": "변경된 경우: 어떤 개선 계획이 반영되어 점수가 어떻게 변했는지 상세히 설명"
     }}
@@ -516,8 +516,8 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
     "score": 0-10,
     "confidence": "high/medium/low",
     "information_gaps": [],
-    "reason": "자율성 요구도에 대한 근거 (2-3문장). 개선 계획에 따라 자율성 요구가 변했는지 분석",
-    "current_state": "자율성 특성 분석",
+    "reason": "각 근거를 '- '로 시작하는 블릿포인트 2-3개로 작성",
+    "current_state": "현재 상태를 '- '로 시작하는 블릿포인트 2-3개로 작성",
     "changed": true/false,
     "change_reason": "변경된 경우: 개선 계획이 자율성 요구도에 미친 영향 설명"
   }},
@@ -529,7 +529,7 @@ def get_feasibility_reevaluation_prompt(form_data: dict, previous_evaluation: di
     {{
       "item": "항목명 (예: 데이터 접근성)",
       "score": 점수,
-      "improvement_suggestion": "추가로 필요한 개선 제안. 무엇을 어떻게 준비하면 점수가 더 올라갈 수 있는지 (3-4문장)"
+      "improvement_suggestion": "개선 단계를 '- '로 시작하는 블릿포인트 3-4개로 작성"
     }}
   ],
   "risks": ["남은 주요 리스크에 대한 상세 설명", "또 다른 리스크와 그 영향"],
@@ -1016,7 +1016,7 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
         "multi_agent_pattern": "agents-as-tools/swarm/graph/workflow 또는 null",
         "automation_level": "ai-assisted-workflow 또는 agentic-ai",
         "automation_level_reason": "자동화 수준 판단 근거",
-        "updated_autonomy": {"score": 0, "reason": "대화 기반 자율성 재판단 설명 (2-3문장)"},
+        "updated_autonomy": {"score": 0, "reason": "근거를 '- '로 시작하는 블릿포인트 2-3개로 작성"},
         "three_axis_scores": {
             "axis1_tool_complexity": 0,
             "axis2_role_separation": 0,
@@ -1024,8 +1024,8 @@ def get_pattern_finalize_prompt(form_data: dict, feasibility: dict, improvement_
             "total": 0,
             "reasoning": "각 축 점수 산출 근거"
         },
-        "architecture_reason": "권장 아키텍처 이유 (축1: X, 축2: Y, 축3: Z, 합산 N → 판정)",
-        "pattern_reason": "패턴 선택 이유 (Feasibility 연계)",
+        "architecture_reason": "권장 아키텍처 이유를 '- '로 시작하는 블릿포인트로 작성 (축1: X, 축2: Y, 축3: Z, 합산 N → 판정 포함)",
+        "pattern_reason": "패턴 선택 이유를 '- '로 시작하는 블릿포인트 2-3개로 작성 (Feasibility 연계)",
         "feasibility_breakdown": simple_breakdown,
         "feasibility_score": feasibility.get('feasibility_score', 0),
         "improved_feasibility": None,

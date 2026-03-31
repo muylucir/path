@@ -40,3 +40,17 @@ export function parsePatternLayers(pattern: string | undefined | null): ParsedLa
 
   return matched ? result : null;
 }
+
+/**
+ * LLM 응답 텍스트를 블릿포인트 배열로 파싱.
+ * "- 항목1\n- 항목2" 형태 → ["항목1", "항목2"]
+ * 블릿 마커가 없는 기존 줄글 데이터는 통째로 단일 요소 배열 반환 (하위 호환).
+ */
+export function parseBulletText(text: string | undefined | null): string[] {
+  if (!text || !text.trim()) return [];
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const bullets = lines
+    .filter((l) => /^[-•*]\s/.test(l))
+    .map((l) => l.replace(/^[-•*]\s+/, ""));
+  return bullets.length > 0 ? bullets : [text.trim()];
+}
