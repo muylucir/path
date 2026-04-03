@@ -2,9 +2,11 @@
 
 import json
 import logging
+import os
 from typing import Dict, Any, Optional, List
 
-from strands_utils import create_spec_agent, load_skill_content
+from strands import AgentSkills
+from strands_utils import create_spec_agent
 from token_tracker import extract_usage
 from spec._helpers import extract_final_text
 
@@ -34,10 +36,11 @@ class DesignAgent:
     }
 
     def __init__(self):
-        # agent-patterns SKILL.md 사전 주입 (동적 reference는 file_read 유지)
-        skill_content = load_skill_content("agent-patterns")
+        # 네이티브 AgentSkills 플러그인 (agent-patterns만 로드)
+        skills_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills", "agent-patterns")
+        skills_plugin = AgentSkills(skills=[skills_dir])
 
-        system_prompt = f"""당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
+        system_prompt = """당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
 
 ## 전문 영역
 - Agent 역할 분리 및 협업 구조 설계
@@ -58,12 +61,9 @@ class DesignAgent:
 ## 금지 사항
 - 특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지
 - 구현 코드 포함 금지 — 설계 수준의 기술만 작성
-- 근거 없는 Agent 수 증가 금지
+- 근거 없는 Agent 수 증가 금지"""
 
-## 참조 스킬 (사전 로드됨 — SKILL.md 도구 호출 불필요)
-{skill_content}"""
-
-        self.agent = create_spec_agent(system_prompt, max_tokens=16000)
+        self.agent = create_spec_agent(system_prompt, max_tokens=16000, plugins=[skills_plugin])
 
     def analyze(
         self,
@@ -147,7 +147,7 @@ class DesignAgent:
 
 **출력 헤딩 변환**: "## 2. Agent Design Pattern" 대신 "## 2. 파이프라인 아키텍처"를 사용하세요. 하위 ### 헤딩은 그대로 유지합니다.
 
-**필수 참조**: 시스템 프롬프트의 agent-patterns 스킬을 참고하고,
+**필수 참조**: skills 도구로 'agent-patterns'을 활성화하고,
 file_read로 "./skills/agent-patterns/references/pipeline-patterns.md"를 참조하세요.
 """
         elif automation_level == 'agentic-ai':
@@ -167,8 +167,9 @@ file_read로 "./skills/agent-patterns/references/pipeline-patterns.md"를 참조
 {context_section}
 {improvement_section}
 
-**필수**: 시스템 프롬프트에 사전 로드된 agent-patterns 스킬을 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
+**필수 1단계**: skills 도구로 'agent-patterns'을 활성화하세요.
 {ref_instructions}
+**필수 최종단계**: 스킬과 reference를 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
