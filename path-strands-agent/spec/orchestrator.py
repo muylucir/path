@@ -82,15 +82,20 @@ class MultiStageSpecAgent:
 
             raw_results = await asyncio.gather(diagram_task, prompt_task, tool_task, return_exceptions=True)
 
-            # 부분 실패 처리: 실패한 서브에이전트는 빈 문자열로 대체
+            # 부분 실패 처리: 실패한 서브에이전트는 빈 문자열로 대체, 실패 내역 알림
             sub_names = ["DiagramAgent", "PromptAgent", "ToolAgent"]
             resolved: list[str] = []
+            failed_agents: list[str] = []
             for i, r in enumerate(raw_results):
                 if isinstance(r, BaseException):
-                    logger.error(f"{sub_names[i]} 실패: {r}", exc_info=r)
+                    error_detail = f"{type(r).__name__}: {str(r)[:200]}"
+                    logger.error(f"[{sub_names[i]}] 실패: {error_detail}", exc_info=r)
+                    failed_agents.append(f"{sub_names[i]}({error_detail})")
                     resolved.append("")
                 else:
                     resolved.append(r)
+            if failed_agents:
+                yield {'warning': f"일부 에이전트 실패: {', '.join(failed_agents)}"}
 
             diagram_result, prompt_result, tool_result = resolved
             yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}
@@ -127,5 +132,6 @@ class MultiStageSpecAgent:
             yield {'progress': 100, 'stage': '완료'}
 
         except Exception as e:
-            logger.error(f"명세서 생성 오류: {e}", exc_info=True)
-            yield {'error': '명세서 생성 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}
+            error_detail = f"{type(e).__name__}: {str(e)[:200]}"
+            logger.error(f"[MultiStageSpecAgent] 명세서 생성 오류: {error_detail}", exc_info=True)
+            yield {'error': f'명세서 생성 중 오류가 발생했습니다. ({error_detail})'}

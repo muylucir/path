@@ -212,11 +212,13 @@ async def invoke(payload, context):
             # Strands SDK stream_async 종료 시 StopIteration이
             # async generator로 누출되는 현상 — 정상 종료로 처리
             return
-        logger.error(f"[ENTRYPOINT ERROR] action={safe_action} error={e}", exc_info=True)
-        yield {"error": "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
+        error_detail = f"{type(e).__name__}: {str(e)[:300]}"
+        logger.error(f"[ENTRYPOINT ERROR] action={safe_action} error={error_detail}", exc_info=True)
+        yield {"error": f"처리 중 오류가 발생했습니다. [action={safe_action}] {error_detail}"}
     except Exception as e:
-        logger.error(f"[ENTRYPOINT ERROR] action={safe_action} error={e}", exc_info=True)
-        yield {"error": "처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요."}
+        error_detail = f"{type(e).__name__}: {str(e)[:300]}"
+        logger.error(f"[ENTRYPOINT ERROR] action={safe_action} error={error_detail}", exc_info=True)
+        yield {"error": f"처리 중 오류가 발생했습니다. [action={safe_action}] {error_detail}"}
 
 
 # ──────────────────────────────────────────────

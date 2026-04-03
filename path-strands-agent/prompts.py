@@ -228,10 +228,11 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 
 <skill_usage>
 **스킬 참조 (선택사항)**:
-더 정확한 평가가 필요할 때 `file_read` 도구로 다음 파일을 참조할 수 있습니다:
-- `skills/feasibility-evaluation/references/scoring-criteria.md` — 5개 항목별 세부 점수 기준
-- `skills/feasibility-evaluation/references/improvement-suggestions.md` — 항목별 개선 제안 템플릿
-- `skills/feasibility-evaluation/references/risk-patterns.md` — 일반적인 리스크 패턴 및 대응 방안
+더 정확한 평가가 필요할 때 `skills` 도구로 'feasibility-evaluation' 스킬을 활성화한 후,
+`file_read`로 references/ 파일을 참조할 수 있습니다:
+- `scoring-criteria.md` — 5개 항목별 세부 점수 기준
+- `improvement-suggestions.md` — 항목별 개선 제안 템플릿
+- `risk-patterns.md` — 일반적인 리스크 패턴 및 대응 방안
 </skill_usage>"""
 
 
@@ -569,7 +570,7 @@ Feasibility 결과의 강점과 약점을 고려하여,
 
 싱글/멀티 판단은 **감이 아니라 점수**로 결정합니다.
 다음 3개 축을 각각 0/1/2로 채점하고 합산하세요.
-상세 채점 기준은 file_read로 `skills/agent-patterns/SKILL.md`의 "Layer 3" 섹션을 참조하세요.
+상세 채점 기준은 `skills` 도구로 'agent-patterns'을 활성화하여 "Layer 3" 섹션을 참조하세요.
 
 ### 축 요약
 | 축 | 무엇을 보는가 | 0 | 1 | 2 |
@@ -941,8 +942,8 @@ def get_pattern_chat_prompt(user_message: str, history_text: str = None) -> str:
 - 매 턴마다 3축 점수를 내부적으로 업데이트하세요 (사용자에게 직접 노출하지 않음)
 
 **Skill 사용 안내**:
-- 더 깊은 패턴 분석이 필요하면 file_read로 스킬의 references/ 파일을 참조하세요.
-- 다이어그램이 필요하면 file_read로 "ascii-diagram" 스킬의 SKILL.md를 읽고 가이드를 따르세요.
+- 더 깊은 패턴 분석이 필요하면 `skills` 도구로 스킬을 활성화한 후, file_read로 references/ 파일을 참조하세요.
+- 다이어그램이 필요하면 `skills` 도구로 'ascii-diagram'을 활성화하고 가이드를 따르세요.
 - 코드 블록(```)으로 감싸서 고정폭 폰트로 정렬하세요.
 
 **출력 규칙 (필수)**:

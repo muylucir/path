@@ -19,6 +19,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { FEASIBILITY_ITEM_NAMES } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
+import { useFlash } from "@/components/cloudscape/FlashbarProvider";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { FormData, ChatMessage, Analysis, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans, TokenUsage } from "@/lib/types";
 
@@ -221,6 +222,7 @@ function stripIds(messages: ChatMessageWithId[]): ChatMessage[] {
 }
 
 export function Step3PatternAnalysis({ formData, feasibility, improvementPlans = {}, onComplete, onUsage, onLoadingChange }: Step3PatternAnalysisProps) {
+  const { addFlash } = useFlash();
   const [chatHistory, setChatHistory] = useState<ChatMessageWithId[]>([]);
   const [currentMessage, setCurrentMessage] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -264,9 +266,10 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       fullMessageRef.current = "";
     }, []),
     onError: useCallback((err: string) => {
-      console.error("Pattern analysis error:", err);
+      console.error("[Step3] 초기 패턴 분석 실패:", err);
+      addFlash("error", `패턴 분석 중 오류가 발생했습니다: ${err}`);
       fullMessageRef.current = "";
-    }, []),
+    }, [addFlash]),
   });
 
   useEffect(() => {
@@ -306,7 +309,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       });
 
       if (!response.ok) {
-        console.error(`HTTP ${response.status}: ${response.statusText}`);
+        const errMsg = `채팅 요청 실패 (HTTP ${response.status}: ${response.statusText})`;
+        console.error("[Step3]", errMsg);
+        addFlash("error", errMsg);
         setIsStreaming(false);
         return;
       }
@@ -351,7 +356,8 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
                   sessionIdRef.current = parsed.sessionId;
                 }
                 if (parsed.error) {
-                  console.error("Chat error:", parsed.error);
+                  console.error("[Step3] 채팅 서버 에러:", parsed.error);
+                  addFlash("error", `채팅 중 오류: ${parsed.error}`);
                   setIsStreaming(false);
                   fullMessageRef.current = "";
                   return;
@@ -365,7 +371,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       }
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
-      console.error("Error:", err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error("[Step3] 채팅 예외:", errMsg, err);
+      addFlash("error", `채팅 중 오류가 발생했습니다: ${errMsg}`);
     } finally {
       setIsStreaming(false);
       abortRef.current = null;
@@ -453,7 +461,9 @@ export function Step3PatternAnalysis({ formData, feasibility, improvementPlans =
       }
       onComplete(stripIds(history), analysis);
     } catch (error) {
-      console.error("Error:", error);
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error("[Step3] 패턴 확정 실패:", errMsg, error);
+      addFlash("error", `패턴 확정 중 오류가 발생했습니다: ${errMsg}`);
       setIsAnalyzing(false);
     }
   };

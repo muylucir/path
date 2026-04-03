@@ -3,8 +3,7 @@
 import logging
 from typing import Dict, Any, Optional, List
 
-from strands_utils import strands_utils, get_skill_prompt, DEFAULT_MODEL_ID
-from safe_tools import safe_file_read
+from strands_utils import strands_utils, load_skill_content, DEFAULT_MODEL_ID
 from token_tracker import extract_usage, merge_usage
 from spec._helpers import extract_final_text, build_analysis_context, parse_agent_names, clean_internal_comments
 
@@ -47,8 +46,15 @@ class PromptAgent:
     """3a단계: Agent Prompt 설계 — 3개 이상 에이전트 시 병렬 분할(Scatter-Gather)"""
 
     def __init__(self):
-        self._skill_prompt = get_skill_prompt()
-        self._enhanced_prompt = _PROMPT_AGENT_SYSTEM + "\n" + self._skill_prompt
+        # 스킬 + reference 사전 주입 → tool call 완전 제거
+        skill_content = load_skill_content(
+            "prompt-engineering", ["role-templates.md"]
+        )
+        self._enhanced_prompt = (
+            _PROMPT_AGENT_SYSTEM
+            + "\n\n## 참조 스킬 및 레퍼런스 (사전 로드됨 — 도구 호출 불필요)\n"
+            + skill_content
+        )
 
         # fallback용 단일 호출 에이전트 (1-2개 에이전트 또는 파싱 실패 시)
         self.agent = strands_utils.get_agent(
@@ -56,7 +62,7 @@ class PromptAgent:
             model_id=DEFAULT_MODEL_ID,
             max_tokens=32000,
             temperature=0.3,
-            tools=[safe_file_read]
+            tools=[]
         )
 
     def _create_per_agent_instance(self):
@@ -66,7 +72,7 @@ class PromptAgent:
             model_id=DEFAULT_MODEL_ID,
             max_tokens=20000,
             temperature=0.3,
-            tools=[safe_file_read]
+            tools=[]
         )
 
     def _build_single_agent_prompt(self, agent_name: str, agent_index: int,
@@ -78,9 +84,7 @@ class PromptAgent:
 
 {context_section}
 
-**필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
-**필수 최종단계**: 위 스킬과 reference를 참고하여 프롬프트를 설계하세요.
+**필수**: 시스템 프롬프트에 사전 로드된 스킬과 reference를 참고하여 프롬프트를 설계하세요.
 
 {_PROMPT_OUTPUT_RULES}
 
@@ -181,9 +185,7 @@ class PromptAgent:
 
 {context_section}
 
-**필수 1단계**: file_read로 "prompt-engineering" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "./skills/prompt-engineering/references/role-templates.md"를 읽으세요.
-**필수 최종단계**: 위 스킬과 reference를 참고하여 프롬프트를 설계하세요.
+**필수**: 시스템 프롬프트에 사전 로드된 스킬과 reference를 참고하여 프롬프트를 설계하세요.
 
 {_PROMPT_OUTPUT_RULES}
 

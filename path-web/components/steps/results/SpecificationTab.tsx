@@ -9,6 +9,7 @@ import Button from "@cloudscape-design/components/button";
 import ProgressBar from "@cloudscape-design/components/progress-bar";
 import TextContent from "@cloudscape-design/components/text-content";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
+import { useFlash } from "@/components/cloudscape/FlashbarProvider";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
 import type { Analysis, ChatMessage, FormData, ImprovementPlans, TokenUsage } from "@/lib/types";
 
@@ -45,6 +46,7 @@ export function SpecificationTab({
   onSave,
   onUsage,
 }: SpecificationTabProps) {
+  const { addFlash } = useFlash();
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
   const [isSaving, setIsSaving] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -76,7 +78,11 @@ export function SpecificationTab({
         fullSpecRef.current += parsed.text;
         setSpecification(fullSpecRef.current);
       }
-    }, []),
+      if (parsed.warning) {
+        console.warn("[Step4] 경고:", parsed.warning);
+        addFlash("warning", parsed.warning);
+      }
+    }, [addFlash]),
     onProgress: useCallback((p: number, s: string) => {
       setProgress(p);
       if (s) setStage(s);
@@ -91,8 +97,9 @@ export function SpecificationTab({
       setStage("완료");
     }, []),
     onError: useCallback((err: string) => {
-      console.error("Spec generation error:", err);
-    }, []),
+      console.error("[Step4] 명세서 생성 실패:", err);
+      addFlash("error", `명세서 생성 중 오류가 발생했습니다: ${err}`);
+    }, [addFlash]),
   });
 
   const generateSpec = useCallback(() => {

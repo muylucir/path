@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any
 
-from strands_utils import create_spec_agent
+from strands_utils import create_spec_agent, load_skill_content
 from token_tracker import extract_usage, merge_usage
 from spec._helpers import extract_final_text, build_analysis_context
 from spec.mermaid_validator import MermaidValidator
@@ -15,7 +15,12 @@ class DiagramAgent:
     """2단계: 다이어그램 생성 (프레임워크 독립적)"""
 
     def __init__(self):
-        system_prompt = """당신은 AI Agent 아키텍처 시각화 전문가입니다.
+        # 스킬 + reference 사전 주입 → tool call 완전 제거
+        skill_content = load_skill_content(
+            "mermaid-diagrams", ["pattern-examples.md", "templates.md"]
+        )
+
+        system_prompt = f"""당신은 AI Agent 아키텍처 시각화 전문가입니다.
 
 ## 전문 영역
 - Agent 워크플로우를 Mermaid 다이어그램으로 표현
@@ -35,9 +40,12 @@ class DiagramAgent:
 ## 금지 사항
 - 특정 프레임워크 컴포넌트(AgentCore Runtime, Gateway, GraphBuilder 등) 금지
 - HTML 태그 사용 금지
-- 실행 불가능한 Mermaid 문법 금지"""
+- 실행 불가능한 Mermaid 문법 금지
 
-        self.agent = create_spec_agent(system_prompt, max_tokens=16000)
+## 참조 스킬 및 레퍼런스 (사전 로드됨 — 도구 호출 불필요)
+{skill_content}"""
+
+        self.agent = create_spec_agent(system_prompt, max_tokens=16000, tools=[])
         self.validator = MermaidValidator()
 
     def _build_prompt(self, design_result: str, analysis: Dict[str, Any]) -> str:
@@ -51,11 +59,8 @@ class DiagramAgent:
 
 {context_section}
 
-**필수 1단계**: file_read로 "mermaid-diagrams" 스킬의 SKILL.md를 읽으세요.
-**필수 2단계**: file_read로 "./skills/mermaid-diagrams/references/pattern-examples.md"를 읽으세요.
-**필수 3단계**: file_read로 "./skills/mermaid-diagrams/references/templates.md"를 읽으세요.
-**필수 4단계**: 로드된 SKILL과 reference의 템플릿, 베스트 프랙티스만을 사용하세요.
-**필수 5단계**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요.
+**필수**: 시스템 프롬프트에 사전 로드된 스킬과 reference의 템플릿, 베스트 프랙티스만을 사용하세요.
+**필수**: Sequence Diagram에서 activate/deactivate 쌍을 반드시 확인하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요

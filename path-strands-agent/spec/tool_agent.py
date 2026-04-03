@@ -3,7 +3,7 @@
 import logging
 from typing import Dict, Any, List
 
-from strands_utils import create_spec_agent
+from strands_utils import create_spec_agent, load_skill_content
 from token_tracker import extract_usage
 from spec._helpers import extract_final_text, build_analysis_context
 
@@ -40,7 +40,10 @@ class ToolAgent:
     }
 
     def __init__(self):
-        system_prompt = """당신은 AI Agent 도구(Tool) 설계 전문가입니다.
+        # tool-schema SKILL.md 사전 주입 (동적 reference는 file_read 유지)
+        skill_content = load_skill_content("tool-schema")
+
+        system_prompt = f"""당신은 AI Agent 도구(Tool) 설계 전문가입니다.
 
 ## 전문 영역
 - Tool 스키마 정의 (Compact Signature 형식)
@@ -58,7 +61,10 @@ class ToolAgent:
 ## 금지 사항
 - JSON Schema 형식의 Tool 정의 금지
 - 구현 코드 포함 금지
-- 플레이스홀더(TODO, TBD 등)만으로 채우기 금지"""
+- 플레이스홀더(TODO, TBD 등)만으로 채우기 금지
+
+## 참조 스킬 (사전 로드됨 — SKILL.md 도구 호출 불필요)
+{skill_content}"""
 
         self.agent = create_spec_agent(system_prompt, max_tokens=32000)
 
@@ -95,9 +101,8 @@ class ToolAgent:
 
 {context_section}
 
-**필수 1단계**: file_read로 "tool-schema" 스킬의 SKILL.md를 읽으세요.
+**필수**: 시스템 프롬프트에 사전 로드된 tool-schema 스킬을 참고하여 도구를 설계하세요.
 {tool_ref_instructions}
-**필수 최종단계**: 위 스킬과 reference를 참고하여 도구를 설계하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요

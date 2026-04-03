@@ -5,15 +5,17 @@ FeasibilityAgent: Step 2 준비도 점검
 PatternAnalyzerAgent: Step 3 패턴 분석 + 대화 + 확정
 """
 
-from strands import Agent
+from strands import Agent, AgentSkills
 from typing import Dict, List, Any, AsyncIterator
 import json
 import logging
+import os
 import re
 from safe_tools import safe_file_read
 
 logger = logging.getLogger(__name__)
-from strands_utils import strands_utils, get_skill_prompt, DEFAULT_MODEL_ID, safe_extract_text
+_SKILLS_DIR = os.path.join(os.path.dirname(__file__), "skills")
+from strands_utils import strands_utils, DEFAULT_MODEL_ID, safe_extract_text
 from token_tracker import extract_usage
 from schemas import FeasibilityEvaluation, PatternAnalysis
 from prompts import (
@@ -103,16 +105,16 @@ class FeasibilityAgent:
     """Step2: Feasibility 평가 전용 Agent"""
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        # Skill 시스템 초기화 (cached)
-        skill_prompt = get_skill_prompt()
-        enhanced_prompt = FEASIBILITY_SYSTEM_PROMPT + "\n" + skill_prompt
+        # 네이티브 AgentSkills 플러그인 (온디맨드 스킬 활성화)
+        skills_plugin = AgentSkills(skills=_SKILLS_DIR)
 
         self.agent = strands_utils.get_agent(
-            system_prompts=enhanced_prompt,
+            system_prompts=FEASIBILITY_SYSTEM_PROMPT,
             model_id=model_id,
             max_tokens=8192,
             temperature=0.3,
-            tools=[safe_file_read]
+            tools=[safe_file_read],
+            plugins=[skills_plugin],
         )
 
     def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -162,7 +164,9 @@ class FeasibilityAgent:
         try:
             result = await task
         except Exception as e:
-            yield json.dumps({"stage": "오류 발생", "progress": 100, "error": "평가 중 오류가 발생했습니다."}, ensure_ascii=False)
+            error_detail = f"[FeasibilityAgent] {type(e).__name__}: {str(e)[:200]}"
+            logger.error(f"Feasibility 평가 실패: {error_detail}", exc_info=True)
+            yield json.dumps({"stage": "오류 발생", "progress": 100, "error": f"평가 중 오류가 발생했습니다. ({error_detail})"}, ensure_ascii=False)
             return
 
         usage = result.pop("_usage", None)
@@ -223,7 +227,9 @@ class FeasibilityAgent:
         try:
             result = await task
         except Exception as e:
-            yield json.dumps({"stage": "오류 발생", "progress": 100, "error": "재평가 중 오류가 발생했습니다."}, ensure_ascii=False)
+            error_detail = f"[FeasibilityAgent.reevaluate] {type(e).__name__}: {str(e)[:200]}"
+            logger.error(f"Feasibility 재평가 실패: {error_detail}", exc_info=True)
+            yield json.dumps({"stage": "오류 발생", "progress": 100, "error": f"재평가 중 오류가 발생했습니다. ({error_detail})"}, ensure_ascii=False)
             return
 
         usage = result.pop("_usage", None)
@@ -235,19 +241,19 @@ class FeasibilityAgent:
 
 
 class PatternAnalyzerAgent:
-    """Step3: Feasibility 결과를 바탕으로 패턴 분석하는 Agent (Skill 시스템 지원)"""
+    """Step3: Feasibility 결과를 바탕으로 패턴 분석하는 Agent (AgentSkills 플러그인)"""
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        # Skill 시스템 초기화 (cached)
-        skill_prompt = get_skill_prompt()
-        enhanced_prompt = PATTERN_ANALYSIS_SYSTEM_PROMPT + "\n" + skill_prompt
+        # 네이티브 AgentSkills 플러그인 (온디맨드 스킬 활성화)
+        skills_plugin = AgentSkills(skills=_SKILLS_DIR)
 
         self.agent = strands_utils.get_agent(
-            system_prompts=enhanced_prompt,
+            system_prompts=PATTERN_ANALYSIS_SYSTEM_PROMPT,
             model_id=model_id,
             max_tokens=16000,
             temperature=0.3,
-            tools=[safe_file_read]
+            tools=[safe_file_read],
+            plugins=[skills_plugin],
         )
         # Stateful 모드에서 충분한 대화 컨텍스트 유지 (기본 40 → 200)
         self.agent.conversation_manager.window_size = 200

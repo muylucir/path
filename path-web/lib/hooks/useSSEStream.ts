@@ -127,7 +127,7 @@ export function useSSEStream(options: UseSSEStreamOptions): UseSSEStreamReturn {
                 onChunk?.(parsed);
               } catch (e) {
                 if (e instanceof SyntaxError) {
-                  // Truly malformed JSON, not a partial chunk issue anymore
+                  console.warn("[SSE] JSON 파싱 실패 (무시):", data.slice(0, 200));
                 } else {
                   throw e;
                 }
