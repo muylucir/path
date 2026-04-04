@@ -509,11 +509,11 @@ export function Step2Readiness({
               <Badge color={feasibility.autonomy_requirement.score >= 6 ? "blue" : "grey"}>
                 {feasibility.autonomy_requirement.score >= 6 ? "Agentic AI 권장" : "AI-Assisted Workflow 가능"}
               </Badge>
-              <Box variant="small" color="text-body-secondary">
+              <Box variant="p" color="text-body-secondary">
                 자율성 점수: {feasibility.autonomy_requirement.score}/10
               </Box>
             </SpaceBetween>
-            <Box variant="small" color="text-body-secondary">{feasibility.autonomy_requirement.current_state}</Box>
+            <Box variant="p" color="text-body-secondary">{feasibility.autonomy_requirement.current_state}</Box>
             <Box variant="p">{feasibility.autonomy_requirement.reason}</Box>
             {feasibility.autonomy_requirement.changed && feasibility.autonomy_requirement.change_reason && (
               <Alert type="success">
