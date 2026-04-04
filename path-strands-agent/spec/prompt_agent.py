@@ -1,13 +1,17 @@
 """3a단계: Agent Prompt 설계 — 3개 이상 에이전트 시 병렬 분할(Scatter-Gather)"""
 
 import logging
+import re
 from typing import Dict, Any, Optional, List
 
-from strands_utils import strands_utils, load_skill_content, DEFAULT_MODEL_ID
+from strands_utils import strands_utils, load_skill_content
 from token_tracker import extract_usage, merge_usage
 from spec._helpers import extract_final_text, build_analysis_context, parse_agent_names, clean_internal_comments
 
 logger = logging.getLogger(__name__)
+
+# 프롬프트 생성은 구조화된 포맷팅 작업 → Sonnet이 속도/비용 효율적
+_PROMPT_MODEL_ID = "global.anthropic.claude-sonnet-4-6"
 
 # PromptAgent 공통 프롬프트 상수
 _PROMPT_AGENT_SYSTEM = """당신은 AI Agent 프롬프트 엔지니어링 전문가입니다.
@@ -59,28 +63,90 @@ class PromptAgent:
         # fallback용 단일 호출 에이전트 (1-2개 에이전트 또는 파싱 실패 시)
         self.agent = strands_utils.get_agent(
             system_prompts=self._enhanced_prompt,
-            model_id=DEFAULT_MODEL_ID,
-            max_tokens=32000,
+            model_id=_PROMPT_MODEL_ID,
+            max_tokens=12000,
             temperature=0.0,
             tools=[]
         )
 
     def _create_per_agent_instance(self):
-        """병렬 호출용 Agent 인스턴스 생성 (max_tokens=20000)"""
+        """병렬 호출용 Agent 인스턴스 생성"""
         return strands_utils.get_agent(
             system_prompts=self._enhanced_prompt,
-            model_id=DEFAULT_MODEL_ID,
-            max_tokens=20000,
+            model_id=_PROMPT_MODEL_ID,
+            max_tokens=8000,
             temperature=0.0,
             tools=[]
         )
 
+    @staticmethod
+    def _compact_design_context(agent_name: str, design_result: str) -> str:
+        """design_result에서 per-agent 호출에 필요한 핵심만 추출.
+
+        전체 design_result 대신:
+        - 2.1 Pattern Selection (전체 아키텍처 컨텍스트)
+        - 2.2 Agent Components 테이블 헤더 + 전체 에이전트 목록 (상호관계 파악용)
+          단, 현재 에이전트 행을 ★로 하이라이트
+        - 2.3 State Management
+        """
+        sections: list[str] = []
+        lines = design_result.split('\n')
+
+        # --- 2.1 Pattern Selection 추출 ---
+        in_section = False
+        buf: list[str] = []
+        for line in lines:
+            if re.match(r'#+\s+2\.1\s', line):
+                in_section = True
+                buf.append(line)
+            elif in_section:
+                if re.match(r'#+\s+2\.\d', line):
+                    break
+                buf.append(line)
+        if buf:
+            sections.append('\n'.join(buf).rstrip())
+
+        # --- 2.2 Agent Components 테이블 추출 (전체, 대상 에이전트 하이라이트) ---
+        in_section = False
+        buf = []
+        for line in lines:
+            if re.match(r'#+\s+2\.2\s', line):
+                in_section = True
+                buf.append(line)
+            elif in_section:
+                if re.match(r'#+\s+2\.\d', line):
+                    break
+                # 테이블 행에서 해당 에이전트를 하이라이트
+                if agent_name.lower() in line.lower() and line.strip().startswith('|'):
+                    buf.append(line.rstrip() + '  ← ★ 대상 에이전트')
+                else:
+                    buf.append(line)
+        if buf:
+            sections.append('\n'.join(buf).rstrip())
+
+        # --- 2.3 State Management 추출 ---
+        in_section = False
+        buf = []
+        for line in lines:
+            if re.match(r'#+\s+2\.3\s', line):
+                in_section = True
+                buf.append(line)
+            elif in_section:
+                if re.match(r'#+\s+\d', line):
+                    break
+                buf.append(line)
+        if buf:
+            sections.append('\n'.join(buf).rstrip())
+
+        return '\n\n'.join(sections) if sections else design_result
+
     def _build_single_agent_prompt(self, agent_name: str, agent_index: int,
                                    design_result: str, context_section: str) -> str:
         """1개 에이전트 전용 프롬프트 구성"""
+        compact = self._compact_design_context(agent_name, design_result)
         return f"""다음 Agent 설계에서 **"{agent_name}"** 에이전트의 프롬프트만 작성하세요.
 
-{design_result}
+{compact}
 
 {context_section}
 

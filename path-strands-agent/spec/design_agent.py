@@ -3,14 +3,16 @@
 import json
 import logging
 import os
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict, List, Optional
 
-from strands import AgentSkills
-from strands_utils import create_spec_agent
+from strands_utils import create_spec_agent, load_skill_content
 from token_tracker import extract_usage
 from spec._helpers import extract_final_text
 
 logger = logging.getLogger(__name__)
+
+# 10KB 이하 reference는 인라인 주입, 초과 시 file_read 도구 사용
+_INLINE_SIZE_THRESHOLD = 10 * 1024
 
 
 class DesignAgent:
@@ -36,11 +38,14 @@ class DesignAgent:
     }
 
     def __init__(self):
-        # 네이티브 AgentSkills 플러그인 (agent-patterns만 로드)
-        skills_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills", "agent-patterns")
-        skills_plugin = AgentSkills(skills=[skills_dir])
+        # SKILL.md 사전 주입 → skills 도구 호출 1회 완전 제거
+        self._skill_content = load_skill_content("agent-patterns")
+        self._refs_dir = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            "skills", "agent-patterns", "references",
+        )
 
-        system_prompt = """당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
+        system_prompt = f"""당신은 프레임워크 독립적 AI Agent 아키텍처 설계 전문가입니다.
 
 ## 전문 영역
 - Agent 역할 분리 및 협업 구조 설계
@@ -61,9 +66,60 @@ class DesignAgent:
 ## 금지 사항
 - 특정 프레임워크(Strands, LangGraph, CrewAI, AgentCore 등) 언급 금지
 - 구현 코드 포함 금지 — 설계 수준의 기술만 작성
-- 근거 없는 Agent 수 증가 금지"""
+- 근거 없는 Agent 수 증가 금지
 
-        self.agent = create_spec_agent(system_prompt, max_tokens=16000, plugins=[skills_plugin])
+## 참조 스킬 (사전 로드됨 — 도구 호출 불필요)
+{self._skill_content}"""
+
+        self.agent = create_spec_agent(system_prompt, max_tokens=16000)
+
+    def _load_references(self, analysis: Dict[str, Any]) -> tuple[str, list[str]]:
+        """analysis 기반으로 reference 파일을 분류: 인라인 주입 vs file_read 지시.
+
+        Returns:
+            (inline_content, file_read_instructions)
+            - inline_content: 10KB 이하 reference를 <reference> 태그로 결합한 텍스트
+            - file_read_instructions: 10KB 초과 reference의 file_read 지시 목록
+        """
+        ref_files: list[str] = []
+
+        # 패턴별 reference
+        pattern = analysis.get('pattern', '')
+        ref_file = self.PATTERN_REFERENCE_MAP.get(pattern)
+        if ref_file:
+            ref_files.append(ref_file)
+
+        # 멀티 에이전트인 경우 추가 reference
+        recommended_arch = analysis.get('recommended_architecture', '')
+        if recommended_arch == 'multi-agent':
+            ref_files.append('multi-agent-pattern.md')
+            ref_files.append('state-management.md')
+
+        if not ref_files:
+            return "", []
+
+        inline_parts: list[str] = []
+        file_read_instructions: list[str] = []
+
+        for fname in ref_files:
+            fpath = os.path.join(self._refs_dir, fname)
+            if not os.path.isfile(fpath):
+                logger.warning(f"Reference file not found: {fpath}")
+                continue
+
+            size = os.path.getsize(fpath)
+            if size <= _INLINE_SIZE_THRESHOLD:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    content = f.read()
+                inline_parts.append(
+                    f'<reference name="{fname}">\n{content}\n</reference>'
+                )
+            else:
+                file_read_instructions.append(
+                    f'file_read로 "./skills/agent-patterns/references/{fname}"를 읽으세요.'
+                )
+
+        return "\n\n".join(inline_parts), file_read_instructions
 
     def analyze(
         self,
@@ -101,23 +157,18 @@ class DesignAgent:
                 for key, plan in non_empty_plans.items():
                     improvement_section += f"- {key}: {plan}\n"
 
-        # 패턴별 reference 파일 읽기 지시 생성
-        pattern = analysis.get('pattern', '')
-        ref_instructions = ""
-        ref_file = self.PATTERN_REFERENCE_MAP.get(pattern)
-        if ref_file:
-            ref_instructions += (
-                f'\n**필수 2단계**: file_read로 '
-                f'"./skills/agent-patterns/references/{ref_file}"를 읽으세요.'
+        # reference 로드: 작은 파일은 인라인, 큰 파일은 file_read 지시
+        inline_refs, file_read_instrs = self._load_references(analysis)
+        ref_section = ""
+        if inline_refs:
+            ref_section = f"\n**참조 레퍼런스 (사전 로드됨 — 도구 호출 불필요)**:\n{inline_refs}\n"
+
+        file_read_section = ""
+        if file_read_instrs:
+            numbered = "\n".join(
+                f"**필수 {i+1}**: {instr}" for i, instr in enumerate(file_read_instrs)
             )
-        # 멀티 에이전트 아키텍처인 경우 추가 reference
-        recommended_arch = analysis.get('recommended_architecture', '')
-        if recommended_arch == 'multi-agent':
-            ref_instructions += (
-                '\n**필수 추가**: file_read로 '
-                '"./skills/agent-patterns/references/multi-agent-pattern.md"와 '
-                '"./skills/agent-patterns/references/state-management.md"를 읽으세요.'
-            )
+            file_read_section = f"\n{numbered}\n"
 
         # 자동화 수준 안내
         automation_level = analysis.get('automation_level', '')
@@ -146,10 +197,14 @@ class DesignAgent:
 - 외부 이벤트 반응 → Event-driven Pipeline
 
 **출력 헤딩 변환**: "## 2. Agent Design Pattern" 대신 "## 2. 파이프라인 아키텍처"를 사용하세요. 하위 ### 헤딩은 그대로 유지합니다.
-
-**필수 참조**: skills 도구로 'agent-patterns'을 활성화하고,
-file_read로 "./skills/agent-patterns/references/pipeline-patterns.md"를 참조하세요.
 """
+            # pipeline-patterns reference 인라인 로드 (5KB — 임계값 이내)
+            pp_path = os.path.join(self._refs_dir, "pipeline-patterns.md")
+            if os.path.isfile(pp_path):
+                with open(pp_path, "r", encoding="utf-8") as f:
+                    pp_content = f.read()
+                ref_section += f'\n<reference name="pipeline-patterns.md">\n{pp_content}\n</reference>\n'
+
         elif automation_level == 'agentic-ai':
             automation_guidance = """
 **자동화 수준: Agentic AI**
@@ -166,10 +221,10 @@ file_read로 "./skills/agent-patterns/references/pipeline-patterns.md"를 참조
 {chat_section}
 {context_section}
 {improvement_section}
+{ref_section}
+{file_read_section}
 
-**필수 1단계**: skills 도구로 'agent-patterns'을 활성화하세요.
-{ref_instructions}
-**필수 최종단계**: 스킬과 reference를 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
+**필수**: 시스템 프롬프트에 사전 로드된 스킬과 위 레퍼런스를 참고하여 분석하세요. 스킬에 없는 내용은 추가하지 마세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
