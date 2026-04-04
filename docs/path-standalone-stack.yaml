@@ -606,7 +606,7 @@ Resources:
             action: aws:runShellScript
             inputs:
               timeoutSeconds: 900
-              runCommand:
+              runCommand:permanently delete
                 - '#!/bin/bash'
                 - set -e
                 - echo "=== Installing Python 3.11 ==="
@@ -622,7 +622,6 @@ Resources:
                 - 'python3.11 -m pip install --platform manylinux2014_aarch64 --target=$PACKAGE_DIR --only-binary=:all: --python-version 3.11 -r requirements.txt'
                 - cp agentcore_entrypoint.py chat_agent.py prompts.py schemas.py strands_utils.py safe_tools.py token_tracker.py $PACKAGE_DIR/
                 - cp -r spec/ $PACKAGE_DIR/spec/
-                - cp -r agentskills/ $PACKAGE_DIR/agentskills/
                 - cp -r skills/ $PACKAGE_DIR/skills/
                 - cd $PACKAGE_DIR && zip -r ../deployment_package.zip . -x "*.pyc" "__pycache__/*" > /dev/null && cd ..
                 - 'aws s3 cp deployment_package.zip "s3://{{ S3Bucket }}/{{ S3Key }}"'
