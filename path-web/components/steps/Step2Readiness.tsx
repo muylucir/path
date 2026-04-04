@@ -360,11 +360,11 @@ export function Step2Readiness({
               {item.confidence && item.confidence !== "high" && (
                 <Alert type={item.confidence === "low" ? "warning" : "info"}>
                   <SpaceBetween size="xs">
-                    <Box variant="small" fontWeight="bold">
+                    <Box fontSize="heading-s" fontWeight="bold">
                       {item.confidence === "low" ? "정보 부족으로 추정 점수입니다" : "추가 정보가 있으면 더 정확한 평가가 가능합니다"}
                     </Box>
                     {item.information_gaps && item.information_gaps.length > 0 && (
-                      <Box variant="small">
+                      <Box fontSize="heading-s">
                         필요한 정보: {item.information_gaps.join(" / ")}
                       </Box>
                     )}
