@@ -61,7 +61,7 @@ class PromptAgent:
             system_prompts=self._enhanced_prompt,
             model_id=DEFAULT_MODEL_ID,
             max_tokens=32000,
-            temperature=0.3,
+            temperature=0.0,
             tools=[]
         )
 
@@ -71,7 +71,7 @@ class PromptAgent:
             system_prompts=self._enhanced_prompt,
             model_id=DEFAULT_MODEL_ID,
             max_tokens=20000,
-            temperature=0.3,
+            temperature=0.0,
             tools=[]
         )
 

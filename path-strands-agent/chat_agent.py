@@ -5,7 +5,7 @@ FeasibilityAgent: Step 2 준비도 점검
 PatternAnalyzerAgent: Step 3 패턴 분석 + 대화 + 확정
 """
 
-from strands import Agent, AgentSkills
+from strands import AgentSkills
 from typing import Dict, List, Any, AsyncIterator
 import json
 import logging
@@ -15,7 +15,7 @@ from safe_tools import safe_file_read
 
 logger = logging.getLogger(__name__)
 _SKILLS_DIR = os.path.join(os.path.dirname(__file__), "skills")
-from strands_utils import strands_utils, DEFAULT_MODEL_ID, safe_extract_text
+from strands_utils import strands_utils, load_skill_content, DEFAULT_MODEL_ID, safe_extract_text
 from token_tracker import extract_usage
 from schemas import FeasibilityEvaluation, PatternAnalysis
 from prompts import (
@@ -105,16 +105,23 @@ class FeasibilityAgent:
     """Step2: Feasibility 평가 전용 Agent"""
 
     def __init__(self, model_id: str = DEFAULT_MODEL_ID):
-        # 네이티브 AgentSkills 플러그인 (온디맨드 스킬 활성화)
-        skills_plugin = AgentSkills(skills=_SKILLS_DIR)
+        # 스킬 + 전체 reference 사전 주입 → tools/plugins 불필요, 1회 LLM 호출로 완료
+        skill_content = load_skill_content(
+            "feasibility-evaluation",
+            ["scoring-criteria.md", "improvement-suggestions.md", "risk-patterns.md"],
+        )
+        enhanced_prompt = (
+            FEASIBILITY_SYSTEM_PROMPT
+            + "\n\n## 참조 스킬 및 레퍼런스 (사전 로드됨 — 도구 호출 불필요)\n"
+            + skill_content
+        )
 
         self.agent = strands_utils.get_agent(
-            system_prompts=FEASIBILITY_SYSTEM_PROMPT,
+            system_prompts=enhanced_prompt,
             model_id=model_id,
-            max_tokens=8192,
-            temperature=0.3,
-            tools=[safe_file_read],
-            plugins=[skills_plugin],
+            max_tokens=32000,
+            temperature=0.0,
+            tools=[],
         )
 
     def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -250,8 +257,8 @@ class PatternAnalyzerAgent:
         self.agent = strands_utils.get_agent(
             system_prompts=PATTERN_ANALYSIS_SYSTEM_PROMPT,
             model_id=model_id,
-            max_tokens=16000,
-            temperature=0.3,
+            max_tokens=32000,
+            temperature=0.0,
             tools=[safe_file_read],
             plugins=[skills_plugin],
         )

@@ -372,10 +372,10 @@ export function Step2Readiness({
                 </Alert>
               )}
 
-              <ul style={{ margin: "0 0 4px 0", paddingLeft: 20, color: "var(--color-text-body-secondary)" }}>
-                {parseBulletText(item.current_state).map((b, i) => <li key={i} style={{ fontSize: "12px" }}>{b}</li>)}
+              <ul style={{ margin: "0 0 4px 0", paddingLeft: 20, fontSize: 15, color: "var(--color-text-body-secondary)" }}>
+                {parseBulletText(item.current_state).map((b, i) => <li key={i}>{b}</li>)}
               </ul>
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
+              <ul style={{ margin: 0, paddingLeft: 20, fontSize: 15 }}>
                 {parseBulletText(item.reason).map((b, i) => <li key={i}>{b}</li>)}
               </ul>
 

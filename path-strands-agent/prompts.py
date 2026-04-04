@@ -226,14 +226,7 @@ FEASIBILITY_SYSTEM_PROMPT = """<role>
 - 정보 부족 시 추측하지 말고 confidence와 information_gaps로 명시
 </style>
 
-<skill_usage>
-**스킬 참조 (선택사항)**:
-더 정확한 평가가 필요할 때 `skills` 도구로 'feasibility-evaluation' 스킬을 활성화한 후,
-`file_read`로 references/ 파일을 참조할 수 있습니다:
-- `scoring-criteria.md` — 5개 항목별 세부 점수 기준
-- `improvement-suggestions.md` — 항목별 개선 제안 템플릿
-- `risk-patterns.md` — 일반적인 리스크 패턴 및 대응 방안
-</skill_usage>"""
+"""
 
 
 def get_feasibility_evaluation_prompt(form_data: dict) -> str:
