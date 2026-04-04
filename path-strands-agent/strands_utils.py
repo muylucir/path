@@ -11,9 +11,8 @@ import botocore.config
 
 logger = logging.getLogger(__name__)
 
-# Default model ID - can be overridden via environment variable
-DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-opus-4-6-v1")
-#DEFAULT_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "global.anthropic.claude-sonnet-4-6")
+# Model configuration is centralized in agent_config.py
+from agent_config import DEFAULT_MODEL as DEFAULT_MODEL_ID  # noqa: E402
 
 
 # Bedrock API 호출 타임아웃 및 재시도 설정
@@ -41,8 +40,7 @@ class StrandsUtils:
             **kwargs: 기타 Agent 파라미터
         """
         system_prompts = kwargs.get("system_prompts", "")
-        model_id = kwargs.get("model_id", "global.anthropic.claude-opus-4-6-v1")
-        #model_id = kwargs.get("model_id", "global.anthropic.claude-sonnet-4-6")
+        model_id = kwargs.get("model_id", DEFAULT_MODEL_ID)
         tools = kwargs.get("tools", [])
         max_tokens = kwargs.get("max_tokens", 8192)
         temperature = kwargs.get("temperature", 0.3)

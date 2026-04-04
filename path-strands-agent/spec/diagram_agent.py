@@ -3,6 +3,7 @@
 import logging
 from typing import Dict, Any
 
+from agent_config import get_profile
 from strands_utils import create_spec_agent, load_skill_content
 from token_tracker import extract_usage, merge_usage
 from spec._helpers import extract_final_text, build_analysis_context
@@ -33,7 +34,7 @@ class DiagramAgent:
 3. **적정 복잡도**: 다이어그램당 5-15 노드를 유지합니다. 초과 시 분할합니다
 
 ## 품질 기준
-- Sequence Diagram의 activate/deactivate는 반드시 쌍으로 사용합니다
+- Sequence Diagram의 activate/deactivate는 반드시 쌍으로 사용합니다. activate하지 않은 participant를 deactivate하면 렌더링 오류가 발생합니다. 확실하지 않으면 activate/deactivate를 사용하지 마세요
 - 노드 텍스트의 특수문자(>=, <=, >, <, &, ?)는 반드시 따옴표로 감쌉니다
 - 모든 화살표에 라벨을 붙여 데이터 흐름을 명시합니다
 
@@ -41,11 +42,19 @@ class DiagramAgent:
 - 특정 프레임워크 컴포넌트(AgentCore Runtime, Gateway, GraphBuilder 등) 금지
 - HTML 태그 사용 금지
 - 실행 불가능한 Mermaid 문법 금지
+- 이모지 사용 금지
 
 ## 참조 스킬 및 레퍼런스 (사전 로드됨 — 도구 호출 불필요)
 {skill_content}"""
 
-        self.agent = create_spec_agent(system_prompt, max_tokens=16000, tools=[])
+        cfg = get_profile("diagram")
+        self.agent = create_spec_agent(
+            system_prompt,
+            model_id=cfg["model_id"],
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
+            tools=[],
+        )
         self.validator = MermaidValidator()
 
     def _build_prompt(self, design_result: str, analysis: Dict[str, Any]) -> str:
@@ -92,7 +101,10 @@ flowchart TB
 ```
 
 **특수 문자 이스케이프 (필수)**:
-- 노드 텍스트에 `>=`, `>`, `<`, `?`, `&` 등 특수 문자가 있으면 **반드시 따옴표로 감싸세요**
+- 노드 텍스트에 `>=`, `>`, `<`, `?`, `&`, `"` 등 특수 문자가 있으면 **반드시 따옴표로 감싸세요**
+- **화살표 라벨(`-->|...|`)에도 동일 규칙 적용**: `<`, `>`, `"` 를 라벨 안에 직접 쓰면 파싱 오류 발생
+  - 잘못된 예: `A -->|retry < 2| B`
+  - 올바른 예: `A -->|"retry < 2"| B`
 - 잘못된 예: `{{Score >= 70?}}`
 - 올바른 예: `{{"Score >= 70?"}}`
 
