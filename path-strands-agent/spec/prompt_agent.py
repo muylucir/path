@@ -4,14 +4,12 @@ import logging
 import re
 from typing import Dict, Any, Optional, List
 
+from agent_config import get_profile
 from strands_utils import strands_utils, load_skill_content
 from token_tracker import extract_usage, merge_usage
 from spec._helpers import extract_final_text, build_analysis_context, parse_agent_names, clean_internal_comments
 
 logger = logging.getLogger(__name__)
-
-# 프롬프트 생성은 구조화된 포맷팅 작업 → Sonnet이 속도/비용 효율적
-_PROMPT_MODEL_ID = "global.anthropic.claude-sonnet-4-6"
 
 # PromptAgent 공통 프롬프트 상수
 _PROMPT_AGENT_SYSTEM = """당신은 AI Agent 프롬프트 엔지니어링 전문가입니다.
@@ -27,11 +25,12 @@ _PROMPT_AGENT_SYSTEM = """당신은 AI Agent 프롬프트 엔지니어링 전문
 
 ## 품질 기준
 - System Prompt는 최소 200자 이상으로 충분한 컨텍스트를 제공합니다
-- 각 Agent에 실제 사용 예시(Example User Prompt + Expected Output)를 포함합니다
+- 각 Agent에 실제 사용 예시(Example User Prompt)를 포함합니다
 
 ## 금지 사항
 - 구현 코드 포함 금지
-- 플레이스홀더(TODO, TBD 등)만으로 채우기 금지"""
+- 플레이스홀더(TODO, TBD 등)만으로 채우기 금지
+- 이모지 사용 금지"""
 
 _PROMPT_HEADING_RULES = """**중요 — 헤딩 레벨 규칙:**
 - System Prompt 코드 블록(```) 안에서 마크다운 헤딩(#, ##, ###)을 절대 사용하지 마세요.
@@ -42,8 +41,6 @@ _PROMPT_OUTPUT_RULES = """**중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
 - "스킬을 읽었으므로", "설계를 진행하겠습니다" 같은 문구 금지
 - 바로 설계 결과만 출력하세요"""
-
-_PROMPT_EDGE_CASE_RULE = """**주의**: Edge Case Example은 반드시 실패 경로를 다뤄야 합니다 (예: 도구 호출 실패, 신뢰도 임계값 미달, 필수 입력 누락, 타임아웃 등). Happy path만 제공하지 마세요."""
 
 
 class PromptAgent:
@@ -61,21 +58,23 @@ class PromptAgent:
         )
 
         # fallback용 단일 호출 에이전트 (1-2개 에이전트 또는 파싱 실패 시)
+        cfg = get_profile("prompt_single")
         self.agent = strands_utils.get_agent(
             system_prompts=self._enhanced_prompt,
-            model_id=_PROMPT_MODEL_ID,
-            max_tokens=12000,
-            temperature=0.0,
+            model_id=cfg["model_id"],
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
             tools=[]
         )
 
     def _create_per_agent_instance(self):
         """병렬 호출용 Agent 인스턴스 생성"""
+        cfg = get_profile("prompt_parallel")
         return strands_utils.get_agent(
             system_prompts=self._enhanced_prompt,
-            model_id=_PROMPT_MODEL_ID,
-            max_tokens=8000,
-            temperature=0.0,
+            model_id=cfg["model_id"],
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
             tools=[]
         )
 
@@ -169,23 +168,6 @@ class PromptAgent:
 ```
 [예시 사용자 입력]
 ```
-
-**Expected Output:**
-```
-[예상 출력 형식]
-```
-
-**Edge Case Example:**
-```
-[에러/예외 상황의 예시 입력]
-```
-
-**Edge Case Expected Output:**
-```
-[에러/예외 상황의 예상 출력]
-```
-
-{_PROMPT_EDGE_CASE_RULE}
 """
 
     def _generate_single_agent_prompt(self, agent_name: str, agent_index: int,
@@ -274,23 +256,6 @@ class PromptAgent:
 ```
 [예시 사용자 입력]
 ```
-
-**Expected Output:**
-```
-[예상 출력 형식]
-```
-
-**Edge Case Example:**
-```
-[에러/예외 상황의 예시 입력]
-```
-
-**Edge Case Expected Output:**
-```
-[에러/예외 상황의 예상 출력]
-```
-
-{_PROMPT_EDGE_CASE_RULE}
 """
         result = self.agent(prompt)
         self._last_usage = extract_usage(result)

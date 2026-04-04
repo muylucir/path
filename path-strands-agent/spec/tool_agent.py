@@ -1,9 +1,12 @@
 """3b단계: Tool 스키마 정의"""
 
 import logging
-from typing import Dict, Any, List
+import os
+from typing import Dict, Any
 
-from strands_utils import create_spec_agent, load_skill_content
+from strands import AgentSkills
+from agent_config import get_profile
+from strands_utils import create_spec_agent
 from token_tracker import extract_usage
 from spec._helpers import extract_final_text, build_analysis_context
 
@@ -13,37 +16,12 @@ logger = logging.getLogger(__name__)
 class ToolAgent:
     """3b단계: Tool 스키마 정의"""
 
-    # output_types 키워드 -> tool-schema reference 파일 매핑
-    OUTPUT_TOOL_REFERENCE_MAP = {
-        '검색': 'search-tools.md',
-        '조회': 'search-tools.md',
-        'search': 'search-tools.md',
-        'CRUD': 'crud-tools.md',
-        '생성': 'crud-tools.md',
-        '수정': 'crud-tools.md',
-        '삭제': 'crud-tools.md',
-        '저장': 'crud-tools.md',
-        '알림': 'notification-tools.md',
-        '통보': 'notification-tools.md',
-        '메일': 'notification-tools.md',
-        '이메일': 'notification-tools.md',
-        'notification': 'notification-tools.md',
-        'API': 'external-api-tools.md',
-        '연동': 'external-api-tools.md',
-        '외부': 'external-api-tools.md',
-        '변환': 'transform-tools.md',
-        '포맷': 'transform-tools.md',
-        '가공': 'transform-tools.md',
-        '분석': 'transform-tools.md',
-        '요약': 'transform-tools.md',
-        'transform': 'transform-tools.md',
-    }
-
     def __init__(self):
-        # tool-schema SKILL.md 사전 주입 (동적 reference는 file_read 유지)
-        skill_content = load_skill_content("tool-schema")
+        # AgentSkills 플러그인 (on-demand 스킬 활성화)
+        skills_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "skills")
+        skills_plugin = AgentSkills(skills=[os.path.join(skills_dir, "tool-schema")])
 
-        system_prompt = f"""당신은 AI Agent 도구(Tool) 설계 전문가입니다.
+        system_prompt = """당신은 AI Agent 도구(Tool) 설계 전문가입니다.
 
 ## 전문 영역
 - Tool 스키마 정의 (Compact Signature 형식)
@@ -62,38 +40,20 @@ class ToolAgent:
 - JSON Schema 형식의 Tool 정의 금지
 - 구현 코드 포함 금지
 - 플레이스홀더(TODO, TBD 등)만으로 채우기 금지
+- 이모지 사용 금지"""
 
-## 참조 스킬 (사전 로드됨 — SKILL.md 도구 호출 불필요)
-{skill_content}"""
-
-        self.agent = create_spec_agent(system_prompt, max_tokens=32000)
-
-    def _get_tool_references(self, analysis: Dict[str, Any]) -> List[str]:
-        """analysis의 output_types 기반으로 읽어야 할 tool-schema reference 파일 결정"""
-        output_types = analysis.get('output_types', analysis.get('outputTypes', []))
-        pain_point = analysis.get('pain_point', analysis.get('painPoint', ''))
-        search_text = ' '.join(output_types) if isinstance(output_types, list) else str(output_types)
-        search_text += ' ' + pain_point
-
-        matched_files = set()
-        for keyword, ref_file in self.OUTPUT_TOOL_REFERENCE_MAP.items():
-            if keyword in search_text:
-                matched_files.add(ref_file)
-
-        return list(matched_files)
+        cfg = get_profile("tool")
+        self.agent = create_spec_agent(
+            system_prompt,
+            model_id=cfg["model_id"],
+            max_tokens=cfg["max_tokens"],
+            temperature=cfg["temperature"],
+            plugins=[skills_plugin],
+        )
 
     def generate_tools(self, design_result: str, analysis: Dict[str, Any]) -> str:
         """Tool 정의 생성"""
         context_section = build_analysis_context(analysis)
-
-        # tool-schema reference 읽기 지시 생성
-        tool_refs = self._get_tool_references(analysis)
-        tool_ref_instructions = ""
-        for i, ref_file in enumerate(tool_refs, 1):
-            tool_ref_instructions += (
-                f'\n**필수 추가 {i}**: file_read로 '
-                f'"./skills/tool-schema/references/{ref_file}"를 읽으세요.'
-            )
 
         prompt = f"""다음 Agent 설계를 기반으로 필요한 도구(Tool)를 정의하세요:
 
@@ -101,8 +61,14 @@ class ToolAgent:
 
 {context_section}
 
-**필수**: 시스템 프롬프트에 사전 로드된 tool-schema 스킬을 참고하여 도구를 설계하세요.
-{tool_ref_instructions}
+**필수 1단계**: skills 도구로 'tool-schema'를 활성화하세요.
+**필수 2단계**: 분석 결과의 output_types와 pain_point를 바탕으로 관련 reference를 file_read로 읽으세요.
+  - 검색/조회 관련 → ./skills/tool-schema/references/search-tools.md
+  - CRUD/생성/수정/삭제 관련 → ./skills/tool-schema/references/crud-tools.md
+  - 알림/메일 관련 → ./skills/tool-schema/references/notification-tools.md
+  - API/연동 관련 → ./skills/tool-schema/references/external-api-tools.md
+  - 변환/분석/요약 관련 → ./skills/tool-schema/references/transform-tools.md
+**필수 최종단계**: 스킬과 reference를 참고하여 도구를 설계하세요.
 
 **중요 - 출력 규칙**:
 - 내부 사고 과정이나 메타 코멘트를 출력에 포함하지 마세요
