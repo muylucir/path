@@ -889,6 +889,112 @@ Resources:
         - ALLOW_USER_SRP_AUTH
 
   # ============================================================
+  # Demo User: Auto-create verified demo user in Cognito
+  # ============================================================
+
+  DemoUserLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CognitoAdminCreateUser
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cognito-idp:AdminCreateUser
+                  - cognito-idp:AdminSetUserPassword
+                  - cognito-idp:AdminDeleteUser
+                Resource: !GetAtt PathUserPool.Arn
+
+  DemoUserLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: Create demo user in Cognito User Pool
+      Handler: index.lambda_handler
+      Runtime: python3.11
+      MemorySize: 128
+      Timeout: 30
+      Role: !GetAtt DemoUserLambdaRole.Arn
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import logging
+
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+          def lambda_handler(event, context):
+              props = event['ResourceProperties']
+              user_pool_id = props['UserPoolId']
+              username = props['Username']
+              password = props['Password']
+
+              cognito = boto3.client('cognito-idp')
+
+              if event['RequestType'] == 'Delete':
+                  try:
+                      cognito.admin_delete_user(
+                          UserPoolId=user_pool_id,
+                          Username=username
+                      )
+                      logger.info(f'Deleted demo user: {username}')
+                  except cognito.exceptions.UserNotFoundException:
+                      logger.info(f'User {username} not found, nothing to delete')
+                  except Exception as e:
+                      logger.warning(f'Failed to delete user: {e}')
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS, {})
+                  return
+
+              try:
+                  # Create user with suppressed welcome email and pre-verified email
+                  cognito.admin_create_user(
+                      UserPoolId=user_pool_id,
+                      Username=username,
+                      UserAttributes=[
+                          {'Name': 'email', 'Value': username},
+                          {'Name': 'email_verified', 'Value': 'true'}
+                      ],
+                      MessageAction='SUPPRESS'
+                  )
+                  logger.info(f'Created demo user: {username}')
+
+                  # Set permanent password (skips FORCE_CHANGE_PASSWORD state)
+                  cognito.admin_set_user_password(
+                      UserPoolId=user_pool_id,
+                      Username=username,
+                      Password=password,
+                      Permanent=True
+                  )
+                  logger.info(f'Set permanent password for: {username}')
+
+                  cfnresponse.send(event, context, cfnresponse.SUCCESS,
+                      {'Username': username})
+              except Exception as e:
+                  logger.error(e, exc_info=True)
+                  cfnresponse.send(event, context, cfnresponse.FAILED, {},
+                      reason=str(e))
+
+  CreateDemoUser:
+    Type: Custom::DemoUser
+    DependsOn: PathUserPool
+    Properties:
+      ServiceToken: !GetAtt DemoUserLambda.Arn
+      UserPoolId: !Ref PathUserPool
+      Username: 'demo@path.local'
+      Password: 'Qwer1234!@'
+
+  # ============================================================
   # Lambda: Retrieve Cognito Client Secret
   # (CloudFormation does not expose client secret as output)
   # ============================================================
@@ -1181,3 +1287,11 @@ Outputs:
   CognitoDomain:
     Description: Cognito Hosted UI Domain
     Value: !Sub 'https://${AWS::StackName}-auth.auth.${AWS::Region}.amazoncognito.com'
+
+  DemoUserEmail:
+    Description: Demo user login email
+    Value: 'demo@path.local'
+
+  DemoUserPassword:
+    Description: Demo user login password
+    Value: 'Qwer1234!@'
