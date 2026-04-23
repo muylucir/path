@@ -63,7 +63,7 @@ class PromptAgent:
             system_prompts=self._enhanced_prompt,
             model_id=cfg["model_id"],
             max_tokens=cfg["max_tokens"],
-            temperature=cfg["temperature"],
+            temperature=cfg.get("temperature"),
             tools=[]
         )
 
@@ -74,7 +74,7 @@ class PromptAgent:
             system_prompts=self._enhanced_prompt,
             model_id=cfg["model_id"],
             max_tokens=cfg["max_tokens"],
-            temperature=cfg["temperature"],
+            temperature=cfg.get("temperature"),
             tools=[]
         )
 

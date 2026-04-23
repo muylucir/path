@@ -10,44 +10,46 @@ import os
 # Master default -- single place to switch Opus <-> Sonnet for all agents
 DEFAULT_MODEL = os.environ.get(
     "AGENT_DEFAULT_MODEL",
-    "global.anthropic.claude-sonnet-4-6",
+    #"global.anthropic.claude-sonnet-4-6",
+    #"global.anthropic.claude-opus-4-6-v1",
+    "global.anthropic.claude-opus-4-7",
 )
 
 AGENT_PROFILES: dict[str, dict] = {
     "feasibility": {
         "model_id": os.environ.get("AGENT_FEASIBILITY_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
     "pattern_analyzer": {
         "model_id": os.environ.get("AGENT_PATTERN_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
     "design": {
         "model_id": os.environ.get("AGENT_DESIGN_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
     "diagram": {
         "model_id": os.environ.get("AGENT_DIAGRAM_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
     "prompt_single": {
         "model_id": os.environ.get("AGENT_PROMPT_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
     "prompt_parallel": {
         "model_id": os.environ.get("AGENT_PROMPT_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
     "tool": {
         "model_id": os.environ.get("AGENT_TOOL_MODEL", DEFAULT_MODEL),
         "max_tokens": 32_000,
-        "temperature": 0.0,
+        #"temperature": 0.0,
     },
 }
 

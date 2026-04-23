@@ -34,7 +34,7 @@ class PatternAnalyzerAgent:
             system_prompts=PATTERN_ANALYSIS_SYSTEM_PROMPT,
             model_id=cfg["model_id"],
             max_tokens=cfg["max_tokens"],
-            temperature=cfg["temperature"],
+            temperature=cfg.get("temperature"),
             tools=[safe_file_read],
             plugins=[skills_plugin],
         )

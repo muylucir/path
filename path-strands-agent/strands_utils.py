@@ -43,7 +43,7 @@ class StrandsUtils:
         model_id = kwargs.get("model_id", DEFAULT_MODEL_ID)
         tools = kwargs.get("tools", [])
         max_tokens = kwargs.get("max_tokens", 8192)
-        temperature = kwargs.get("temperature", 0.3)
+        temperature = kwargs.get("temperature")
         read_timeout = kwargs.get("read_timeout", 120)
         connect_timeout = kwargs.get("connect_timeout", 10)
 
@@ -58,13 +58,15 @@ class StrandsUtils:
             client_config = BEDROCK_CLIENT_CONFIG
 
         # BedrockModel 생성 (타임아웃 설정 + Automatic Cache Strategy)
-        model = BedrockModel(
+        model_kwargs = dict(
             model_id=model_id,
             max_tokens=max_tokens,
-            temperature=temperature,
             boto_client_config=client_config,
             cache_config=CacheConfig(strategy="auto"),
         )
+        if temperature is not None:
+            model_kwargs["temperature"] = temperature
+        model = BedrockModel(**model_kwargs)
         
         # Agent 생성 (콘솔 출력 비활성화)
         plugins = kwargs.get("plugins", None)
@@ -156,7 +158,7 @@ def load_skill_content(skill_name: str, reference_files: list[str] | None = None
 
 
 def create_spec_agent(system_prompt: str, max_tokens: int = 8192,
-                      model_id: str | None = None, temperature: float = 0.3,
+                      model_id: str | None = None, temperature: float | None = None,
                       tools=None, plugins=None):
     """표준 기본값으로 spec 서브에이전트 생성.
 

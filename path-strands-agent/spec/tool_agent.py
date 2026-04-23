@@ -47,7 +47,7 @@ class ToolAgent:
             system_prompt,
             model_id=cfg["model_id"],
             max_tokens=cfg["max_tokens"],
-            temperature=cfg["temperature"],
+            temperature=cfg.get("temperature"),
             plugins=[skills_plugin],
         )
 
