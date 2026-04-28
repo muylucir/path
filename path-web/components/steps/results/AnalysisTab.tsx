@@ -230,7 +230,7 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
                     </Alert>
                   )}
 
-                  {userPlan && userPlan.trim() && (
+                  {typeof userPlan === "string" && userPlan.trim() && (
                     <Alert type="success" header="내 개선 계획">
                       {userPlan}
                     </Alert>
