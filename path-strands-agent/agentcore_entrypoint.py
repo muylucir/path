@@ -225,13 +225,25 @@ async def invoke(payload, context):
 # Step 2: Feasibility
 # ──────────────────────────────────────────────
 
+def _extract_selected_data_sources(payload: dict) -> list:
+    """payload에서 path-web이 실어보낸 selectedDataSources (StructuredDataSourceEntry 목록)을 꺼냄.
+
+    실패/부재 시 빈 리스트. 민감값은 path-web 쪽에서 이미 제거됨.
+    """
+    items = payload.get("selectedDataSources")
+    if isinstance(items, list):
+        return [it for it in items if isinstance(it, dict)]
+    return []
+
+
 async def _handle_feasibility(payload: dict):
     """초기 Feasibility 평가 — SSE 스트리밍"""
     form_data = payload.get("formData", {})
+    selected_ds = _extract_selected_data_sources(payload)
     mod = _get_chat_agent_module()
     agent = mod.FeasibilityAgent()
 
-    async for chunk in agent.evaluate_stream(form_data):
+    async for chunk in agent.evaluate_stream(form_data, selected_data_sources=selected_ds):
         # evaluate_stream yields JSON strings
         try:
             yield json.loads(chunk)
@@ -264,6 +276,7 @@ async def _handle_pattern_analyze(payload: dict, session_id: str):
     form_data = payload.get("formData", {})
     feasibility = payload.get("feasibility", {})
     improvement_plans = payload.get("improvementPlans")
+    selected_ds = _extract_selected_data_sources(payload)
 
     _cleanup_sessions()
     mod = _get_chat_agent_module()
@@ -273,7 +286,8 @@ async def _handle_pattern_analyze(payload: dict, session_id: str):
         _session_timestamps[session_id] = time.time()
 
     async for chunk in agent.analyze_stream(
-        form_data, feasibility, improvement_plans
+        form_data, feasibility, improvement_plans,
+        selected_data_sources=selected_ds,
     ):
         if "text" in chunk:
             yield {"text": chunk["text"], "sessionId": session_id}
@@ -285,10 +299,14 @@ async def _handle_pattern_chat(payload: dict, session_id: str):
     """패턴 관련 대화 — SSE 스트리밍"""
     user_message = payload.get("userMessage", "")
     conversation = payload.get("conversation", [])
+    selected_ds = _extract_selected_data_sources(payload)
 
     agent, is_stateful = _get_or_create_pattern_agent(session_id, conversation)
 
-    async for chunk in agent.chat_stream(user_message, stateful=is_stateful):
+    async for chunk in agent.chat_stream(
+        user_message, stateful=is_stateful,
+        selected_data_sources=selected_ds,
+    ):
         if "text" in chunk:
             yield {"text": chunk["text"], "sessionId": session_id}
         elif "usage" in chunk:
@@ -301,10 +319,12 @@ def _run_pattern_finalize(payload: dict, session_id: str) -> dict:
     feasibility = payload.get("feasibility", {})
     conversation = payload.get("conversation", [])
     improvement_plans = payload.get("improvementPlans")
+    selected_ds = _extract_selected_data_sources(payload)
 
     agent, is_stateful = _get_or_create_pattern_agent(session_id, conversation)
     return agent.finalize(
-        form_data, feasibility, improvement_plans, stateful=is_stateful
+        form_data, feasibility, improvement_plans, stateful=is_stateful,
+        selected_data_sources=selected_ds,
     )
 
 
@@ -318,12 +338,14 @@ async def _handle_spec(payload: dict):
     improvement_plans = payload.get("improvement_plans")
     chat_history = payload.get("chat_history")
     additional_context = payload.get("additional_context")
+    selected_ds = _extract_selected_data_sources(payload)
 
     mod = _get_spec_agent_module()
     spec_agent = mod.MultiStageSpecAgent()
 
     async for event in spec_agent.generate_spec_stream(
-        analysis, improvement_plans, chat_history, additional_context
+        analysis, improvement_plans, chat_history, additional_context,
+        selected_data_sources=selected_ds,
     ):
         yield event
 

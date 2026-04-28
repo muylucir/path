@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from typing import Any, AsyncIterator, Dict
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from agent_config import get_profile
 from strands_utils import strands_utils, load_skill_content, safe_extract_text
@@ -43,9 +43,13 @@ class FeasibilityAgent:
             tools=[],
         )
 
-    def evaluate(self, form_data: Dict[str, Any]) -> Dict[str, Any]:
+    def evaluate(
+        self,
+        form_data: Dict[str, Any],
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> Dict[str, Any]:
         """초기 Feasibility 평가 수행"""
-        prompt = get_feasibility_evaluation_prompt(form_data)
+        prompt = get_feasibility_evaluation_prompt(form_data, selected_data_sources)
         result = self.agent(prompt)
         response_text = safe_extract_text(result)
         parsed = extract_json(response_text, "feasibility evaluation")
@@ -53,9 +57,13 @@ class FeasibilityAgent:
         parsed["_usage"] = extract_usage(result)
         return parsed
 
-    async def evaluate_stream(self, form_data: Dict[str, Any]) -> AsyncIterator[str]:
+    async def evaluate_stream(
+        self,
+        form_data: Dict[str, Any],
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> AsyncIterator[str]:
         """초기 Feasibility 평가 수행 - SSE 스트리밍 (Progress 포함)"""
-        prompt = get_feasibility_evaluation_prompt(form_data)
+        prompt = get_feasibility_evaluation_prompt(form_data, selected_data_sources)
 
         # 평가 항목 단계
         stages = [

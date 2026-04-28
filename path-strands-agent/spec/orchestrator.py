@@ -9,6 +9,7 @@ from spec.design_agent import DesignAgent
 from spec.diagram_agent import DiagramAgent
 from spec.prompt_agent import PromptAgent
 from spec.tool_agent import ToolAgent
+from spec.data_integration_agent import DataIntegrationAgent
 from spec.assembler import AssemblerAgent
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class MultiStageSpecAgent:
         self.diagram_agent = DiagramAgent()
         self.prompt_agent = PromptAgent()
         self.tool_agent = ToolAgent()
+        self.data_integration_agent = DataIntegrationAgent()
         self.assembler_agent = AssemblerAgent()
 
     async def generate_spec_stream(
@@ -29,7 +31,8 @@ class MultiStageSpecAgent:
         analysis: Dict[str, Any],
         improvement_plans: Optional[Dict[str, str]] = None,
         chat_history: Optional[List[Dict[str, str]]] = None,
-        additional_context: Optional[Dict[str, str]] = None
+        additional_context: Optional[Dict[str, str]] = None,
+        selected_data_sources: Optional[List[dict]] = None,
     ) -> AsyncIterator[dict]:
         """명세서 생성 - dict yield (AgentCore 엔트리포인트에서 SSE 변환)"""
 
@@ -64,11 +67,21 @@ class MultiStageSpecAgent:
             tool_task = asyncio.create_task(asyncio.to_thread(
                 self.tool_agent.generate_tools, design_result, analysis
             ))
+            # Tier 3: 선택된 DS별 데이터 통합 설계 JSON (선택 없으면 내부적으로 빈 bundle)
+            integration_task = asyncio.create_task(asyncio.to_thread(
+                self.data_integration_agent.generate, analysis, selected_data_sources
+            ))
 
             progress = 45
-            while not diagram_task.done() or not prompt_task.done() or not tool_task.done():
+            while (
+                not diagram_task.done() or not prompt_task.done()
+                or not tool_task.done() or not integration_task.done()
+            ):
                 await asyncio.sleep(3)
-                if not diagram_task.done() or not prompt_task.done() or not tool_task.done():
+                if (
+                    not diagram_task.done() or not prompt_task.done()
+                    or not tool_task.done() or not integration_task.done()
+                ):
                     progress = min(progress + 5, 90)
                     stages_status = []
                     if not diagram_task.done():
@@ -77,28 +90,34 @@ class MultiStageSpecAgent:
                         stages_status.append("프롬프트")
                     if not tool_task.done():
                         stages_status.append("도구")
+                    if not integration_task.done():
+                        stages_status.append("데이터 통합")
                     stage_text = " & ".join(stages_status) + " 생성 중..."
                     yield {'progress': progress, 'stage': stage_text}
 
-            raw_results = await asyncio.gather(diagram_task, prompt_task, tool_task, return_exceptions=True)
+            raw_results = await asyncio.gather(
+                diagram_task, prompt_task, tool_task, integration_task,
+                return_exceptions=True,
+            )
 
-            # 부분 실패 처리: 실패한 서브에이전트는 빈 문자열로 대체, 실패 내역 알림
-            sub_names = ["DiagramAgent", "PromptAgent", "ToolAgent"]
-            resolved: list[str] = []
+            # 부분 실패 처리: 실패한 서브에이전트는 빈 문자열/빈 dict로 대체, 실패 내역 알림
+            sub_names = ["DiagramAgent", "PromptAgent", "ToolAgent", "DataIntegrationAgent"]
+            sub_defaults: list = ["", "", "", {"items": []}]
+            resolved: list = []
             failed_agents: list[str] = []
             for i, r in enumerate(raw_results):
                 if isinstance(r, BaseException):
                     error_detail = f"{type(r).__name__}: {str(r)[:200]}"
                     logger.error(f"[{sub_names[i]}] 실패: {error_detail}", exc_info=r)
                     failed_agents.append(f"{sub_names[i]}({error_detail})")
-                    resolved.append("")
+                    resolved.append(sub_defaults[i])
                 else:
                     resolved.append(r)
             if failed_agents:
                 yield {'warning': f"일부 에이전트 실패: {', '.join(failed_agents)}"}
 
-            diagram_result, prompt_result, tool_result = resolved
-            yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 완료'}
+            diagram_result, prompt_result, tool_result, data_integrations = resolved
+            yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 & 데이터 통합 완료'}
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
             yield {'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}
@@ -108,6 +127,7 @@ class MultiStageSpecAgent:
                 diagram_result,
                 prompt_result,
                 tool_result,
+                data_integrations=data_integrations,
             ):
                 yield chunk_data
 
@@ -115,13 +135,16 @@ class MultiStageSpecAgent:
             try:
                 total_usage = merge_usage(
                     merge_usage(
-                        getattr(self.design_agent, '_last_usage', {}) or {},
-                        getattr(self.diagram_agent, '_last_usage', {}) or {}
+                        merge_usage(
+                            getattr(self.design_agent, '_last_usage', {}) or {},
+                            getattr(self.diagram_agent, '_last_usage', {}) or {}
+                        ),
+                        merge_usage(
+                            getattr(self.prompt_agent, '_last_usage', {}) or {},
+                            getattr(self.tool_agent, '_last_usage', {}) or {}
+                        )
                     ),
-                    merge_usage(
-                        getattr(self.prompt_agent, '_last_usage', {}) or {},
-                        getattr(self.tool_agent, '_last_usage', {}) or {}
-                    )
+                    getattr(self.data_integration_agent, '_last_usage', {}) or {}
                 )
                 if total_usage.get("totalTokens", 0) > 0:
                     yield {'usage': total_usage}
