@@ -124,6 +124,7 @@ export default function SessionsPage() {
         additionalSources: session.additional_sources || session.data_source,
         errorTolerance: session.error_tolerance,
         additionalContext: session.additional_context,
+        selectedDataSourceIds: session.selected_data_source_ids ?? [],
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history || []));
       sessionStorage.setItem("specification", session.specification || "");

@@ -11,6 +11,8 @@ export interface FormData {
   additionalContext?: string;
   // 데이터소스 (자유 텍스트)
   additionalSources?: string;
+  /** 카탈로그에서 선택한 데이터 소스 id 목록 */
+  selectedDataSourceIds?: string[];
   /** @deprecated 하위 호환성용 - 새 코드에서는 사용하지 마세요 */
   integrationDetails?: IntegrationDetail[];
 }
@@ -51,6 +53,8 @@ export interface FeasibilityItemDetail {
   information_gaps?: string[];
   changed?: boolean;
   change_reason?: string;
+  /** Tier 2: 이 항목 평가의 근거가 된 선택된 데이터소스 id 목록 */
+  evidence_ds_ids?: string[];
 }
 
 // Step2: Feasibility 상세 평가 결과
@@ -67,6 +71,8 @@ export interface WeakItem {
   item: string;
   score: number;
   improvement_suggestion: string;
+  /** Tier 2: 이 weak item의 판단 근거가 된 선택된 데이터소스 id 목록 */
+  evidence_ds_ids?: string[];
 }
 
 // Step2: Feasibility 평가 결과
@@ -137,6 +143,8 @@ export interface Analysis {
   recommendation: string;
   risks: string[];
   next_steps: string[];
+  /** Tier 2: 패턴 추천의 근거가 된 선택된 데이터소스 id 목록 */
+  evidence_ds_ids?: string[];
 }
 
 export interface TokenUsage {
@@ -161,6 +169,8 @@ export interface Session {
   error_tolerance: string;
   additional_context: string;
   additional_sources?: string;
+  /** 카탈로그에서 선택한 데이터 소스 id 스냅샷 */
+  selected_data_source_ids?: string[];
   pattern: string;
   pattern_reason: string;
   recommended_architecture?: 'single-agent' | 'multi-agent';
