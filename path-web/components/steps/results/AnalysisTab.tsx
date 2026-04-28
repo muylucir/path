@@ -14,12 +14,6 @@ import Button from "@cloudscape-design/components/button";
 import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/lib/readiness";
 import type { Analysis, FormData, FeasibilityEvaluation, FeasibilityItemDetail, ImprovementPlans } from "@/lib/types";
 import { PROCESS_STEPS, READINESS_ITEM_DETAILS, FEASIBILITY_ITEM_NAMES, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
-import {
-  DATA_SOURCE_CATEGORY_LABELS,
-  type DataSourceEntry,
-  type StoredDataSource,
-} from "@/lib/data-source-catalog";
-import { useEffect, useState } from "react";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 import { parsePatternLayers, parseBulletText } from "@/lib/utils";
 
@@ -35,39 +29,6 @@ interface AnalysisTabProps {
 export function AnalysisTab({ analysis, formData, feasibility, improvementPlans }: AnalysisTabProps) {
   const { risks } = analysis;
   const finalScore = analysis.improved_feasibility?.score ?? analysis.feasibility_score;
-
-  const [catalogMap, setCatalogMap] = useState<Map<string, DataSourceEntry>>(
-    new Map(),
-  );
-  useEffect(() => {
-    const selectedIds = formData?.selectedDataSourceIds ?? [];
-    const evidenceIds: string[] = [];
-    if (feasibility?.feasibility_breakdown) {
-      for (const item of Object.values(feasibility.feasibility_breakdown)) {
-        if (item && Array.isArray((item as FeasibilityItemDetail).evidence_ds_ids)) {
-          evidenceIds.push(...((item as FeasibilityItemDetail).evidence_ds_ids ?? []));
-        }
-      }
-    }
-    if (selectedIds.length === 0 && evidenceIds.length === 0) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch("/api/data-sources");
-        if (!res.ok) return;
-        const body = (await res.json()) as { items?: StoredDataSource[] };
-        if (cancelled) return;
-        const m = new Map<string, DataSourceEntry>();
-        for (const it of body.items ?? []) m.set(it.entry.id, it.entry);
-        setCatalogMap(m);
-      } catch {
-        /* silent */
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [formData?.selectedDataSourceIds, feasibility]);
 
   const processSteps = formData?.processSteps || [];
   const isUserSelection = processSteps.some((step: string) =>
@@ -184,28 +145,7 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
               },
               {
                 label: "데이터 소스",
-                value: (() => {
-                  const selectedIds = formData?.selectedDataSourceIds ?? [];
-                  const selectedEntries = selectedIds
-                    .map((id) => catalogMap.get(id))
-                    .filter(<T,>(v: T | undefined): v is T => v !== undefined);
-                  const free = formData?.additionalSources?.trim();
-                  if (selectedEntries.length === 0 && !free) return "-";
-                  return (
-                    <SpaceBetween size="xxs">
-                      {selectedEntries.length > 0 && (
-                        <SpaceBetween size="xxs" direction="horizontal">
-                          {selectedEntries.map((entry) => (
-                            <Badge key={entry.id} color="blue">
-                              {DATA_SOURCE_CATEGORY_LABELS[entry.category]}: {entry.name}
-                            </Badge>
-                          ))}
-                        </SpaceBetween>
-                      )}
-                      {free && <Box variant="small">{free}</Box>}
-                    </SpaceBetween>
-                  );
-                })(),
+                value: formData?.additionalSources || "-",
               },
             ]}
           />
@@ -282,30 +222,6 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
                     {parseBulletText(item.reason).map((b, i) => <li key={i}>{b}</li>)}
                   </ul>
 
-                  {(item.evidence_ds_ids ?? []).length > 0 && (
-                    <Box>
-                      <Box variant="small" color="text-body-secondary" display="inline-block" padding={{ right: "xs" }}>
-                        근거 데이터 소스:
-                      </Box>
-                      <SpaceBetween direction="horizontal" size="xxs">
-                        {(item.evidence_ds_ids ?? []).map((id) => {
-                          const entry = catalogMap.get(id);
-                          const label = entry ? entry.name : id;
-                          return (
-                            <a
-                              key={id}
-                              href={`/data-sources/${encodeURIComponent(id)}/edit`}
-                              style={{ textDecoration: "none" }}
-                              title={entry?.description ?? id}
-                            >
-                              <Badge color="blue">{label}</Badge>
-                            </a>
-                          );
-                        })}
-                      </SpaceBetween>
-                    </Box>
-                  )}
-
                   {weakItem && (
                     <Alert type="warning" header="AI 개선 제안">
                       <ul style={{ margin: 0, paddingLeft: 20 }}>
@@ -314,7 +230,7 @@ export function AnalysisTab({ analysis, formData, feasibility, improvementPlans 
                     </Alert>
                   )}
 
-                  {typeof userPlan === "string" && userPlan.trim() && (
+                  {userPlan && userPlan.trim() && (
                     <Alert type="success" header="내 개선 계획">
                       {userPlan}
                     </Alert>

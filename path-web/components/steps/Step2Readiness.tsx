@@ -183,7 +183,7 @@ export function Step2Readiness({
   }, []);
 
   // Check if at least one improvement plan is filled
-  const hasImprovementPlans = Object.values(improvementPlans).some((v) => typeof v === "string" && v.trim().length > 0);
+  const hasImprovementPlans = Object.values(improvementPlans).some((v) => v.trim().length > 0);
 
   const handleReevaluate = useCallback(() => {
     if (!feasibility || !hasImprovementPlans) return;
