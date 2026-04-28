@@ -14,6 +14,7 @@ export const sessionSchema = z.object({
   data_source: z.string(),
   additional_context: z.string().optional().default(""),
   additional_sources: z.string().optional().default(""),
+  selected_data_source_ids: z.array(z.string().max(80)).max(30).optional().default([]),
   pattern: z.string(),
   pattern_reason: z.string(),
   recommended_architecture: z.enum(["single-agent", "multi-agent"]).nullable().optional(),

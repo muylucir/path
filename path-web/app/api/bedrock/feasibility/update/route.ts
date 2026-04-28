@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { invokeAgentCoreSSE } from "../../_shared/agentcore-client";
+import { enrichDataSources } from "@/lib/enterprise/ds-enrichment";
 
 export const maxDuration = 120;
 
@@ -14,6 +15,8 @@ export async function POST(req: NextRequest) {
   return invokeAgentCoreSSE(req, {
     schema: feasibilityUpdateSchema,
     actionType: "feasibility_update",
+    enrichPayload: (body) =>
+      enrichDataSources(body, { step: "feasibility_update" }),
     errorMessage: "재평가 중 오류가 발생했습니다",
   });
 }

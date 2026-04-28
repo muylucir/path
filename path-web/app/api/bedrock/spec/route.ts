@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { z } from "zod";
 import { invokeAgentCoreSSE } from "../_shared/agentcore-client";
+import { enrichDataSources } from "@/lib/enterprise/ds-enrichment";
 
 export const maxDuration = 600;
 
@@ -17,6 +18,10 @@ const specSchema = z.object({
       context: z.string().optional(),
     })
     .optional(),
+  selectedDataSourceIds: z
+    .array(z.string().max(80))
+    .max(30)
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -28,7 +33,9 @@ export async function POST(req: NextRequest) {
       improvement_plans: body.improvementPlans,
       chat_history: body.chatHistory,
       additional_context: body.additionalContext,
+      selectedDataSourceIds: body.selectedDataSourceIds,
     }),
+    enrichPayload: (body) => enrichDataSources(body, { step: "spec" }),
     errorMessage: "명세서 생성 중 오류가 발생했습니다",
   });
 }
