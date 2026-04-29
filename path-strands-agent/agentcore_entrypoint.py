@@ -256,11 +256,17 @@ async def _handle_feasibility_update(payload: dict):
     form_data = payload.get("formData", {})
     previous_evaluation = payload.get("previousEvaluation", {})
     improvement_plans = payload.get("improvementPlans", {})
+    selected_ds = _extract_selected_data_sources(payload)
 
     mod = _get_chat_agent_module()
     agent = mod.FeasibilityAgent()
 
-    async for chunk in agent.reevaluate_stream(form_data, previous_evaluation, improvement_plans):
+    async for chunk in agent.reevaluate_stream(
+        form_data,
+        previous_evaluation,
+        improvement_plans,
+        selected_data_sources=selected_ds,
+    ):
         try:
             yield json.loads(chunk)
         except (json.JSONDecodeError, TypeError):

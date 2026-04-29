@@ -118,9 +118,17 @@ class FeasibilityAgent:
         parsed["_usage"] = extract_usage(result)
         return parsed
 
-    def reevaluate(self, form_data: Dict[str, Any], previous_evaluation: Dict[str, Any], improvement_plans: Dict[str, str]) -> Dict[str, Any]:
+    def reevaluate(
+        self,
+        form_data: Dict[str, Any],
+        previous_evaluation: Dict[str, Any],
+        improvement_plans: Dict[str, str],
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> Dict[str, Any]:
         """개선안 반영 재평가 수행"""
-        prompt = get_feasibility_reevaluation_prompt(form_data, previous_evaluation, improvement_plans)
+        prompt = get_feasibility_reevaluation_prompt(
+            form_data, previous_evaluation, improvement_plans, selected_data_sources
+        )
         result = self.agent(prompt)
         response_text = safe_extract_text(result)
         parsed = extract_json(response_text, "feasibility re-evaluation")
@@ -128,7 +136,13 @@ class FeasibilityAgent:
         parsed["_usage"] = extract_usage(result)
         return parsed
 
-    async def reevaluate_stream(self, form_data: Dict[str, Any], previous_evaluation: Dict[str, Any], improvement_plans: Dict[str, str]) -> AsyncIterator[str]:
+    async def reevaluate_stream(
+        self,
+        form_data: Dict[str, Any],
+        previous_evaluation: Dict[str, Any],
+        improvement_plans: Dict[str, str],
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> AsyncIterator[str]:
         """개선안 반영 재평가 - SSE 스트리밍 (Progress 포함, 타임아웃 방지)"""
         stages = [
             "개선 방안 분석 중...",
@@ -142,7 +156,15 @@ class FeasibilityAgent:
 
         yield json.dumps({"stage": "재평가 시작", "progress": 0}, ensure_ascii=False)
 
-        task = asyncio.create_task(asyncio.to_thread(self.reevaluate, form_data, previous_evaluation, improvement_plans))
+        task = asyncio.create_task(
+            asyncio.to_thread(
+                self.reevaluate,
+                form_data,
+                previous_evaluation,
+                improvement_plans,
+                selected_data_sources,
+            )
+        )
 
         progress = 10
         stage_idx = 0
