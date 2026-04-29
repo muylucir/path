@@ -29,6 +29,14 @@ interface AgentCoreOptions {
   actionType: string;
   /** Transform the parsed body before building the payload */
   transformBody?: (body: Record<string, unknown>) => Record<string, unknown>;
+  /**
+   * Async enrichment applied after transformBody. Failure must be non-fatal —
+   * implementations should catch errors internally and return the original body.
+   * Intended for DB/external lookups (e.g., resolving data source ids).
+   */
+  enrichPayload?: (
+    body: Record<string, unknown>,
+  ) => Promise<Record<string, unknown>>;
   /** Error message to return on failure */
   errorMessage?: string;
   /**
@@ -110,6 +118,7 @@ export async function invokeAgentCoreSSE(
     schema,
     actionType,
     transformBody,
+    enrichPayload,
     errorMessage = "요청 처리 중 오류가 발생했습니다",
     getSessionId,
     generateSessionId,
@@ -126,6 +135,10 @@ export async function invokeAgentCoreSSE(
 
     if (transformBody) {
       body = transformBody(body);
+    }
+
+    if (enrichPayload) {
+      body = await enrichPayload(body);
     }
 
     // Build payload with action type
@@ -228,6 +241,7 @@ export async function invokeAgentCoreJSON(
     schema,
     actionType,
     transformBody,
+    enrichPayload,
     errorMessage = "요청 처리 중 오류가 발생했습니다",
     getSessionId,
   } = options;
@@ -243,6 +257,10 @@ export async function invokeAgentCoreJSON(
 
     if (transformBody) {
       body = transformBody(body);
+    }
+
+    if (enrichPayload) {
+      body = await enrichPayload(body);
     }
 
     const payload = { type: actionType, ...body };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { formSchema, type FormValues } from "@/lib/schema";
@@ -11,7 +11,14 @@ import {
   HUMAN_LOOP_OPTIONS,
   ERROR_TOLERANCE_OPTIONS,
 } from "@/lib/constants";
+import {
+  DATA_SOURCE_CATEGORY_LABELS,
+  type StoredDataSource,
+} from "@/lib/data-source-catalog";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
+import { DataSourceSelectModal } from "@/components/steps/DataSourceSelectModal";
+import Badge from "@cloudscape-design/components/badge";
+import Button from "@cloudscape-design/components/button";
 import Container from "@cloudscape-design/components/container";
 import Checkbox from "@cloudscape-design/components/checkbox";
 import Box from "@cloudscape-design/components/box";
@@ -48,8 +55,31 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
       errorTolerance: "",
       additionalContext: "",
       additionalSources: "",
+      selectedDataSourceIds: [],
     },
   });
+
+  const [dsModalOpen, setDsModalOpen] = useState(false);
+  const [catalog, setCatalog] = useState<StoredDataSource[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/data-sources");
+        if (!res.ok) return;
+        const body = (await res.json()) as { items?: StoredDataSource[] };
+        if (!cancelled) setCatalog(body.items ?? []);
+      } catch {
+        /* silent: keep catalog empty */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const catalogAvailable = catalog.length > 0;
+  const findEntry = (id: string) =>
+    catalog.find((s) => s.entry.id === id)?.entry;
 
   useEffect(() => {
     if (initialData) {
@@ -178,25 +208,116 @@ export function Step1Form({ onSubmit, initialData, submitRef }: Step1FormProps) 
 
       {/* Data Sources */}
       <Container header={<Header variant="h2" description="Agent가 접근하거나 활용할 외부 시스템, API, 데이터베이스 등을 설명하세요">Agent가 활용할 리소스 (선택)</Header>}>
-        <Controller
-          name="additionalSources"
-          control={control}
-          render={({ field }) => (
-            <div className="full-width-control">
-              <FormField
-                label="데이터 소스 (선택)"
-                description="데이터베이스, API, MCP 서버, 클라우드 서비스 등 Agent가 사용할 리소스를 자유롭게 입력하세요"
-              >
-                <Textarea
-                  value={field.value || ""}
-                  onChange={({ detail }) => field.onChange(detail.value)}
-                  placeholder="예: PostgreSQL 고객 DB, Slack API로 알림 전송, S3 버킷에서 문서 조회, Bedrock Knowledge Base 검색 등"
-                  rows={4}
-                />
-              </FormField>
-            </div>
+        <SpaceBetween size="m">
+          {catalogAvailable && (
+            <Controller
+              name="selectedDataSourceIds"
+              control={control}
+              render={({ field }) => {
+                const selected = field.value ?? [];
+                const selectedEntries = selected
+                  .map((id) => findEntry(id))
+                  .filter(<T,>(v: T | undefined): v is T => v !== undefined);
+                const removeOne = (id: string) =>
+                  field.onChange(selected.filter((x) => x !== id));
+                return (
+                  <div className="full-width-control">
+                    <FormField
+                      label="등록된 데이터 소스 선택"
+                      description="카탈로그에 등록된 항목 중 이 Agent가 활용할 데이터 소스를 선택하세요"
+                    >
+                      <SpaceBetween size="xs">
+                        <Button
+                          iconName="add-plus"
+                          onClick={() => setDsModalOpen(true)}
+                        >
+                          {selected.length > 0
+                            ? `데이터 소스 편집 (${selected.length})`
+                            : "카탈로그에서 선택"}
+                        </Button>
+                        {selectedEntries.length > 0 && (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexWrap: "wrap",
+                              gap: 8,
+                            }}
+                          >
+                            {selectedEntries.map((entry) => (
+                              <div
+                                key={entry.id}
+                                title={entry.description || entry.name}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 6,
+                                  border:
+                                    "1px solid var(--color-border-divider-default, #e9ebed)",
+                                  borderRadius: 999,
+                                  padding: "2px 4px 2px 10px",
+                                  background:
+                                    "var(--color-background-container-content, #fff)",
+                                }}
+                              >
+                                <Badge color="blue">
+                                  {DATA_SOURCE_CATEGORY_LABELS[entry.category]}
+                                </Badge>
+                                <span style={{ fontSize: 13 }}>{entry.name}</span>
+                                <Button
+                                  iconName="close"
+                                  variant="icon"
+                                  ariaLabel={`${entry.name} 제거`}
+                                  onClick={() => removeOne(entry.id)}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </SpaceBetween>
+                    </FormField>
+                    <DataSourceSelectModal
+                      visible={dsModalOpen}
+                      catalog={catalog}
+                      selectedIds={selected}
+                      onDismiss={() => setDsModalOpen(false)}
+                      onApply={(ids) => {
+                        field.onChange(ids);
+                        setDsModalOpen(false);
+                      }}
+                    />
+                  </div>
+                );
+              }}
+            />
           )}
-        />
+          <Controller
+            name="additionalSources"
+            control={control}
+            render={({ field }) => (
+              <div className="full-width-control">
+                <FormField
+                  label={
+                    catalogAvailable
+                      ? "추가 설명 (자유 입력, 선택)"
+                      : "데이터 소스 (선택)"
+                  }
+                  description={
+                    catalogAvailable
+                      ? "카탈로그에 없는 리소스나 추가 맥락을 자유롭게 서술하세요"
+                      : "데이터베이스, API, MCP 서버, 클라우드 서비스 등 Agent가 사용할 리소스를 자유롭게 입력하세요"
+                  }
+                >
+                  <Textarea
+                    value={field.value || ""}
+                    onChange={({ detail }) => field.onChange(detail.value)}
+                    placeholder="예: PostgreSQL 고객 DB, Slack API로 알림 전송, S3 버킷에서 문서 조회, Bedrock Knowledge Base 검색 등"
+                    rows={4}
+                  />
+                </FormField>
+              </div>
+            )}
+          />
+        </SpaceBetween>
       </Container>
 
       {/* Human-in-Loop + Error Tolerance - side by side */}

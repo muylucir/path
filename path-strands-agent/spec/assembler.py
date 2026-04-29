@@ -1,9 +1,41 @@
 """4단계: 최종 조합 - LLM 없이 단순 문자열 조합"""
 
 import asyncio
-from typing import Dict, Any, AsyncIterator
+from typing import Dict, Any, AsyncIterator, Optional
 
 from spec._helpers import clean_internal_comments
+
+
+def _render_data_integrations_md(bundle: Optional[Dict[str, Any]]) -> str:
+    """DataIntegrationsBundle dict를 '데이터 통합 설계' markdown 섹션으로 렌더.
+
+    bundle이 None/비어있으면 빈 문자열 반환.
+    """
+    if not bundle:
+        return ""
+    items = bundle.get("items") or []
+    if not items:
+        return ""
+    lines = ["## Data Integration Design", ""]
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        ds_name = it.get("ds_name") or it.get("ds_id", "unknown")
+        lines.append(f"### {ds_name} (`{it.get('ds_id', '')}`)")
+        lines.append(f"- **Connection**: {it.get('connection', '') or '해당 없음'}")
+        lines.append(f"- **Auth Flow**: {it.get('auth_flow', '') or '해당 없음'}")
+        lines.append(f"- **Error Policy**: {it.get('error_policy', '') or '해당 없음'}")
+        lines.append(f"- **Idempotency**: {it.get('idempotency', '') or '해당 없음'}")
+        lines.append(f"- **PII Handling**: {it.get('pii_handling', '') or '해당 없음'}")
+        examples = it.get("example_queries") or []
+        if examples:
+            lines.append("- **Example Queries/Calls**:")
+            for q in examples:
+                lines.append("  ```")
+                lines.append(f"  {q}")
+                lines.append("  ```")
+        lines.append("")
+    return "\n".join(lines)
 
 
 class AssemblerAgent:
@@ -19,6 +51,7 @@ class AssemblerAgent:
         diagram_result: str,
         prompt_result: str,
         tool_result: str,
+        data_integrations: Optional[Dict[str, Any]] = None,
     ) -> AsyncIterator[dict]:
         """최종 조합 - LLM 없이 단순 문자열 조합 후 스트리밍"""
 
@@ -78,6 +111,8 @@ class AssemblerAgent:
 {prompt_result}
 
 {tool_result}
+
+{_render_data_integrations_md(data_integrations)}
 
 ## 6. Problem Decomposition
 

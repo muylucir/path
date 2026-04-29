@@ -73,6 +73,11 @@ export const formSchema = z.object({
   additionalContext: sanitizedString(MAX_CONTEXT_LENGTH).optional(),
   // 데이터소스 (자유 텍스트)
   additionalSources: sanitizedString(MAX_SOURCES_LENGTH).optional(),
+  // 카탈로그에서 선택한 데이터 소스 id 목록
+  selectedDataSourceIds: z
+    .array(z.string().max(80))
+    .max(30, "최대 30개까지 선택 가능합니다")
+    .optional(),
   // 하위 호환성용 (deprecated)
   integrationDetails: z.array(integrationDetailSchema).optional(),
 });

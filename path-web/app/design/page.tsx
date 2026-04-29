@@ -209,6 +209,7 @@ export default function DesignWizardPage() {
         data_source: formData!.additionalSources || "",
         additional_context: formData!.additionalContext || "",
         additional_sources: formData!.additionalSources || "",
+        selected_data_source_ids: formData!.selectedDataSourceIds ?? [],
         pattern: a.pattern,
         pattern_reason: a.pattern_reason,
         recommended_architecture: a.recommended_architecture ?? null,

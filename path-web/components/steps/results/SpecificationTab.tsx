@@ -72,6 +72,7 @@ export function SpecificationTab({
         sources: formData?.additionalSources || "",
         context: formData?.additionalContext || "",
       },
+      selectedDataSourceIds: formData?.selectedDataSourceIds ?? [],
     },
     onChunk: useCallback((parsed: any) => {
       if (parsed.text) {

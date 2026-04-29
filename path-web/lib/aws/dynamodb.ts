@@ -26,10 +26,11 @@ export async function saveSession(
   const session_id = crypto.randomUUID();
   const timestamp = new Date().toISOString();
 
-  const item: Session = {
+  const item = {
     session_id,
     user_id: userId,
     timestamp,
+    entity_type: "Session" as const,
     ...sessionData,
   };
 
@@ -51,13 +52,14 @@ export async function loadSession(sessionId: string, userId: string | null): Pro
     })
   );
 
-  const session = response.Item as Session | undefined;
-  if (!session) return null;
+  const raw = response.Item as (Session & { entity_type?: string }) | undefined;
+  if (!raw) return null;
+  if (raw.entity_type && raw.entity_type !== "Session") return null;
 
   // Ownership check (skip when auth is not configured)
-  if (userId && session.user_id !== userId) return null;
+  if (userId && raw.user_id !== userId) return null;
 
-  return session;
+  return raw;
 }
 
 export async function listSessions(
@@ -76,7 +78,10 @@ export async function listSessions(
       new ScanCommand({
         TableName: TABLE_NAME,
         ProjectionExpression: "session_id, user_id, #ts, pain_point, feasibility_score, improved_feasibility, next_steps, token_usage",
+        FilterExpression:
+          "attribute_not_exists(entity_type) OR entity_type = :sessionType",
         ExpressionAttributeNames: { "#ts": "timestamp" },
+        ExpressionAttributeValues: { ":sessionType": "Session" },
         Limit: limit,
         ...(validatedKey && { ExclusiveStartKey: validatedKey }),
       })
@@ -151,10 +156,11 @@ export async function replaceSession(
   userId: string,
   sessionData: Omit<Session, "session_id" | "user_id" | "timestamp">
 ): Promise<boolean> {
-  const item: Session = {
+  const item = {
     session_id: sessionId,
     user_id: userId,
     timestamp: new Date().toISOString(),
+    entity_type: "Session" as const,
     ...sessionData,
   };
 

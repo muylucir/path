@@ -16,6 +16,8 @@ class FeasibilityItemDetail(BaseModel):
     current_state: str
     confidence: Optional[str] = None
     information_gaps: Optional[list[str]] = None
+    # Tier 2: 이 항목 평가의 근거가 된 선택된 데이터소스 id 목록
+    evidence_ds_ids: list[str] = Field(default_factory=list)
     # 재평가 전용
     changed: Optional[bool] = None
     change_reason: Optional[str] = None
@@ -202,6 +204,8 @@ class PatternAnalysis(BaseModel):
     recommendation: str = ""
     risks: list[str] = Field(default_factory=list)
     next_steps: list[str] = Field(default_factory=list)
+    # Tier 2: 패턴 추천의 근거가 된 선택된 데이터소스 id 목록
+    evidence_ds_ids: list[str] = Field(default_factory=list)
 
     @field_validator("feasibility_score", mode="before")
     @classmethod
@@ -247,3 +251,31 @@ class PatternAnalysis(BaseModel):
         except (ValueError, TypeError):
             return None
         return v
+
+
+# ============================================
+# Tier 3: Data Integration (spec agent 출력)
+# ============================================
+
+
+class DataIntegration(BaseModel):
+    """선택된 데이터 소스 1건에 대한 구현 수준 통합 설계 항목.
+
+    명세서의 "데이터 통합 설계" 섹션에 per-item 단위로 렌더된다.
+    빈 문자열은 허용하되, 템플릿에서 '해당 없음' 같은 명시 문구를 권장.
+    """
+
+    ds_id: str
+    ds_name: str
+    connection: str = ""
+    auth_flow: str = ""
+    error_policy: str = ""
+    idempotency: str = ""
+    pii_handling: str = ""
+    example_queries: list[str] = Field(default_factory=list)
+
+
+class DataIntegrationsBundle(BaseModel):
+    """DataIntegrationAgent 출력 래퍼."""
+
+    items: list[DataIntegration] = Field(default_factory=list)

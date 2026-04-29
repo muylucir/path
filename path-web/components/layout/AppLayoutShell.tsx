@@ -30,6 +30,7 @@ const NAV_ITEMS: SideNavigationProps.Item[] = [
       { type: "link", text: "소개", href: "/" },
       { type: "link", text: "가이드", href: "/guide" },
       { type: "link", text: "에이전트 패턴", href: "/patterns" },
+      { type: "link", text: "데이터 소스", href: "/data-sources" },
     ],
   },
   {

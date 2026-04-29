@@ -2,7 +2,7 @@
 
 import logging
 import os
-from typing import Any, AsyncIterator, Dict, List
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from strands import AgentSkills
 from agent_config import get_profile
@@ -54,9 +54,17 @@ class PatternAnalyzerAgent:
         """대화 히스토리 초기화"""
         self.conversation_history = []
 
-    def analyze(self, form_data: Dict[str, Any], feasibility: Dict[str, Any]) -> str:
+    def analyze(
+        self,
+        form_data: Dict[str, Any],
+        feasibility: Dict[str, Any],
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> str:
         """Feasibility 기반 초기 패턴 분석 - 동기 버전"""
-        prompt = get_pattern_analysis_prompt(form_data, feasibility)
+        prompt = get_pattern_analysis_prompt(
+            form_data, feasibility,
+            selected_data_sources=selected_data_sources,
+        )
         result = self.agent(prompt)
         response = safe_extract_text(result)
         self.add_message("assistant", response)
@@ -114,9 +122,18 @@ class PatternAnalyzerAgent:
         if usage:
             yield {"usage": usage}
 
-    async def analyze_stream(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None) -> AsyncIterator[dict]:
+    async def analyze_stream(
+        self,
+        form_data: Dict[str, Any],
+        feasibility: Dict[str, Any],
+        improvement_plans: Optional[Dict[str, str]] = None,
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> AsyncIterator[dict]:
         """Feasibility 기반 초기 패턴 분석 - 스트리밍 버전 (dict yield)"""
-        prompt = get_pattern_analysis_prompt(form_data, feasibility, improvement_plans)
+        prompt = get_pattern_analysis_prompt(
+            form_data, feasibility, improvement_plans,
+            selected_data_sources=selected_data_sources,
+        )
 
         async for chunk in self._stream_filtered(prompt):
             if "_full_response" in chunk:
@@ -124,18 +141,30 @@ class PatternAnalyzerAgent:
             else:
                 yield chunk
 
-    async def chat_stream(self, user_message: str, stateful: bool = False) -> AsyncIterator[dict]:
+    async def chat_stream(
+        self,
+        user_message: str,
+        stateful: bool = False,
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> AsyncIterator[dict]:
         """패턴 관련 대화 - 스트리밍 버전 (Skill 시스템 지원, dict yield)"""
         self.add_message("user", user_message)
 
         if stateful:
-            prompt = get_pattern_chat_prompt(user_message=user_message)
+            prompt = get_pattern_chat_prompt(
+                user_message=user_message,
+                selected_data_sources=selected_data_sources,
+            )
         else:
             history_text = "\n\n".join([
                 f"{msg['role'].upper()}: {msg['content']}"
                 for msg in self.conversation_history
             ])
-            prompt = get_pattern_chat_prompt(user_message=user_message, history_text=history_text)
+            prompt = get_pattern_chat_prompt(
+                user_message=user_message,
+                history_text=history_text,
+                selected_data_sources=selected_data_sources,
+            )
 
         async for chunk in self._stream_filtered(prompt):
             if "_full_response" in chunk:
@@ -143,7 +172,14 @@ class PatternAnalyzerAgent:
             else:
                 yield chunk
 
-    def finalize(self, form_data: Dict[str, Any], feasibility: Dict[str, Any], improvement_plans: Dict[str, str] = None, stateful: bool = False) -> Dict[str, Any]:
+    def finalize(
+        self,
+        form_data: Dict[str, Any],
+        feasibility: Dict[str, Any],
+        improvement_plans: Optional[Dict[str, str]] = None,
+        stateful: bool = False,
+        selected_data_sources: Optional[List[dict]] = None,
+    ) -> Dict[str, Any]:
         """패턴 확정 및 최종 분석 결과 생성 (개선된 점수 포함)"""
         if stateful:
             conversation_text = None
@@ -156,7 +192,8 @@ class PatternAnalyzerAgent:
         prompt = get_pattern_finalize_prompt(
             form_data, feasibility,
             improvement_plans=improvement_plans,
-            conversation_text=conversation_text
+            conversation_text=conversation_text,
+            selected_data_sources=selected_data_sources,
         )
 
         result = self.agent(prompt)
