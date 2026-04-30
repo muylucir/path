@@ -11,6 +11,7 @@ from spec.prompt_agent import PromptAgent
 from spec.tool_agent import ToolAgent
 from spec.data_integration_agent import DataIntegrationAgent
 from spec.assembler import AssemblerAgent
+from spec import spec_parser
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,20 @@ class MultiStageSpecAgent:
 
             diagram_result, prompt_result, tool_result, data_integrations = resolved
             yield {'progress': 95, 'stage': '3-5. 다이어그램 & 프롬프트 & 도구 & 데이터 통합 완료'}
+
+            # 구조화 메타데이터 이벤트 (시뮬레이션 탭 용)
+            # 파싱 실패해도 기존 마크다운 플로우엔 영향 없도록 try/except
+            try:
+                spec_meta = {
+                    'design_summary': spec_parser.extract_design_summary(design_result),
+                    'diagrams': spec_parser.extract_mermaid_diagrams(diagram_result),
+                    'agent_prompts': spec_parser.extract_agent_prompts(prompt_result),
+                    'tools': spec_parser.extract_tools(tool_result),
+                    'data_integrations': data_integrations if isinstance(data_integrations, dict) else {"items": []},
+                }
+                yield {'spec_meta': spec_meta}
+            except Exception as meta_err:
+                logger.warning(f"spec_meta 파싱 실패 (무시): {meta_err}")
 
             # 4단계: 최종 조합 (95-100%, 스트리밍) - Section 1,6-8: Summary, Decomposition
             yield {'progress': 95, 'stage': '1,6-8. 요약 및 최종 조합 시작'}

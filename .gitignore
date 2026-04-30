@@ -96,3 +96,7 @@ agent-building-workshop-stack.yaml
 docs/PATH-customer-guide.md
 files/**
 harness/
+
+.graphifyignore
+
+graphify-out/
