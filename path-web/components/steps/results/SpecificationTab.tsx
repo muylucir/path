@@ -87,14 +87,9 @@ export function SpecificationTab({
         addFlash("warning", parsed.warning);
       }
       if (parsed.spec_meta && typeof parsed.spec_meta === "object") {
-        const meta = parsed.spec_meta as SpecMeta;
-        specMetaRef.current = meta;
-        try {
-          sessionStorage.setItem("specification_structured", JSON.stringify(meta));
-        } catch {
-          /* storage quota — ignore */
-        }
-        onStructured?.(meta);
+        // 거대한 SpecMeta의 JSON.stringify는 메인 스레드를 블로킹하므로
+        // 스트리밍 중에는 ref만 갱신하고, sessionStorage 쓰기는 onDone에서 1회 수행.
+        specMetaRef.current = parsed.spec_meta as SpecMeta;
       }
     }, [addFlash, onStructured]),
     onProgress: useCallback((p: number, s: string) => {
@@ -108,7 +103,16 @@ export function SpecificationTab({
       setSpecification(fullSpecRef.current);
       sessionStorage.setItem("specification", fullSpecRef.current);
       if (specMetaRef.current) {
-        onStructured?.(specMetaRef.current);
+        // 무거운 직렬화를 메인 렌더 경로 밖으로 미뤄 UI 블로킹 방지.
+        const meta = specMetaRef.current;
+        setTimeout(() => {
+          try {
+            sessionStorage.setItem("specification_structured", JSON.stringify(meta));
+          } catch {
+            /* storage quota — ignore */
+          }
+        }, 0);
+        onStructured?.(meta);
       }
       setProgress(100);
       setStage("완료");

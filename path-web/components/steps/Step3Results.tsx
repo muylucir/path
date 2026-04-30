@@ -46,6 +46,8 @@ export function Step3Results({
   onStructured,
 }: Step3ResultsProps) {
   const [specStructured, setSpecStructured] = useState<SpecMeta | null>(initialSpecificationStructured ?? null);
+  const [activeTabId, setActiveTabId] = useState<string>("analysis");
+  const [simVisited, setSimVisited] = useState<{ graph: boolean; timeline: boolean }>({ graph: false, timeline: false });
   const handleStructured = useCallback((meta: SpecMeta | null) => {
     setSpecStructured(meta);
     onStructured?.(meta);
@@ -167,6 +169,13 @@ export function Step3Results({
 
       {/* Tabs */}
       <Tabs
+        activeTabId={activeTabId}
+        onChange={({ detail }) => {
+          const id = detail.activeTabId;
+          setActiveTabId(id);
+          if (id === "sim-graph") setSimVisited((v) => (v.graph ? v : { ...v, graph: true }));
+          if (id === "sim-timeline") setSimVisited((v) => (v.timeline ? v : { ...v, timeline: true }));
+        }}
         tabs={[
           {
             label: "분석 결과",
@@ -205,7 +214,13 @@ export function Step3Results({
             id: "sim-graph",
             content: (
               <Box padding={{ top: "l" }}>
-                <SimulationGraphTab specMeta={specStructured} analysis={analysis} />
+                {simVisited.graph && activeTabId === "sim-graph" ? (
+                  <SimulationGraphTab specMeta={specStructured} analysis={analysis} />
+                ) : (
+                  <Box color="text-body-secondary" variant="small">
+                    이 탭을 선택하면 시뮬레이션이 준비됩니다...
+                  </Box>
+                )}
               </Box>
             ),
           },
@@ -214,7 +229,13 @@ export function Step3Results({
             id: "sim-timeline",
             content: (
               <Box padding={{ top: "l" }}>
-                <SimulationTimelineTab specMeta={specStructured} analysis={analysis} />
+                {simVisited.timeline && activeTabId === "sim-timeline" ? (
+                  <SimulationTimelineTab specMeta={specStructured} analysis={analysis} />
+                ) : (
+                  <Box color="text-body-secondary" variant="small">
+                    이 탭을 선택하면 시뮬레이션이 준비됩니다...
+                  </Box>
+                )}
               </Box>
             ),
           },

@@ -53,6 +53,17 @@ export function buildScenario(
     }
   };
 
+  // agent_prompts를 lowercase name → excerpt Map으로 1회 인덱싱하여
+  // agent 스텝을 만들 때 선형 탐색을 피한다. 대형 system_prompt가 많을수록 효과 큼.
+  const promptExcerptByName = new Map<string, string>();
+  for (const p of specMeta?.agent_prompts ?? []) {
+    const text = p.system_prompt || p.example_prompt;
+    if (!text) continue;
+    const excerpt = text.length > 260 ? text.slice(0, 260) + "…" : text;
+    promptExcerptByName.set(p.agent_name.toLowerCase(), excerpt);
+  }
+  const lookupPrompt = (name: string) => promptExcerptByName.get(name.toLowerCase());
+
   addActor({ id: "__user__", label: "사용자", kind: "user" });
 
   // 에이전트 컴포넌트 (design_summary → agent_prompts 순위)
@@ -105,7 +116,7 @@ export function buildScenario(
         actorId: `agent:${first}`,
         kind: "agent",
         summary: `${first}: 요청 분석 및 작업 분배`,
-        promptExcerpt: findPrompt(specMeta, first),
+        promptExcerpt: lookupPrompt(first),
         durationMs: DEFAULT_STEP_MS,
         parallelGroup: group++,
       });
@@ -119,7 +130,7 @@ export function buildScenario(
           actorId: `agent:${name}`,
           kind: "agent",
           summary: `${name}: 병렬 실행`,
-          promptExcerpt: findPrompt(specMeta, name),
+          promptExcerpt: lookupPrompt(name),
           durationMs: DEFAULT_STEP_MS,
           parallelGroup: parallelGroupForRest,
         });
@@ -133,7 +144,7 @@ export function buildScenario(
         actorId: `agent:${name}`,
         kind: "agent",
         summary: `${name}: 작업 수행`,
-        promptExcerpt: findPrompt(specMeta, name),
+        promptExcerpt: lookupPrompt(name),
         durationMs: DEFAULT_STEP_MS,
         parallelGroup: group++,
       });
@@ -206,12 +217,3 @@ function pickPrimaryFlowchart(specMeta: SpecMeta | null): SpecMetaDiagram | unde
   );
 }
 
-function findPrompt(specMeta: SpecMeta | null, agentName: string): string | undefined {
-  const match = specMeta?.agent_prompts?.find(
-    (p) => p.agent_name.toLowerCase() === agentName.toLowerCase(),
-  );
-  if (!match) return undefined;
-  const text = match.system_prompt || match.example_prompt;
-  if (!text) return undefined;
-  return text.length > 260 ? text.slice(0, 260) + "…" : text;
-}
