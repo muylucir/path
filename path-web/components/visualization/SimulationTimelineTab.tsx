@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -12,6 +12,9 @@ import { PlaybackControls } from "@/components/visualization/PlaybackControls";
 import { buildScenario, type SimActor, type ActorKind } from "@/lib/simulation/scenario";
 import { usePlayback } from "@/lib/simulation/usePlayback";
 import type { Analysis, SpecMeta } from "@/lib/types";
+
+/** 행이 이보다 많으면 가시 영역(앞쪽)만 렌더 */
+const MAX_VISIBLE_ROWS = 30;
 
 interface SimulationTimelineTabProps {
   specMeta: SpecMeta | null;
@@ -113,29 +116,23 @@ interface GanttRow {
 }
 
 function buildGantt(scenario: ReturnType<typeof buildScenario>) {
-  // parallelGroup별 시작 시간 결정: 같은 그룹은 동일 startMs, 이전 그룹 종료 직후 시작
+  // parallelGroup별 최대 duration을 한 번의 순회로 집계
+  const maxByGroup = new Map<number, number>();
+  for (const s of scenario.steps) {
+    const prev = maxByGroup.get(s.parallelGroup) ?? 0;
+    if (s.durationMs > prev) maxByGroup.set(s.parallelGroup, s.durationMs);
+  }
+  const sortedGroups = Array.from(maxByGroup.keys()).sort((a, b) => a - b);
   const groupStart = new Map<number, number>();
-  const groupEnd = new Map<number, number>();
-  const groups = Array.from(new Set(scenario.steps.map((s) => s.parallelGroup))).sort((a, b) => a - b);
-
   let cursor = 0;
-  for (const g of groups) {
-    const groupSteps = scenario.steps.filter((s) => s.parallelGroup === g);
-    const maxDuration = groupSteps.reduce((m, s) => Math.max(m, s.durationMs), 0);
+  for (const g of sortedGroups) {
     groupStart.set(g, cursor);
-    groupEnd.set(g, cursor + maxDuration);
-    cursor += maxDuration;
+    cursor += maxByGroup.get(g) ?? 0;
   }
   const totalMs = cursor;
 
-  const actorOrderedIds = scenario.actors.map((a) => a.id);
-  const rows: GanttRow[] = actorOrderedIds
-    .map((aid) => ({
-      actor: scenario.actors.find((a) => a.id === aid)!,
-      bars: [] as GanttBar[],
-    }))
-    .filter((row): row is GanttRow => !!row.actor);
-
+  // actor → row 맵을 actors 배열 순서대로 한 번에 초기화
+  const rows: GanttRow[] = scenario.actors.map((a) => ({ actor: a, bars: [] as GanttBar[] }));
   const byId = new Map(rows.map((r) => [r.actor.id, r]));
 
   for (const step of scenario.steps) {
@@ -149,9 +146,7 @@ function buildGantt(scenario: ReturnType<typeof buildScenario>) {
     });
   }
 
-  // 바가 없는 행은 제거
   const nonEmpty = rows.filter((r) => r.bars.length > 0);
-
   return { actors: scenario.actors, rows: nonEmpty, totalMs };
 }
 
@@ -164,82 +159,48 @@ interface GanttProps {
 }
 
 function Gantt({ rows, totalMs, currentIndex, onSeek }: GanttProps) {
-  const width = 100; // percent (CSS-driven)
+  const width = 100;
+
+  // 활성 bar 위치 룩업을 O(1)로: stepIndex → {startMs, durationMs} 맵
+  const barByStepIndex = useMemo(() => {
+    const m = new Map<number, { startMs: number; durationMs: number }>();
+    for (const r of rows) {
+      for (const b of r.bars) m.set(b.stepIndex, { startMs: b.startMs, durationMs: b.durationMs });
+    }
+    return m;
+  }, [rows]);
+
   const playheadPct = useMemo(() => {
     if (currentIndex < 0) return 0;
-    // 현재 스텝의 중앙에 플레이헤드 위치
-    const allBars = rows.flatMap((r) => r.bars);
-    const activeBar = allBars.find((b) => b.stepIndex === currentIndex);
-    if (!activeBar) return 0;
-    const mid = activeBar.startMs + activeBar.durationMs / 2;
+    const active = barByStepIndex.get(currentIndex);
+    if (!active) return 0;
+    const mid = active.startMs + active.durationMs / 2;
     return (mid / Math.max(1, totalMs)) * 100;
-  }, [rows, currentIndex, totalMs]);
+  }, [barByStepIndex, currentIndex, totalMs]);
+
+  const truncated = rows.length > MAX_VISIBLE_ROWS;
+  const visibleRows = truncated ? rows.slice(0, MAX_VISIBLE_ROWS) : rows;
 
   return (
     <Container
       header={<Header variant="h3" description="병렬 실행(같은 레인)과 실행 순서를 가로 타임라인으로 표시합니다.">타임라인</Header>}
     >
+      {truncated && (
+        <Alert type="info">
+          행이 {rows.length}개로 많아 상위 {MAX_VISIBLE_ROWS}개만 표시합니다. 그래프 탭에서 전체 구조를 확인하세요.
+        </Alert>
+      )}
       <div style={{ overflowX: "auto", position: "relative" }}>
         <div style={{ minWidth: 640 }}>
-          {rows.map((row) => (
-            <div
+          {visibleRows.map((row) => (
+            <GanttRowView
               key={row.actor.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: `${LABEL_COL_PX}px 1fr`,
-                alignItems: "center",
-                padding: "6px 0",
-                borderBottom: "1px dashed #e9ebed",
-              }}
-            >
-              <div style={{ paddingRight: 12, fontSize: 12 }}>
-                <div style={{ fontSize: 10, textTransform: "uppercase", color: "#687078", letterSpacing: 0.5 }}>
-                  {kindLabel(row.actor.kind)}
-                </div>
-                <div style={{ fontWeight: 600 }}>{row.actor.label}</div>
-              </div>
-              <div style={{ position: "relative", height: 28, background: "#f4f4f4", borderRadius: 4 }}>
-                {row.bars.map((b) => {
-                  const left = (b.startMs / Math.max(1, totalMs)) * 100;
-                  const barWidth = (b.durationMs / Math.max(1, totalMs)) * 100;
-                  const isActive = b.stepIndex === currentIndex;
-                  const isPast = currentIndex >= 0 && b.stepIndex < currentIndex;
-                  const color = KIND_COLOR[row.actor.kind];
-                  return (
-                    <button
-                      key={b.stepIndex}
-                      title={b.summary}
-                      onClick={() => onSeek(b.stepIndex)}
-                      style={{
-                        position: "absolute",
-                        left: `${left}%`,
-                        width: `${Math.max(barWidth, 2)}%`,
-                        top: 3,
-                        bottom: 3,
-                        background: color.bg,
-                        color: color.fg,
-                        border: `${isActive ? 2 : 1}px solid ${color.border}`,
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: isActive ? 700 : 500,
-                        padding: "0 6px",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        opacity: isPast || isActive ? 1 : 0.7,
-                        boxShadow: isActive ? `0 0 0 3px ${color.border}33` : undefined,
-                        transition: "all 150ms ease",
-                      }}
-                    >
-                      {b.summary}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+              row={row}
+              totalMs={totalMs}
+              currentIndex={currentIndex}
+              onSeek={onSeek}
+            />
           ))}
-          {/* playhead */}
           <div
             style={{
               position: "absolute",
@@ -258,6 +219,83 @@ function Gantt({ rows, totalMs, currentIndex, onSeek }: GanttProps) {
     </Container>
   );
 }
+
+interface GanttRowProps {
+  row: GanttRow;
+  totalMs: number;
+  currentIndex: number;
+  onSeek: (stepIndex: number) => void;
+}
+
+/**
+ * 각 row를 memo로 감싸 현재 스텝이 이 row에 속하지 않을 때 리렌더 스킵.
+ * stepIndex → row 변환이 없으므로 간접적으로 "현재 스텝이 row의 bar 중 하나인가"를
+ * 판정해 active 여부만 반영.
+ */
+const GanttRowView = memo(function GanttRowView({
+  row,
+  totalMs,
+  currentIndex,
+  onSeek,
+}: GanttRowProps) {
+  const color = KIND_COLOR[row.actor.kind];
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `${LABEL_COL_PX}px 1fr`,
+        alignItems: "center",
+        padding: "6px 0",
+        borderBottom: "1px dashed #e9ebed",
+      }}
+    >
+      <div style={{ paddingRight: 12, fontSize: 12 }}>
+        <div style={{ fontSize: 10, textTransform: "uppercase", color: "#687078", letterSpacing: 0.5 }}>
+          {kindLabel(row.actor.kind)}
+        </div>
+        <div style={{ fontWeight: 600 }}>{row.actor.label}</div>
+      </div>
+      <div style={{ position: "relative", height: 28, background: "#f4f4f4", borderRadius: 4 }}>
+        {row.bars.map((b) => {
+          const left = (b.startMs / Math.max(1, totalMs)) * 100;
+          const barWidth = (b.durationMs / Math.max(1, totalMs)) * 100;
+          const isActive = b.stepIndex === currentIndex;
+          const isPast = currentIndex >= 0 && b.stepIndex < currentIndex;
+          return (
+            <button
+              key={b.stepIndex}
+              title={b.summary}
+              onClick={() => onSeek(b.stepIndex)}
+              style={{
+                position: "absolute",
+                left: `${left}%`,
+                width: `${Math.max(barWidth, 2)}%`,
+                top: 3,
+                bottom: 3,
+                background: color.bg,
+                color: color.fg,
+                border: `${isActive ? 2 : 1}px solid ${color.border}`,
+                borderRadius: 4,
+                fontSize: 11,
+                fontWeight: isActive ? 700 : 500,
+                padding: "0 6px",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                opacity: isPast || isActive ? 1 : 0.7,
+                boxShadow: isActive ? `0 0 0 3px ${color.border}33` : undefined,
+                transition: "all 150ms ease",
+              }}
+            >
+              {b.summary}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
 
 function kindLabel(kind: ActorKind): string {
   switch (kind) {

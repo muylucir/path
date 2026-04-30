@@ -13,7 +13,11 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import Box from "@cloudscape-design/components/box";
+import Alert from "@cloudscape-design/components/alert";
 import type { Scenario, SimStep, ActorKind } from "@/lib/simulation/scenario";
+
+/** Fallback threshold — 이보다 노드가 많으면 경량 SVG로 폴백 */
+const HEAVY_NODE_THRESHOLD = 50;
 
 type NodeData = {
   label: string;
@@ -94,10 +98,33 @@ export function SimulationGraph({
 }: SimulationGraphProps) {
   const activeActorId = currentStep?.actorId ?? null;
 
-  const { nodes, edges } = useMemo(
-    () => buildGraphElements(scenario, activeActorId, visitedActorIds),
-    [scenario, activeActorId, visitedActorIds],
-  );
+  // 정적 레이아웃: 재생 상태(active/visited)와 무관하게 한 번만 계산
+  const base = useMemo(() => buildGraphBase(scenario), [scenario]);
+
+  // 동적 오버레이: active/visited만 얹어 노드/엣지를 가볍게 갱신
+  const { nodes, edges } = useMemo(() => {
+    const nodes: Node[] = base.nodes.map((n) => ({
+      ...n,
+      data: {
+        ...(n.data as NodeData),
+        active: n.id === activeActorId,
+        visited: visitedActorIds.has(n.id),
+      },
+    }));
+    const edges: Edge[] = base.edges.map((e) => {
+      const touches = activeActorId === e.source || activeActorId === e.target;
+      return {
+        ...e,
+        animated: touches,
+        style: {
+          ...(e.style ?? {}),
+          stroke: touches ? "#6c3ad6" : "#8b9199",
+          strokeWidth: touches ? 2.2 : 1.4,
+        },
+      };
+    });
+    return { nodes, edges };
+  }, [base, activeActorId, visitedActorIds]);
 
   const handleNodeClick = useCallback(
     (_evt: unknown, node: Node) => {
@@ -105,6 +132,20 @@ export function SimulationGraph({
     },
     [onNodeClick],
   );
+
+  // 거대 그래프는 ReactFlow 대신 경량 SVG 폴백
+  if (base.nodes.length > HEAVY_NODE_THRESHOLD) {
+    return (
+      <Box>
+        <Alert type="info">
+          노드 {base.nodes.length}개로 그래프가 커서 경량 뷰로 표시합니다. 재생 중 하이라이트만 반영됩니다.
+        </Alert>
+        <div style={{ height, overflow: "auto", border: "1px solid var(--color-border-divider-default, #e9ebed)", borderRadius: 8 }}>
+          <LightweightGraph base={base} activeActorId={activeActorId} visited={visitedActorIds} onNodeClick={onNodeClick} />
+        </div>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -130,26 +171,104 @@ export function SimulationGraph({
   );
 }
 
-function buildGraphElements(
-  scenario: Scenario,
-  activeActorId: string | null,
-  visited: Set<string>,
-): { nodes: Node[]; edges: Edge[] } {
+interface GraphBase {
+  nodes: Node[];
+  edges: Edge[];
+}
+
+function LightweightGraph({
+  base,
+  activeActorId,
+  visited,
+  onNodeClick,
+}: {
+  base: GraphBase;
+  activeActorId: string | null;
+  visited: Set<string>;
+  onNodeClick?: (actorId: string) => void;
+}) {
+  const maxX = Math.max(0, ...base.nodes.map((n) => n.position.x)) + 200;
+  const maxY = Math.max(0, ...base.nodes.map((n) => n.position.y)) + 80;
+  return (
+    <svg width={maxX} height={maxY} style={{ display: "block" }}>
+      {base.edges.map((e) => {
+        const s = base.nodes.find((n) => n.id === e.source);
+        const t = base.nodes.find((n) => n.id === e.target);
+        if (!s || !t) return null;
+        const touches = activeActorId === e.source || activeActorId === e.target;
+        return (
+          <line
+            key={e.id}
+            x1={s.position.x + 60}
+            y1={s.position.y + 20}
+            x2={t.position.x + 60}
+            y2={t.position.y + 20}
+            stroke={touches ? "#6c3ad6" : "#8b9199"}
+            strokeWidth={touches ? 2 : 1}
+          />
+        );
+      })}
+      {base.nodes.map((n) => {
+        const d = n.data as NodeData;
+        const c = KIND_COLOR[d.kind];
+        const isActive = n.id === activeActorId;
+        return (
+          <g
+            key={n.id}
+            transform={`translate(${n.position.x},${n.position.y})`}
+            style={{ cursor: onNodeClick ? "pointer" : "default" }}
+            onClick={() => onNodeClick?.(n.id)}
+          >
+            <rect
+              width={140}
+              height={40}
+              rx={6}
+              fill={c.bg}
+              stroke={c.border}
+              strokeWidth={isActive ? 2.5 : 1}
+              opacity={visited.has(n.id) || isActive ? 1 : 0.65}
+            />
+            <text x={70} y={24} textAnchor="middle" fontSize={12} fill={c.fg} fontWeight={isActive ? 700 : 500}>
+              {d.label.length > 18 ? d.label.slice(0, 17) + "…" : d.label}
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+/**
+ * 정적 그래프 베이스. active/visited 상태 없이 한 번만 계산한다.
+ * 재생 중 하이라이트는 SimulationGraph의 두 번째 useMemo에서 얹는다.
+ */
+function buildGraphBase(scenario: Scenario): GraphBase {
   const diagram = scenario.primaryDiagram;
   const actorById = new Map(scenario.actors.map((a) => [a.id, a]));
 
-  // diagram 노드를 스텝 actor와 매핑 (label 기준 퍼지 매칭)
+  // diagram 노드를 스텝 actor와 매핑할 때 쓰는 사전 인덱스:
+  // 정확 일치와 substring 포함 각각 O(1) 또는 선형 1회로 처리하기 위해
+  // label lowercase를 미리 뽑아둔다.
+  const actorsLc = scenario.actors.map((a) => ({ id: a.id, lc: a.label.toLowerCase() }));
+  const exactLcIndex = new Map<string, string>();
+  for (const a of actorsLc) {
+    if (!exactLcIndex.has(a.lc)) exactLcIndex.set(a.lc, a.id);
+  }
+
   const diagramNodeIdToActor = new Map<string, string>();
   if (diagram) {
     for (const dn of diagram.parsed_nodes ?? []) {
       const labelLower = dn.label.toLowerCase();
-      const matched = scenario.actors.find(
-        (a) =>
-          a.label.toLowerCase() === labelLower ||
-          a.label.toLowerCase().includes(labelLower) ||
-          labelLower.includes(a.label.toLowerCase()),
-      );
-      diagramNodeIdToActor.set(dn.id, matched?.id ?? `diagram:${dn.id}`);
+      let matchedId = exactLcIndex.get(labelLower);
+      if (!matchedId) {
+        for (const a of actorsLc) {
+          if (a.lc.includes(labelLower) || labelLower.includes(a.lc)) {
+            matchedId = a.id;
+            break;
+          }
+        }
+      }
+      diagramNodeIdToActor.set(dn.id, matchedId ?? `diagram:${dn.id}`);
     }
   }
 
@@ -169,8 +288,8 @@ function buildGraphElements(
         data: {
           label: actor?.label ?? dn.label,
           kind,
-          active: actorId === activeActorId,
-          visited: visited.has(actorId),
+          active: false,
+          visited: false,
         },
         position: pos,
         sourcePosition: Position.Right,
@@ -186,16 +305,11 @@ function buildGraphElements(
         source: src,
         target: dst,
         label: de.label || undefined,
-        animated: activeActorId === dst || activeActorId === src,
         markerEnd: { type: MarkerType.ArrowClosed },
-        style: {
-          stroke: activeActorId === dst || activeActorId === src ? "#6c3ad6" : "#8b9199",
-          strokeWidth: activeActorId === dst || activeActorId === src ? 2.2 : 1.4,
-        },
+        style: { stroke: "#8b9199", strokeWidth: 1.4 },
       });
     }
   } else {
-    // Fallback: scenario.actors로 간단한 grid 레이아웃
     const cols: Record<ActorKind, number> = { user: 0, agent: 1, tool: 2, data: 3, output: 4 };
     const colCounts: Record<ActorKind, number> = { user: 0, agent: 0, tool: 0, data: 0, output: 0 };
     for (const actor of scenario.actors) {
@@ -207,8 +321,8 @@ function buildGraphElements(
         data: {
           label: actor.label,
           kind: actor.kind,
-          active: actor.id === activeActorId,
-          visited: visited.has(actor.id),
+          active: false,
+          visited: false,
         },
         position: { x: col * 220, y: row * 110 },
         sourcePosition: Position.Right,
@@ -216,7 +330,6 @@ function buildGraphElements(
       });
     }
 
-    // 스텝 순서대로 엣지 연결
     for (let i = 0; i < scenario.steps.length - 1; i++) {
       const src = scenario.steps[i].actorId;
       const dst = scenario.steps[i + 1].actorId;
@@ -225,7 +338,6 @@ function buildGraphElements(
         id: `seq-${i}`,
         source: src,
         target: dst,
-        animated: scenario.steps[i + 1].actorId === activeActorId,
         markerEnd: { type: MarkerType.ArrowClosed },
         style: { stroke: "#8b9199", strokeWidth: 1.4 },
       });

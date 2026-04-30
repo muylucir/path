@@ -25,6 +25,9 @@ export function SimulationGraphTab({ specMeta, analysis }: SimulationGraphTabPro
   const playback = usePlayback({ steps: scenario.steps });
   const [inspectedActorId, setInspectedActorId] = useState<string | null>(null);
 
+  // specMeta로 1회 인덱스 구축 → inspector 조회 O(1)
+  const specIndex = useMemo(() => buildSpecIndex(specMeta), [specMeta]);
+
   const currentStep = playback.currentIndex >= 0 ? scenario.steps[playback.currentIndex] : null;
 
   const visitedActorIds = useMemo(() => {
@@ -35,6 +38,11 @@ export function SimulationGraphTab({ specMeta, analysis }: SimulationGraphTabPro
     }
     return set;
   }, [scenario.steps, playback.currentIndex]);
+
+  const inspected = useMemo(
+    () => (inspectedActorId && specIndex ? resolveInspectTarget(inspectedActorId, specIndex) : null),
+    [inspectedActorId, specIndex],
+  );
 
   if (!specMeta) {
     return (
@@ -47,8 +55,6 @@ export function SimulationGraphTab({ specMeta, analysis }: SimulationGraphTabPro
       </Container>
     );
   }
-
-  const inspected = inspectedActorId ? resolveInspectTarget(inspectedActorId, specMeta) : null;
 
   return (
     <Container
@@ -128,9 +134,28 @@ export function SimulationGraphTab({ specMeta, analysis }: SimulationGraphTabPro
   );
 }
 
+interface SpecIndex {
+  agentPromptsByName: Map<string, SpecMeta["agent_prompts"][number]>;
+  agentComponentsByName: Map<string, SpecMeta["design_summary"]["agent_components"][number]>;
+  toolsByName: Map<string, SpecMeta["tools"][number]>;
+  dataSourceById: Map<string, SpecMeta["data_integrations"]["items"][number]>;
+}
+
+function buildSpecIndex(specMeta: SpecMeta | null): SpecIndex | null {
+  if (!specMeta) return null;
+  return {
+    agentPromptsByName: new Map((specMeta.agent_prompts ?? []).map((p) => [p.agent_name, p])),
+    agentComponentsByName: new Map(
+      (specMeta.design_summary?.agent_components ?? []).map((c) => [c.name, c]),
+    ),
+    toolsByName: new Map((specMeta.tools ?? []).map((t) => [t.name, t])),
+    dataSourceById: new Map((specMeta.data_integrations?.items ?? []).map((d) => [d.ds_id, d])),
+  };
+}
+
 function resolveInspectTarget(
   actorId: string,
-  specMeta: SpecMeta,
+  idx: SpecIndex,
 ): {
   title: string;
   subtitle: string;
@@ -139,8 +164,8 @@ function resolveInspectTarget(
 } | null {
   if (actorId.startsWith("agent:")) {
     const name = actorId.slice("agent:".length);
-    const match = specMeta.agent_prompts.find((p) => p.agent_name === name);
-    const comp = specMeta.design_summary.agent_components.find((c) => c.name === name);
+    const match = idx.agentPromptsByName.get(name);
+    const comp = idx.agentComponentsByName.get(name);
     const body: { label: string; value: string }[] = [];
     if (comp?.role) body.push({ label: "역할", value: comp.role });
     if (match?.system_prompt) body.push({ label: "System Prompt", value: match.system_prompt });
@@ -150,7 +175,7 @@ function resolveInspectTarget(
   }
   if (actorId.startsWith("tool:")) {
     const name = actorId.slice("tool:".length);
-    const tool = specMeta.tools.find((t) => t.name === name);
+    const tool = idx.toolsByName.get(name);
     const body = [
       { label: "Purpose", value: tool?.purpose || "-" },
       { label: "Signature", value: tool?.signature || "-" },
@@ -160,7 +185,7 @@ function resolveInspectTarget(
   }
   if (actorId.startsWith("data:")) {
     const dsId = actorId.slice("data:".length);
-    const ds = specMeta.data_integrations.items.find((d) => d.ds_id === dsId);
+    const ds = idx.dataSourceById.get(dsId);
     const body: { label: string; value: string }[] = [];
     if (ds?.connection) body.push({ label: "Connection", value: ds.connection });
     if (ds?.auth_flow) body.push({ label: "Auth Flow", value: ds.auth_flow });
