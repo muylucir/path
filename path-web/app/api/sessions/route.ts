@@ -34,6 +34,8 @@ export const sessionSchema = z.object({
     })
   ),
   specification: z.string(),
+  /** Step 4 시뮬레이션 탭용 구조화 메타데이터 (선택) */
+  specification_structured: z.record(z.string(), z.unknown()).nullable().optional(),
   // Optional fields
   user_input_type: z.string().optional(),
   user_process_steps: z.array(z.string()).optional(),

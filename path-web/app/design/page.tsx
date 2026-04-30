@@ -21,6 +21,7 @@ import type {
   ImprovementPlans,
   ChatMessage,
   Analysis,
+  SpecMeta,
 } from "@/lib/types";
 
 export default function DesignWizardPage() {
@@ -31,6 +32,7 @@ export default function DesignWizardPage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [specification, setSpecification] = useState<string>("");
+  const [specificationStructured, setSpecificationStructured] = useState<SpecMeta | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isLoadingNextStep, setIsLoadingNextStep] = useState(false);
   const [isRestored, setIsRestored] = useState(false);
@@ -80,6 +82,12 @@ export default function DesignWizardPage() {
       try { setChatHistory(JSON.parse(savedChatHistory)); } catch { /* ignore */ }
     }
     if (savedSpec) setSpecification(savedSpec);
+    const savedSpecStructured = sessionStorage.getItem("specification_structured");
+    if (savedSpecStructured) {
+      try {
+        setSpecificationStructured(JSON.parse(savedSpecStructured));
+      } catch { /* ignore */ }
+    }
     if (savedSessionId) setSessionId(savedSessionId);
 
     setActiveStepIndex(restoredStep);
@@ -103,6 +111,7 @@ export default function DesignWizardPage() {
     sessionStorage.removeItem("chatHistory");
     sessionStorage.removeItem("analysis");
     sessionStorage.removeItem("specification");
+    sessionStorage.removeItem("specification_structured");
     setActiveStepIndex(1);
   }, []);
 
@@ -118,6 +127,7 @@ export default function DesignWizardPage() {
     sessionStorage.removeItem("chatHistory");
     sessionStorage.removeItem("analysis");
     sessionStorage.removeItem("specification");
+    sessionStorage.removeItem("specification_structured");
     setIsLoadingNextStep(false);
     setActiveStepIndex(2);
   }, []);
@@ -176,7 +186,7 @@ export default function DesignWizardPage() {
 
   const handleConfirmCancel = () => {
     setShowCancelModal(false);
-    ["formData", "feasibility", "improvementPlans", "chatHistory", "analysis", "specification", "tokenUsage", "currentSessionId"].forEach((key) => sessionStorage.removeItem(key));
+    ["formData", "feasibility", "improvementPlans", "chatHistory", "analysis", "specification", "specification_structured", "tokenUsage", "currentSessionId"].forEach((key) => sessionStorage.removeItem(key));
     resetUsage();
     setFormData(null);
     setFeasibility(null);
@@ -184,6 +194,7 @@ export default function DesignWizardPage() {
     setChatHistory([]);
     setAnalysis(null);
     setSpecification("");
+    setSpecificationStructured(null);
     setSessionId(null);
     setActiveStepIndex(0);
   };
@@ -224,6 +235,12 @@ export default function DesignWizardPage() {
         next_steps: a.next_steps,
         chat_history: chatHistory,
         specification: spec,
+        specification_structured: (() => {
+          try {
+            const raw = sessionStorage.getItem("specification_structured");
+            return raw ? JSON.parse(raw) : specificationStructured ?? null;
+          } catch { return specificationStructured ?? null; }
+        })(),
         feasibility_evaluation: feasibility ?? null,
         improvement_plans: improvementPlans,
         improved_feasibility: a.improved_feasibility ?? null,
@@ -263,7 +280,7 @@ export default function DesignWizardPage() {
       console.error("Save error:", error);
       addFlash("error", "세션 저장에 실패했습니다");
     }
-  }, [formData, feasibility, improvementPlans, chatHistory, analysis, sessionId, addFlash]);
+  }, [formData, feasibility, improvementPlans, chatHistory, analysis, sessionId, specificationStructured, addFlash]);
 
   const handleSubmit = () => {
     const latestSpec = sessionStorage.getItem("specification") || specification;
@@ -357,8 +374,10 @@ export default function DesignWizardPage() {
                 feasibility={feasibility}
                 improvementPlans={improvementPlans}
                 initialSpecification={specification}
+                initialSpecificationStructured={specificationStructured}
                 onSave={handleSave}
                 onUsage={addUsage}
+                onStructured={setSpecificationStructured}
               />
             ) : (
               <Box textAlign="center" padding={{ vertical: "xxxl" }}>

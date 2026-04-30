@@ -128,6 +128,11 @@ export default function SessionsPage() {
       }));
       sessionStorage.setItem("chatHistory", JSON.stringify(session.chat_history || []));
       sessionStorage.setItem("specification", session.specification || "");
+      if (session.specification_structured) {
+        sessionStorage.setItem("specification_structured", JSON.stringify(session.specification_structured));
+      } else {
+        sessionStorage.removeItem("specification_structured");
+      }
       sessionStorage.setItem("analysis", JSON.stringify({
         pain_point: session.pain_point,
         input_type: session.input_type,

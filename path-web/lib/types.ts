@@ -185,6 +185,8 @@ export interface Session {
   next_steps: string[];
   chat_history: ChatMessage[];
   specification: string;
+  /** Step 4 구조화 메타데이터 (시뮬레이션 탭 용) */
+  specification_structured?: SpecMeta;
   // 사용자 원본 입력 (Step 1에서 선택한 값)
   user_input_type?: string;
   user_process_steps?: string[];
@@ -199,6 +201,72 @@ export interface Session {
   improved_feasibility?: ImprovedFeasibility;
   // 세션 전체 토큰 사용량
   token_usage?: TokenUsage;
+}
+
+// ---- Spec Meta (Step 4 simulation visualization) ----
+
+export interface SpecMetaDiagramNode {
+  id: string;
+  label: string;
+}
+
+export interface SpecMetaDiagramEdge {
+  source: string;
+  target: string;
+  label: string;
+}
+
+export interface SpecMetaDiagram {
+  title: string;
+  kind: 'flowchart' | 'graph' | 'sequenceDiagram' | 'unknown' | string;
+  mermaid_source: string;
+  parsed_nodes: SpecMetaDiagramNode[];
+  parsed_edges: SpecMetaDiagramEdge[];
+}
+
+export interface SpecMetaAgentPrompt {
+  agent_name: string;
+  system_prompt: string;
+  example_prompt: string;
+}
+
+export interface SpecMetaTool {
+  name: string;
+  purpose: string;
+  signature: string;
+  when_to_use: string;
+}
+
+export interface SpecMetaAgentComponent {
+  name: string;
+  role?: string;
+  inputs?: string;
+  outputs?: string;
+  [key: string]: string | undefined;
+}
+
+export interface SpecMetaDataIntegrationItem {
+  ds_id: string;
+  ds_name?: string;
+  connection?: string;
+  auth_flow?: string;
+  error_policy?: string;
+  idempotency?: string;
+  pii_handling?: string;
+  example_queries?: string[];
+}
+
+export interface SpecMeta {
+  design_summary: {
+    pattern: string;
+    architecture: string;
+    agent_components: SpecMetaAgentComponent[];
+    agent_names: string[];
+  };
+  diagrams: SpecMetaDiagram[];
+  agent_prompts: SpecMetaAgentPrompt[];
+  tools: SpecMetaTool[];
+  data_integrations: { items: SpecMetaDataIntegrationItem[] };
 }
 
 export interface SessionListItem {

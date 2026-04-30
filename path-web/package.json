@@ -18,6 +18,7 @@
     "@cloudscape-design/design-tokens": "^3.0.70",
     "@cloudscape-design/global-styles": "^1.0.50",
     "@hookform/resolvers": "^5.2.2",
+    "@xyflow/react": "^12.10.2",
     "lucide-react": "^0.562.0",
     "mermaid": "^11.12.2",
     "next": "16.1.0",

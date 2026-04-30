@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import Tabs from "@cloudscape-design/components/tabs";
 import Container from "@cloudscape-design/components/container";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -12,7 +13,9 @@ import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/l
 import { AnalysisTab } from "@/components/steps/results/AnalysisTab";
 import { ChatHistoryTab } from "@/components/steps/results/ChatHistoryTab";
 import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
-import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, TokenUsage } from "@/lib/types";
+import { SimulationGraphTab } from "@/components/visualization/SimulationGraphTab";
+import { SimulationTimelineTab } from "@/components/visualization/SimulationTimelineTab";
+import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, SpecMeta, TokenUsage } from "@/lib/types";
 import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS, MULTI_AGENT_PATTERN_DESCRIPTIONS, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
 import { parsePatternLayers, parseBulletText } from "@/lib/utils";
@@ -24,8 +27,10 @@ interface Step3ResultsProps {
   feasibility?: FeasibilityEvaluation | null;
   improvementPlans?: ImprovementPlans;
   initialSpecification?: string;
+  initialSpecificationStructured?: SpecMeta | null;
   onSave: (specification: string) => Promise<void>;
   onUsage?: (usage: TokenUsage) => void;
+  onStructured?: (meta: SpecMeta | null) => void;
 }
 
 export function Step3Results({
@@ -35,9 +40,16 @@ export function Step3Results({
   feasibility,
   improvementPlans,
   initialSpecification,
+  initialSpecificationStructured,
   onSave,
   onUsage,
+  onStructured,
 }: Step3ResultsProps) {
+  const [specStructured, setSpecStructured] = useState<SpecMeta | null>(initialSpecificationStructured ?? null);
+  const handleStructured = useCallback((meta: SpecMeta | null) => {
+    setSpecStructured(meta);
+    onStructured?.(meta);
+  }, [onStructured]);
   const { feasibility_score, pattern, improved_feasibility } = analysis;
   const finalScore = improved_feasibility?.score ?? feasibility_score;
   const judgmentBadge = getJudgmentBadge(finalScore);
@@ -183,7 +195,26 @@ export function Step3Results({
                   initialSpecification={initialSpecification}
                   onSave={onSave}
                   onUsage={onUsage}
+                  onStructured={handleStructured}
                 />
+              </Box>
+            ),
+          },
+          {
+            label: "시뮬레이션 (그래프)",
+            id: "sim-graph",
+            content: (
+              <Box padding={{ top: "l" }}>
+                <SimulationGraphTab specMeta={specStructured} analysis={analysis} />
+              </Box>
+            ),
+          },
+          {
+            label: "시뮬레이션 (타임라인)",
+            id: "sim-timeline",
+            content: (
+              <Box padding={{ top: "l" }}>
+                <SimulationTimelineTab specMeta={specStructured} analysis={analysis} />
               </Box>
             ),
           },

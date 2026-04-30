@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef } from "react";
 import Container from "@cloudscape-design/components/container";
 import Header from "@cloudscape-design/components/header";
 import SpaceBetween from "@cloudscape-design/components/space-between";
@@ -11,7 +11,7 @@ import TextContent from "@cloudscape-design/components/text-content";
 import { MDXRenderer } from "@/components/analysis/MDXRenderer";
 import { useFlash } from "@/components/cloudscape/FlashbarProvider";
 import { useSSEStream } from "@/lib/hooks/useSSEStream";
-import type { Analysis, ChatMessage, FormData, ImprovementPlans, TokenUsage } from "@/lib/types";
+import type { Analysis, ChatMessage, FormData, ImprovementPlans, SpecMeta, TokenUsage } from "@/lib/types";
 
 function extractHeadings(markdown: string): { level: number; text: string; id: string }[] {
   const headings: { level: number; text: string; id: string }[] = [];
@@ -35,6 +35,7 @@ interface SpecificationTabProps {
   initialSpecification?: string;
   onSave: (specification: string) => Promise<void>;
   onUsage?: (usage: TokenUsage) => void;
+  onStructured?: (meta: SpecMeta | null) => void;
 }
 
 export function SpecificationTab({
@@ -45,6 +46,7 @@ export function SpecificationTab({
   initialSpecification,
   onSave,
   onUsage,
+  onStructured,
 }: SpecificationTabProps) {
   const { addFlash } = useFlash();
   const [specification, setSpecification] = useState<string>(initialSpecification || "");
@@ -52,6 +54,7 @@ export function SpecificationTab({
   const [progress, setProgress] = useState(0);
   const [stage, setStage] = useState("");
   const fullSpecRef = useRef("");
+  const specMetaRef = useRef<SpecMeta | null>(null);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -74,16 +77,26 @@ export function SpecificationTab({
       },
       selectedDataSourceIds: formData?.selectedDataSourceIds ?? [],
     },
-    onChunk: useCallback((parsed: any) => {
-      if (parsed.text) {
+    onChunk: useCallback((parsed: Record<string, unknown>) => {
+      if (typeof parsed.text === "string") {
         fullSpecRef.current += parsed.text;
         setSpecification(fullSpecRef.current);
       }
-      if (parsed.warning) {
+      if (typeof parsed.warning === "string") {
         console.warn("[Step4] 경고:", parsed.warning);
         addFlash("warning", parsed.warning);
       }
-    }, [addFlash]),
+      if (parsed.spec_meta && typeof parsed.spec_meta === "object") {
+        const meta = parsed.spec_meta as SpecMeta;
+        specMetaRef.current = meta;
+        try {
+          sessionStorage.setItem("specification_structured", JSON.stringify(meta));
+        } catch {
+          /* storage quota — ignore */
+        }
+        onStructured?.(meta);
+      }
+    }, [addFlash, onStructured]),
     onProgress: useCallback((p: number, s: string) => {
       setProgress(p);
       if (s) setStage(s);
@@ -94,9 +107,12 @@ export function SpecificationTab({
     onDone: useCallback(() => {
       setSpecification(fullSpecRef.current);
       sessionStorage.setItem("specification", fullSpecRef.current);
+      if (specMetaRef.current) {
+        onStructured?.(specMetaRef.current);
+      }
       setProgress(100);
       setStage("완료");
-    }, []),
+    }, [onStructured]),
     onError: useCallback((err: string) => {
       console.error("[Step4] 명세서 생성 실패:", err);
       addFlash("error", `명세서 생성 중 오류가 발생했습니다: ${err}`);
@@ -105,11 +121,14 @@ export function SpecificationTab({
 
   const generateSpec = useCallback(() => {
     fullSpecRef.current = "";
+    specMetaRef.current = null;
+    sessionStorage.removeItem("specification_structured");
+    onStructured?.(null);
     setSpecification("");
     setProgress(0);
     setStage("시작 중...");
     startGeneration();
-  }, [startGeneration]);
+  }, [startGeneration, onStructured]);
 
   const downloadSpec = () => {
     const blob = new Blob([specification], { type: "text/markdown" });
