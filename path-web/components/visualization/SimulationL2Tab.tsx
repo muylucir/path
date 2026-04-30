@@ -10,8 +10,15 @@ import Badge from "@cloudscape-design/components/badge";
 import Button from "@cloudscape-design/components/button";
 import Select from "@cloudscape-design/components/select";
 import ColumnLayout from "@cloudscape-design/components/column-layout";
-import Table from "@cloudscape-design/components/table";
-import TextContent from "@cloudscape-design/components/text-content";
+import {
+  User,
+  Brain,
+  Database,
+  Wrench,
+  FileCheck,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
 import { buildScenario } from "@/lib/simulation/scenario";
 import type { Analysis, SpecMeta } from "@/lib/types";
 import type { SimStep, ActorKind } from "@/lib/simulation/scenario";
@@ -28,25 +35,50 @@ const SPEED_OPTIONS = [
   { label: "4x", value: "4" },
 ];
 
-const KIND_BADGE: Record<ActorKind, "blue" | "grey" | "green" | "red"> = {
-  user: "blue",
-  agent: "blue",
-  tool: "grey",
-  data: "green",
-  output: "red",
-};
-
-const KIND_LABEL: Record<ActorKind, string> = {
-  user: "사용자",
-  agent: "에이전트",
-  tool: "도구",
-  data: "데이터",
-  output: "산출물",
+const KIND_STYLE: Record<
+  ActorKind,
+  { bg: string; fg: string; accent: string; icon: LucideIcon; label: string }
+> = {
+  user: {
+    bg: "linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)",
+    fg: "#0b3d91",
+    accent: "#1168bd",
+    icon: User,
+    label: "사용자",
+  },
+  agent: {
+    bg: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)",
+    fg: "#3a1e8a",
+    accent: "#6c3ad6",
+    icon: Brain,
+    label: "에이전트",
+  },
+  tool: {
+    bg: "linear-gradient(135deg, #fed7aa 0%, #fdba74 100%)",
+    fg: "#7a4a00",
+    accent: "#d98500",
+    icon: Wrench,
+    label: "도구",
+  },
+  data: {
+    bg: "linear-gradient(135deg, #bbf7d0 0%, #86efac 100%)",
+    fg: "#0f5123",
+    accent: "#1b8a3a",
+    icon: Database,
+    label: "데이터",
+  },
+  output: {
+    bg: "linear-gradient(135deg, #fecaca 0%, #fca5a5 100%)",
+    fg: "#7a1c10",
+    accent: "#c4321e",
+    icon: FileCheck,
+    label: "산출물",
+  },
 };
 
 /**
- * L2 시뮬레이션: Mermaid 다이어그램 1장 + 스텝 테이블 + 재생 컨트롤.
- * 무거운 ReactFlow/Gantt를 쓰지 않고 인터랙티브만 유지한다.
+ * L2 시뮬레이션 — "러닝 카드" + 로그 트레이스 조합.
+ * 재생하면 카드가 등장·펄스하며 하단에 로그가 쌓인다.
  */
 export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
   const scenario = useMemo(() => buildScenario(specMeta, analysis), [specMeta, analysis]);
@@ -57,6 +89,8 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
   const [rate, setRate] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [inspectedActorId, setInspectedActorId] = useState<string | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const activeCardRef = useRef<HTMLDivElement>(null);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -72,7 +106,7 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
     if (!playing) return;
     if (activeIndex < 0 || activeIndex >= scenario.steps.length) return;
     const step = scenario.steps[activeIndex];
-    const delay = Math.max(200, step.durationMs / Math.max(0.25, rate));
+    const delay = Math.max(250, step.durationMs / Math.max(0.25, rate));
     timerRef.current = setTimeout(() => {
       setActiveIndex((idx) => {
         if (idx + 1 >= scenario.steps.length) {
@@ -84,6 +118,13 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
     }, delay);
     return clearTimer;
   }, [playing, activeIndex, scenario.steps, rate, clearTimer]);
+
+  // 활성 카드 오토스크롤
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    activeCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
+  }, [activeIndex]);
 
   const inspected = useMemo(
     () => (inspectedActorId && specIndex ? resolveInspect(inspectedActorId, specIndex) : null),
@@ -113,6 +154,7 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
     clearTimer();
     setPlaying(false);
     setActiveIndex(-1);
+    setInspectedActorId(null);
   };
   const handleStepClick = (step: SimStep) => {
     clearTimer();
@@ -128,24 +170,20 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
       header={
         <Header
           variant="h2"
-          description="명세서의 Mermaid 다이어그램과 함께 실행 순서를 단계별로 재생합니다. 표에서 행을 클릭하면 상세 정보를 볼 수 있습니다."
+          description="재생 버튼을 눌러 에이전트의 실행 흐름을 스토리처럼 따라가세요. 카드를 클릭하면 상세를 볼 수 있습니다."
         >
-          실행 흐름 미리보기
+          실행 흐름 스토리
         </Header>
       }
     >
+      <SimStyles />
       <SpaceBetween size="l">
-        <Box>
-          <TextContent>
-            <Box variant="awsui-key-label">사용자 입력</Box>
-            <Box variant="p">{scenario.userInput}</Box>
-          </TextContent>
-        </Box>
+        <StoryHeader userInput={scenario.userInput} />
 
         <SpaceBetween direction="horizontal" size="xs">
           {!playing ? (
             <Button variant="primary" iconName="caret-right-filled" onClick={handlePlay}>
-              재생
+              {activeIndex < 0 ? "스토리 시작" : "계속 재생"}
             </Button>
           ) : (
             <Button iconName="status-stopped" onClick={handlePause}>
@@ -171,18 +209,19 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
         </SpaceBetween>
 
         <ColumnLayout columns={inspected ? 2 : 1} variant="text-grid">
-          <Container header={<Header variant="h3">다이어그램</Header>}>
-            {scenario.primaryDiagram?.mermaid_source ? (
-              <MermaidBlock
-                source={scenario.primaryDiagram.mermaid_source}
-                activeLabel={activeStep ? labelForStep(activeStep) : null}
-              />
-            ) : (
-              <Box color="text-body-secondary" variant="p">
-                다이어그램이 없습니다.
-              </Box>
-            )}
-          </Container>
+          <div className="sim-story-stage">
+            <div className="sim-story-cards">
+              {scenario.steps.map((step, i) => (
+                <StepCardView
+                  key={step.index}
+                  step={step}
+                  position={positionFor(i, activeIndex)}
+                  onClick={() => handleStepClick(step)}
+                  cardRef={step.index === activeIndex ? activeCardRef : undefined}
+                />
+              ))}
+            </div>
+          </div>
 
           {inspected && (
             <Container
@@ -190,7 +229,12 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
                 <Header
                   variant="h3"
                   actions={
-                    <Button iconName="close" variant="icon" onClick={() => setInspectedActorId(null)} ariaLabel="닫기" />
+                    <Button
+                      iconName="close"
+                      variant="icon"
+                      onClick={() => setInspectedActorId(null)}
+                      ariaLabel="닫기"
+                    />
                   }
                 >
                   {inspected.title}
@@ -212,54 +256,28 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
           )}
         </ColumnLayout>
 
-        <Table
-          variant="embedded"
-          header={<Header variant="h3">실행 단계</Header>}
-          items={scenario.steps}
-          trackBy="index"
-          columnDefinitions={[
-            {
-              id: "no",
-              header: "#",
-              cell: (s) => s.index + 1,
-              width: 60,
-            },
-            {
-              id: "kind",
-              header: "종류",
-              cell: (s) => <Badge color={KIND_BADGE[s.kind]}>{KIND_LABEL[s.kind]}</Badge>,
-              width: 110,
-            },
-            {
-              id: "summary",
-              header: "내용",
-              cell: (s) => s.summary,
-            },
-            {
-              id: "active",
-              header: "상태",
-              cell: (s) =>
-                s.index === activeIndex ? (
-                  <Badge color="green">현재</Badge>
-                ) : s.index < activeIndex ? (
-                  <Box color="text-body-secondary" variant="small">완료</Box>
-                ) : (
-                  <Box color="text-body-secondary" variant="small">대기</Box>
-                ),
-              width: 100,
-            },
-          ]}
-          onRowClick={({ detail }) => handleStepClick(detail.item)}
-          empty={<Box color="text-body-secondary">표시할 스텝이 없습니다.</Box>}
-          wrapLines
-        />
+        <Container
+          header={<Header variant="h3" description="현재까지 실행된 단계의 라이브 로그입니다. 줄을 클릭하면 해당 단계로 이동합니다.">실행 로그</Header>}
+        >
+          <div ref={logRef} className="sim-log">
+            {activeIndex < 0 ? (
+              <div className="sim-log-empty">재생을 시작하면 여기에 로그가 스트리밍됩니다.</div>
+            ) : (
+              scenario.steps.slice(0, activeIndex + 1).map((s) => (
+                <LogLine
+                  key={s.index}
+                  step={s}
+                  isCurrent={s.index === activeIndex}
+                  onClick={() => handleStepClick(s)}
+                />
+              ))
+            )}
+          </div>
+        </Container>
 
         {activeStep && (
-          <Alert
-            type="info"
-            header={`스텝 ${activeIndex + 1}: ${activeStep.summary}`}
-          >
-            {activeStep.detail || activeStep.promptExcerpt || "이 스텝이 활성화되었습니다. 표 행을 클릭해 다른 스텝으로 이동할 수 있습니다."}
+          <Alert type="info" header={`지금: ${activeStep.summary}`}>
+            {activeStep.detail || activeStep.promptExcerpt || "카드를 클릭하면 프롬프트·설정을 볼 수 있습니다."}
           </Alert>
         )}
       </SpaceBetween>
@@ -267,83 +285,317 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
   );
 }
 
-/**
- * Mermaid 블록. 거대한 specMeta 전체가 아니라 소스 문자열만 의존성으로 갖는다.
- * active label이 바뀔 때 해당 텍스트 노드에 하이라이트 클래스를 더한다 (재렌더 없이).
- */
-const MermaidBlock = memo(function MermaidBlock({
-  source,
-  activeLabel,
-}: {
-  source: string;
-  activeLabel: string | null;
-}) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const renderIdRef = useRef(0);
+// ──────────────────────────────────────────────────────────
+// Subcomponents
+// ──────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    let cancelled = false;
-    const current = containerRef.current;
-    if (!current) return;
-    (async () => {
-      const mermaid = (await import("mermaid")).default;
-      if (cancelled) return;
-      mermaid.initialize({ startOnLoad: false, theme: "default", securityLevel: "strict" });
-      const id = `sim-mermaid-${++renderIdRef.current}`;
-      try {
-        const { svg } = await mermaid.render(id, source);
-        if (cancelled || !containerRef.current) return;
-        containerRef.current.innerHTML = svg;
-      } catch (e) {
-        if (!containerRef.current) return;
-        containerRef.current.innerHTML = `<pre style="color:#c4321e">다이어그램 렌더 실패: ${String(e)}</pre>`;
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [source]);
-
-  // active 하이라이트: SVG 내부 text 노드 중 label이 포함된 것을 찾아 클래스를 얹음.
-  // 렌더 자체는 source에만 의존하므로 activeLabel 변화 시 DOM만 만짐.
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const nodes = el.querySelectorAll("g.node");
-    nodes.forEach((n) => n.classList.remove("sim-active-node"));
-    if (!activeLabel) return;
-    const target = activeLabel.toLowerCase();
-    nodes.forEach((n) => {
-      const text = (n.textContent || "").toLowerCase();
-      if (text.includes(target)) n.classList.add("sim-active-node");
-    });
-  }, [activeLabel]);
-
+const StoryHeader = memo(function StoryHeader({ userInput }: { userInput: string }) {
   return (
-    <>
-      <style>{`
-        .sim-active-node rect, .sim-active-node polygon, .sim-active-node circle, .sim-active-node ellipse {
-          stroke: #6c3ad6 !important;
-          stroke-width: 3px !important;
-          filter: drop-shadow(0 0 4px #6c3ad644);
-        }
-      `}</style>
-      <div
-        ref={containerRef}
-        style={{ overflow: "auto", maxHeight: 520, padding: 8 }}
-      />
-    </>
+    <div className="sim-hero">
+      <div className="sim-hero-label">사용자 입력</div>
+      <div className="sim-hero-text">&ldquo;{userInput}&rdquo;</div>
+    </div>
   );
 });
 
-function labelForStep(step: SimStep): string {
-  if (step.actorId.startsWith("agent:")) return step.actorId.slice("agent:".length);
-  if (step.actorId.startsWith("tool:")) return step.actorId.slice("tool:".length);
-  if (step.actorId.startsWith("data:")) return step.actorId.slice("data:".length);
-  if (step.actorId === "__user__") return "사용자";
-  if (step.actorId === "__output__") return "산출물";
-  return step.summary;
+type CardPosition = "past" | "active" | "upcoming" | "far";
+
+function positionFor(i: number, active: number): CardPosition {
+  if (active < 0) return i === 0 ? "upcoming" : "far";
+  if (i === active) return "active";
+  if (i < active) return "past";
+  if (i === active + 1) return "upcoming";
+  return "far";
 }
+
+interface StepCardProps {
+  step: SimStep;
+  position: CardPosition;
+  onClick: () => void;
+  cardRef?: React.RefObject<HTMLDivElement | null>;
+}
+
+const StepCardView = memo(function StepCardView({ step, position, onClick, cardRef }: StepCardProps) {
+  const style = KIND_STYLE[step.kind];
+  const Icon = style.icon;
+  return (
+    <div
+      ref={cardRef}
+      className={`sim-card sim-card-${position}`}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") onClick();
+      }}
+      style={
+        {
+          background: style.bg,
+          color: style.fg,
+          "--sim-accent": style.accent,
+        } as React.CSSProperties
+      }
+    >
+      <div className="sim-card-head">
+        <Icon size={20} color={style.accent} strokeWidth={2.2} />
+        <span className="sim-card-kind">{style.label}</span>
+        <span className="sim-card-idx">#{step.index + 1}</span>
+      </div>
+      <div className="sim-card-title">{step.summary}</div>
+      {step.detail && <div className="sim-card-detail">{truncate(step.detail, 140)}</div>}
+      {step.promptExcerpt && (
+        <div className="sim-card-prompt">
+          <span className="sim-card-prompt-tag">PROMPT</span>
+          {truncate(step.promptExcerpt, 120)}
+        </div>
+      )}
+      {position === "active" && <div className="sim-pulse-ring" aria-hidden="true" />}
+    </div>
+  );
+});
+
+const LogLine = memo(function LogLine({
+  step,
+  isCurrent,
+  onClick,
+}: {
+  step: SimStep;
+  isCurrent: boolean;
+  onClick: () => void;
+}) {
+  const style = KIND_STYLE[step.kind];
+  return (
+    <div
+      className={`sim-log-line${isCurrent ? " sim-log-current" : ""}`}
+      onClick={onClick}
+      role="button"
+      tabIndex={0}
+    >
+      <span className="sim-log-time">T+{String(step.index + 1).padStart(2, "0")}</span>
+      <span className="sim-log-kind" style={{ color: style.accent }}>
+        [{style.label}]
+      </span>
+      <ChevronRight size={14} style={{ opacity: 0.5 }} />
+      <span className="sim-log-msg">{step.summary}</span>
+    </div>
+  );
+});
+
+// ──────────────────────────────────────────────────────────
+// Styles
+// ──────────────────────────────────────────────────────────
+
+const SimStyles = memo(function SimStyles() {
+  return (
+    <style>{`
+      .sim-hero {
+        padding: 20px 24px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        color: #e2e8f0;
+        box-shadow: 0 10px 30px -12px rgba(15, 23, 42, 0.4);
+      }
+      .sim-hero-label {
+        font-size: 11px;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        color: #94a3b8;
+        margin-bottom: 8px;
+      }
+      .sim-hero-text {
+        font-size: 18px;
+        font-weight: 500;
+        line-height: 1.5;
+      }
+
+      .sim-story-stage {
+        position: relative;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 16px 8px;
+        background: repeating-linear-gradient(
+          90deg,
+          #f8fafc 0px,
+          #f8fafc 1px,
+          transparent 1px,
+          transparent 80px
+        ), #ffffff;
+        border-radius: 12px;
+        border: 1px solid #e5e7eb;
+      }
+      .sim-story-cards {
+        display: flex;
+        gap: 16px;
+        align-items: stretch;
+        min-height: 200px;
+        padding: 8px 4px;
+      }
+
+      .sim-card {
+        position: relative;
+        flex: 0 0 260px;
+        min-height: 180px;
+        padding: 16px;
+        border-radius: 14px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+        transition: transform 260ms cubic-bezier(0.2, 0.8, 0.2, 1),
+                    opacity 260ms ease,
+                    box-shadow 260ms ease,
+                    filter 260ms ease;
+        border: 2px solid transparent;
+      }
+      .sim-card:focus-visible {
+        outline: 2px solid var(--sim-accent);
+        outline-offset: 3px;
+      }
+
+      .sim-card-past {
+        opacity: 0.5;
+        filter: saturate(0.8);
+        transform: scale(0.94);
+      }
+      .sim-card-upcoming {
+        opacity: 0.85;
+        filter: blur(0.3px);
+      }
+      .sim-card-far {
+        opacity: 0.45;
+        filter: blur(1.2px);
+        transform: scale(0.92);
+      }
+      .sim-card-active {
+        transform: scale(1.06) translateY(-4px);
+        box-shadow: 0 20px 40px -12px rgba(15, 23, 42, 0.25),
+                    0 0 0 3px var(--sim-accent);
+        border-color: var(--sim-accent);
+        z-index: 2;
+      }
+
+      .sim-card-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .sim-card-kind {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+      }
+      .sim-card-idx {
+        margin-left: auto;
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.7;
+      }
+      .sim-card-title {
+        font-size: 15px;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 8px;
+      }
+      .sim-card-detail {
+        font-size: 12px;
+        line-height: 1.5;
+        opacity: 0.85;
+      }
+      .sim-card-prompt {
+        margin-top: 10px;
+        padding: 8px 10px;
+        background: rgba(255, 255, 255, 0.55);
+        border-radius: 8px;
+        font-size: 11px;
+        line-height: 1.5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .sim-card-prompt-tag {
+        display: inline-block;
+        margin-right: 6px;
+        padding: 1px 6px;
+        background: var(--sim-accent);
+        color: #fff;
+        border-radius: 3px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        vertical-align: 1px;
+      }
+
+      @keyframes sim-pulse {
+        0%   { box-shadow: 0 0 0 0   var(--sim-accent); opacity: 0.7; }
+        70%  { box-shadow: 0 0 0 14px transparent; opacity: 0; }
+        100% { box-shadow: 0 0 0 0   transparent; opacity: 0; }
+      }
+      .sim-pulse-ring {
+        position: absolute;
+        inset: -4px;
+        border-radius: 18px;
+        pointer-events: none;
+        animation: sim-pulse 1.4s ease-out infinite;
+      }
+
+      .sim-log {
+        max-height: 220px;
+        overflow-y: auto;
+        background: #0f172a;
+        color: #e2e8f0;
+        border-radius: 8px;
+        padding: 12px 14px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12.5px;
+        line-height: 1.7;
+      }
+      .sim-log-empty {
+        color: #64748b;
+        font-style: italic;
+      }
+      @keyframes sim-log-in {
+        from { opacity: 0; transform: translateX(-6px); }
+        to   { opacity: 1; transform: translateX(0); }
+      }
+      .sim-log-line {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+        padding: 2px 6px;
+        border-radius: 4px;
+        animation: sim-log-in 240ms ease-out both;
+      }
+      .sim-log-line:hover {
+        background: rgba(148, 163, 184, 0.15);
+      }
+      .sim-log-current {
+        background: rgba(108, 58, 214, 0.25);
+        box-shadow: inset 2px 0 0 #a78bfa;
+      }
+      .sim-log-time {
+        color: #64748b;
+        font-size: 11px;
+      }
+      .sim-log-kind {
+        font-weight: 700;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+      }
+      .sim-log-msg {
+        flex: 1;
+        color: #f1f5f9;
+      }
+    `}</style>
+  );
+});
+
+function truncate(s: string, n: number): string {
+  if (s.length <= n) return s;
+  return s.slice(0, n) + "…";
+}
+
+// ──────────────────────────────────────────────────────────
+// Inspector indexing
+// ──────────────────────────────────────────────────────────
 
 interface SpecIndex {
   agentPromptsByName: Map<string, SpecMeta["agent_prompts"][number]>;
