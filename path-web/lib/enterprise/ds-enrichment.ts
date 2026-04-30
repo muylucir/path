@@ -30,11 +30,14 @@ function extractIds(body: Record<string, unknown>): string[] {
 
 export async function enrichDataSources(
   body: Record<string, unknown>,
-  _opts: { step: string },
+  opts: { step: string; userId: string | null },
 ): Promise<Record<string, unknown>> {
   try {
     const ids = extractIds(body);
-    const stored = ids.length > 0 ? await getDataSourcesByIds(ids) : [];
+    if (ids.length === 0 || !opts.userId) {
+      return { ...body, selectedDataSources: [], selectedDataSourcesCompact: [] };
+    }
+    const stored = await getDataSourcesByIds(ids, opts.userId);
     const structured: StructuredDataSourceEntry[] = stored.map((s) =>
       toStructuredEntry(s.entry),
     );

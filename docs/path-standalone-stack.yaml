@@ -1,6 +1,18 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: 'PATH Agent Designer - Standalone Stack'
 
+Parameters:
+  DataSourceScope:
+    Type: String
+    Default: personal
+    AllowedValues:
+      - personal
+      - shared
+    Description: |
+      Data source catalog visibility.
+      - personal: Each Cognito user sees only their own data sources (default, recommended for individual/PoC use).
+      - shared:   All users in this UserPool share a common catalog. Edit/delete still requires ownership.
+
 Mappings:
   CidrMappings:
     public-subnet-1: {CIDR: 10.3.1.0/24}
@@ -645,6 +657,12 @@ Resources:
             type: String
           AwsRegion:
             type: String
+          DataSourceScope:
+            type: String
+            default: personal
+            allowedValues:
+              - personal
+              - shared
         mainSteps:
           - name: InstallNodeAndDeploy
             action: aws:runShellScript
@@ -687,6 +705,7 @@ Resources:
                   Environment=AGENT_RUNTIME_ARN={{ AgentRuntimeArn }}
                   Environment=AWS_DEFAULT_REGION={{ AwsRegion }}
                   Environment=DYNAMODB_TABLE_NAME={{ DynamoDBTableName }}
+                  Environment=DATA_SOURCE_SCOPE={{ DataSourceScope }}
 
                   [Install]
                   WantedBy=multi-user.target
@@ -764,6 +783,7 @@ Resources:
       AgentRuntimeArn: !GetAtt PathAgentCoreRuntime.AgentRuntimeArn
       DynamoDBTableName: !Ref PathSessionsTable
       AwsRegion: !Ref 'AWS::Region'
+      DataSourceScope: !Ref DataSourceScope
 
   # Step 5: Check PATH Frontend completion
   CheckPathFrontendSSMDoc:

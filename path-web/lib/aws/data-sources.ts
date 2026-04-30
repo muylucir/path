@@ -36,6 +36,17 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_NAME || "path-agent-sessions";
 const DS_ID_PREFIX = "ds_";
 const ENTITY_TYPE = "DataSource";
 
+export type DataSourceScope = "personal" | "shared";
+
+/**
+ * 배포 시 주입되는 스코프. `personal`은 사용자별 격리(기본),
+ * `shared`는 동일 UserPool 구성원 전체 공유 카탈로그.
+ * 쓰기/삭제는 두 모드 모두 소유자만 가능.
+ */
+export function getDataSourceScope(): DataSourceScope {
+  return process.env.DATA_SOURCE_SCOPE === "shared" ? "shared" : "personal";
+}
+
 interface DataSourceRow {
   session_id: string; // primary key — "ds_<uuid>"
   entity_type: typeof ENTITY_TYPE;
@@ -58,15 +69,26 @@ export function makeDataSourceId(): string {
   return `${DS_ID_PREFIX}${crypto.randomUUID()}`;
 }
 
-export async function listDataSources(): Promise<StoredDataSource[]> {
+export async function listDataSources(
+  userId: string,
+): Promise<StoredDataSource[]> {
+  const scope = getDataSourceScope();
   const items: DataSourceRow[] = [];
   let cursor: Record<string, unknown> | undefined;
+
+  const filterParts = ["entity_type = :t"];
+  const values: Record<string, unknown> = { ":t": ENTITY_TYPE };
+  if (scope === "personal") {
+    filterParts.push("owner_id = :uid");
+    values[":uid"] = userId;
+  }
+
   do {
     const res = await docClient.send(
       new ScanCommand({
         TableName: TABLE_NAME,
-        FilterExpression: "entity_type = :t",
-        ExpressionAttributeValues: { ":t": ENTITY_TYPE },
+        FilterExpression: filterParts.join(" AND "),
+        ExpressionAttributeValues: values,
         ExclusiveStartKey: cursor,
       }),
     );
@@ -80,6 +102,7 @@ export async function listDataSources(): Promise<StoredDataSource[]> {
 
 export async function getDataSource(
   id: string,
+  userId?: string,
 ): Promise<StoredDataSource | null> {
   const res = await docClient.send(
     new GetCommand({
@@ -89,6 +112,10 @@ export async function getDataSource(
   );
   const row = res.Item as DataSourceRow | undefined;
   if (!row || row.entity_type !== ENTITY_TYPE) return null;
+  if (userId !== undefined) {
+    const scope = getDataSourceScope();
+    if (scope === "personal" && row.owner_id !== userId) return null;
+  }
   return toStored(row);
 }
 
@@ -181,11 +208,12 @@ export async function deleteDataSource(
 
 export async function getDataSourcesByIds(
   ids: readonly string[],
+  userId: string,
 ): Promise<StoredDataSource[]> {
   if (ids.length === 0) return [];
   const unique = Array.from(new Set(ids));
   const results = await Promise.all(
-    unique.map((id) => getDataSource(id).catch(() => null)),
+    unique.map((id) => getDataSource(id, userId).catch(() => null)),
   );
   return results.filter((r): r is StoredDataSource => r !== null);
 }

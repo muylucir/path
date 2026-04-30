@@ -14,7 +14,7 @@ export async function GET() {
     if (!userId) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
     }
-    const items = await listDataSources();
+    const items = await listDataSources(userId);
     return Response.json({ items });
   } catch (err) {
     console.error("[/api/data-sources] GET error:", err);
