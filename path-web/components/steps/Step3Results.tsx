@@ -13,8 +13,7 @@ import { getReadinessLevel, getStatusIndicatorType, getJudgmentBadge } from "@/l
 import { AnalysisTab } from "@/components/steps/results/AnalysisTab";
 import { ChatHistoryTab } from "@/components/steps/results/ChatHistoryTab";
 import { SpecificationTab } from "@/components/steps/results/SpecificationTab";
-import { SimulationGraphTab } from "@/components/visualization/SimulationGraphTab";
-import { SimulationTimelineTab } from "@/components/visualization/SimulationTimelineTab";
+import { SimulationL2Tab } from "@/components/visualization/SimulationL2Tab";
 import type { Analysis, ChatMessage, FormData, FeasibilityEvaluation, ImprovementPlans, SpecMeta, TokenUsage } from "@/lib/types";
 import { MULTI_AGENT_PATTERN_LABELS, AUTOMATION_LEVEL_LABELS, MULTI_AGENT_PATTERN_DESCRIPTIONS, AUTOMATION_LEVEL_DESCRIPTIONS } from "@/lib/constants";
 import { GlossaryTerm } from "@/components/cloudscape/GlossaryTerm";
@@ -47,7 +46,7 @@ export function Step3Results({
 }: Step3ResultsProps) {
   const [specStructured, setSpecStructured] = useState<SpecMeta | null>(initialSpecificationStructured ?? null);
   const [activeTabId, setActiveTabId] = useState<string>("analysis");
-  const [simVisited, setSimVisited] = useState<{ graph: boolean; timeline: boolean }>({ graph: false, timeline: false });
+  const [simVisited, setSimVisited] = useState<{ sim: boolean }>({ sim: false });
   const handleStructured = useCallback((meta: SpecMeta | null) => {
     setSpecStructured(meta);
     onStructured?.(meta);
@@ -173,8 +172,7 @@ export function Step3Results({
         onChange={({ detail }) => {
           const id = detail.activeTabId;
           setActiveTabId(id);
-          if (id === "sim-graph") setSimVisited((v) => (v.graph ? v : { ...v, graph: true }));
-          if (id === "sim-timeline") setSimVisited((v) => (v.timeline ? v : { ...v, timeline: true }));
+          if (id === "sim") setSimVisited((v) => (v.sim ? v : { sim: true }));
         }}
         tabs={[
           {
@@ -210,30 +208,15 @@ export function Step3Results({
             ),
           },
           {
-            label: "시뮬레이션 (그래프)",
-            id: "sim-graph",
+            label: "실행 흐름 미리보기",
+            id: "sim",
             content: (
               <Box padding={{ top: "l" }}>
-                {simVisited.graph && activeTabId === "sim-graph" ? (
-                  <SimulationGraphTab specMeta={specStructured} analysis={analysis} />
+                {simVisited.sim && activeTabId === "sim" ? (
+                  <SimulationL2Tab specMeta={specStructured} analysis={analysis} />
                 ) : (
                   <Box color="text-body-secondary" variant="small">
-                    이 탭을 선택하면 시뮬레이션이 준비됩니다...
-                  </Box>
-                )}
-              </Box>
-            ),
-          },
-          {
-            label: "시뮬레이션 (타임라인)",
-            id: "sim-timeline",
-            content: (
-              <Box padding={{ top: "l" }}>
-                {simVisited.timeline && activeTabId === "sim-timeline" ? (
-                  <SimulationTimelineTab specMeta={specStructured} analysis={analysis} />
-                ) : (
-                  <Box color="text-body-secondary" variant="small">
-                    이 탭을 선택하면 시뮬레이션이 준비됩니다...
+                    이 탭을 선택하면 미리보기가 준비됩니다...
                   </Box>
                 )}
               </Box>
