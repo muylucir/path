@@ -54,6 +54,37 @@ const ragConfig = z
     }
   });
 
+const graphRagConfig = z
+  .object({
+    backend: z.enum(["neptune", "neptune_analytics", "neo4j", "other"]),
+    endpoint: z.string().max(2048).optional(),
+    graph_id: z.string().max(200).optional(),
+    database: z.string().max(200).optional(),
+  })
+  .superRefine((cfg, ctx) => {
+    if (cfg.backend === "neptune" && !cfg.endpoint) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endpoint"],
+        message: "neptune 백엔드는 endpoint가 필요합니다",
+      });
+    }
+    if (cfg.backend === "neptune_analytics" && !cfg.graph_id) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["graph_id"],
+        message: "neptune_analytics 백엔드는 graph_id가 필요합니다",
+      });
+    }
+    if (cfg.backend === "neo4j" && !cfg.endpoint) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["endpoint"],
+        message: "neo4j 백엔드는 endpoint(bolt://... 또는 neo4j://...)가 필요합니다",
+      });
+    }
+  });
+
 const rdbmsConfig = z.object({
   engine: z.string().min(1).max(60),
   database: z.string().min(1).max(120),
@@ -102,6 +133,11 @@ const apiConfig = z.object({
  */
 export const dataSourceCreateSchema = z.discriminatedUnion("category", [
   z.object({ ...baseFields, category: z.literal("RAG"), config: ragConfig }),
+  z.object({
+    ...baseFields,
+    category: z.literal("GraphRAG"),
+    config: graphRagConfig,
+  }),
   z.object({ ...baseFields, category: z.literal("RDBMS"), config: rdbmsConfig }),
   z.object({ ...baseFields, category: z.literal("S3"), config: s3Config }),
   z.object({ ...baseFields, category: z.literal("MCP"), config: mcpConfig }),

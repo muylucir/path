@@ -9,6 +9,7 @@
 
 export const DATA_SOURCE_CATEGORIES = [
   "RAG",
+  "GraphRAG",
   "RDBMS",
   "S3",
   "MCP",
@@ -22,6 +23,7 @@ export type DataSourceCategory = (typeof DATA_SOURCE_CATEGORIES)[number];
 
 export const DATA_SOURCE_CATEGORY_LABELS: Record<DataSourceCategory, string> = {
   RAG: "RAG / 지식베이스",
+  GraphRAG: "GraphRAG / 지식그래프",
   RDBMS: "RDBMS",
   S3: "S3",
   MCP: "MCP 서버",
@@ -53,7 +55,7 @@ export interface DataSourceBase {
   auth_mode: AuthMode;
   /** Secrets Manager ARN 등 런타임에서 자격증명을 로드할 opaque 포인터. 값 자체는 저장하지 않음. */
   secret_ref?: string;
-  /** storage류(RAG/RDBMS/S3)에 유의미. 읽기 전용인지 쓰기까지 필요한지. */
+  /** storage류(RAG/GraphRAG/RDBMS/S3)에 유의미. 읽기 전용인지 쓰기까지 필요한지. */
   access_pattern?: AccessPattern;
   /** 실시간(realtime) vs 배치(batch) 성격. */
   latency_tier?: LatencyTier;
@@ -69,6 +71,15 @@ export type DataSourceEntry =
         knowledge_base_id?: string;
         endpoint?: string;
         index?: string;
+      };
+    })
+  | (DataSourceBase & {
+      category: "GraphRAG";
+      config: {
+        backend: "neptune" | "neptune_analytics" | "neo4j" | "other";
+        endpoint?: string;
+        graph_id?: string;
+        database?: string;
       };
     })
   | (DataSourceBase & {
@@ -185,6 +196,16 @@ export function identifierLine(entry: DataSourceEntry): string {
       if (cfg.backend === "opensearch" && cfg.endpoint)
         return `RAG(OpenSearch ${cfg.endpoint}${cfg.index ? `#${cfg.index}` : ""})`;
       return "RAG";
+    }
+    case "GraphRAG": {
+      const cfg = entry.config;
+      if (cfg.backend === "neptune" && cfg.endpoint)
+        return `GraphRAG(Neptune ${cfg.endpoint}${cfg.database ? `/${cfg.database}` : ""})`;
+      if (cfg.backend === "neptune_analytics" && cfg.graph_id)
+        return `GraphRAG(NeptuneAnalytics ${cfg.graph_id})`;
+      if (cfg.backend === "neo4j" && cfg.endpoint)
+        return `GraphRAG(Neo4j ${cfg.endpoint}${cfg.database ? `/${cfg.database}` : ""})`;
+      return "GraphRAG";
     }
     case "RDBMS": {
       const cfg = entry.config;

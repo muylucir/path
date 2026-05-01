@@ -54,6 +54,7 @@ interface ConfigFieldMeta {
 
 const CATEGORY_DESCRIPTIONS: Record<DataSourceCategory, string> = {
   RAG: "Bedrock KB·OpenSearch 등 검색/벡터 기반 지식베이스",
+  GraphRAG: "Neptune·Neptune Analytics·Neo4j 등 지식그래프 기반 RAG",
   RDBMS: "PostgreSQL·MySQL·Aurora 등 관계형 DB",
   S3: "객체 스토리지 — 문서·이미지·로그 아카이브",
   MCP: "Model Context Protocol 서버 (stdio / http)",
@@ -99,6 +100,34 @@ const CATEGORY_FIELDS: Record<DataSourceCategory, ConfigFieldMeta[]> = {
       key: "index",
       label: "Index",
       placeholder: "documents-v1",
+    },
+  ],
+  GraphRAG: [
+    {
+      key: "backend",
+      label: "백엔드",
+      required: true,
+      enumOptions: ["neptune", "neptune_analytics", "neo4j", "other"],
+      description: "지식그래프 엔진을 선택하세요",
+    },
+    {
+      key: "endpoint",
+      label: "Endpoint",
+      placeholder:
+        "neptune: https://*.neptune.amazonaws.com:8182 / neo4j: neo4j://host:7687",
+      description: "neptune·neo4j 백엔드에서 필수",
+    },
+    {
+      key: "graph_id",
+      label: "Graph ID",
+      placeholder: "g-XXXXXXXXXX",
+      description: "neptune_analytics 백엔드에서 필수",
+    },
+    {
+      key: "database",
+      label: "Database / Graph 이름",
+      placeholder: "neo4j / mydb",
+      description: "Neo4j 다중 DB·Neptune named graph 구분용",
     },
   ],
   RDBMS: [
@@ -245,7 +274,7 @@ const CATEGORY_FIELDS: Record<DataSourceCategory, ConfigFieldMeta[]> = {
 };
 
 /** storage 성격의 카테고리 — access_pattern / latency_tier / schema_hint 노출 */
-const STORAGE_LIKE: DataSourceCategory[] = ["RAG", "RDBMS", "S3"];
+const STORAGE_LIKE: DataSourceCategory[] = ["RAG", "GraphRAG", "RDBMS", "S3"];
 
 const DEFAULTS: DataSourceFormValues = {
   category: "S3",
