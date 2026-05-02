@@ -9,6 +9,7 @@ import Alert from "@cloudscape-design/components/alert";
 import Badge from "@cloudscape-design/components/badge";
 import Button from "@cloudscape-design/components/button";
 import Select from "@cloudscape-design/components/select";
+import Input from "@cloudscape-design/components/input";
 import ColumnLayout from "@cloudscape-design/components/column-layout";
 import {
   User,
@@ -19,9 +20,9 @@ import {
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
-import { buildScenario } from "@/lib/simulation/scenario";
+import { buildScenario, collectInputPresets } from "@/lib/simulation/scenario";
 import type { Analysis, SpecMeta } from "@/lib/types";
-import type { SimStep, ActorKind } from "@/lib/simulation/scenario";
+import type { SimStep, ActorKind, InputPreset } from "@/lib/simulation/scenario";
 
 interface SimulationL2TabProps {
   specMeta: SpecMeta | null;
@@ -81,16 +82,34 @@ const KIND_STYLE: Record<
  * 재생하면 카드가 등장·펄스하며 하단에 로그가 쌓인다.
  */
 export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
-  const scenario = useMemo(() => buildScenario(specMeta, analysis), [specMeta, analysis]);
+  const presets = useMemo(() => collectInputPresets(specMeta, analysis), [specMeta, analysis]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string>(() => presets[0]?.id ?? "custom");
+  const [customDraft, setCustomDraft] = useState<string>("");
+  const [appliedCustom, setAppliedCustom] = useState<string>("");
+
+  const userInputOverride = useMemo(() => {
+    if (selectedPresetId === "custom") return appliedCustom || null;
+    return presets.find((p) => p.id === selectedPresetId)?.text ?? null;
+  }, [selectedPresetId, appliedCustom, presets]);
+
+  const scenario = useMemo(
+    () => buildScenario(specMeta, analysis, { userInputOverride }),
+    [specMeta, analysis, userInputOverride],
+  );
   const specIndex = useMemo(() => buildSpecIndex(specMeta), [specMeta]);
 
-  const [activeIndex, setActiveIndex] = useState(-1);
+  const [activeGroupIndex, setActiveGroupIndex] = useState(-1);
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [inspectedActorId, setInspectedActorId] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
-  const activeCardRef = useRef<HTMLDivElement>(null);
+  const activeGroupRef = useRef<HTMLDivElement>(null);
+
+  const groups = scenario.groupedSteps;
+  const activeGroup = activeGroupIndex >= 0 ? groups[activeGroupIndex] : null;
+  const flatActiveIndex = activeGroup ? activeGroup[activeGroup.length - 1].index : -1;
+  const visibleStepsEndIndex = flatActiveIndex;
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -104,12 +123,13 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
   useEffect(() => {
     clearTimer();
     if (!playing) return;
-    if (activeIndex < 0 || activeIndex >= scenario.steps.length) return;
-    const step = scenario.steps[activeIndex];
-    const delay = Math.max(250, step.durationMs / Math.max(0.25, rate));
+    if (activeGroupIndex < 0 || activeGroupIndex >= groups.length) return;
+    const group = groups[activeGroupIndex];
+    const maxDuration = group.reduce((m, s) => Math.max(m, s.durationMs), 0);
+    const delay = Math.max(250, maxDuration / Math.max(0.25, rate));
     timerRef.current = setTimeout(() => {
-      setActiveIndex((idx) => {
-        if (idx + 1 >= scenario.steps.length) {
+      setActiveGroupIndex((idx) => {
+        if (idx + 1 >= groups.length) {
           setPlaying(false);
           return idx;
         }
@@ -117,14 +137,22 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
       });
     }, delay);
     return clearTimer;
-  }, [playing, activeIndex, scenario.steps, rate, clearTimer]);
+  }, [playing, activeGroupIndex, groups, rate, clearTimer]);
 
-  // 활성 카드 오토스크롤
+  // 활성 그룹 오토스크롤
   useEffect(() => {
-    if (activeIndex < 0) return;
-    activeCardRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    if (activeGroupIndex < 0) return;
+    activeGroupRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
     logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
-  }, [activeIndex]);
+  }, [activeGroupIndex]);
+
+  // 입력이 바뀌면 재생/인스펙터 리셋
+  useEffect(() => {
+    clearTimer();
+    setPlaying(false);
+    setActiveGroupIndex(-1);
+    setInspectedActorId(null);
+  }, [userInputOverride, clearTimer]);
 
   const inspected = useMemo(
     () => (inspectedActorId && specIndex ? resolveInspect(inspectedActorId, specIndex) : null),
@@ -142,8 +170,8 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
   }
 
   const handlePlay = () => {
-    if (scenario.steps.length === 0) return;
-    if (activeIndex < 0 || activeIndex >= scenario.steps.length - 1) setActiveIndex(0);
+    if (groups.length === 0) return;
+    if (activeGroupIndex < 0 || activeGroupIndex >= groups.length - 1) setActiveGroupIndex(0);
     setPlaying(true);
   };
   const handlePause = () => {
@@ -153,17 +181,18 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
   const handleReset = () => {
     clearTimer();
     setPlaying(false);
-    setActiveIndex(-1);
+    setActiveGroupIndex(-1);
     setInspectedActorId(null);
   };
   const handleStepClick = (step: SimStep) => {
     clearTimer();
     setPlaying(false);
-    setActiveIndex(step.index);
+    const groupIdx = groups.findIndex((g) => g.some((s) => s.index === step.index));
+    if (groupIdx >= 0) setActiveGroupIndex(groupIdx);
     setInspectedActorId(step.actorId);
   };
 
-  const activeStep = activeIndex >= 0 ? scenario.steps[activeIndex] : null;
+  const activeStep = activeGroup ? activeGroup[activeGroup.length - 1] : null;
 
   return (
     <Container
@@ -178,12 +207,21 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
     >
       <SimStyles />
       <SpaceBetween size="l">
+        <InputPicker
+          presets={presets}
+          selectedId={selectedPresetId}
+          onSelect={setSelectedPresetId}
+          customDraft={customDraft}
+          onCustomDraftChange={setCustomDraft}
+          onApplyCustom={() => setAppliedCustom(customDraft)}
+          appliedCustom={appliedCustom}
+        />
         <StoryHeader userInput={scenario.userInput} />
 
         <SpaceBetween direction="horizontal" size="xs">
           {!playing ? (
             <Button variant="primary" iconName="caret-right-filled" onClick={handlePlay}>
-              {activeIndex < 0 ? "스토리 시작" : "계속 재생"}
+              {activeGroupIndex < 0 ? "스토리 시작" : "계속 재생"}
             </Button>
           ) : (
             <Button iconName="status-stopped" onClick={handlePause}>
@@ -202,24 +240,43 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
             />
           </Box>
           <Box padding={{ left: "s", top: "xs" }} color="text-body-secondary">
-            {activeIndex >= 0
-              ? `스텝 ${activeIndex + 1} / ${scenario.steps.length}`
-              : `스텝 0 / ${scenario.steps.length}`}
+            {activeGroupIndex >= 0
+              ? `단계 ${activeGroupIndex + 1} / ${groups.length}`
+              : `단계 0 / ${groups.length}`}
           </Box>
         </SpaceBetween>
 
         <ColumnLayout columns={inspected ? 2 : 1} variant="text-grid">
           <div className="sim-story-stage">
             <div className="sim-story-cards">
-              {scenario.steps.map((step, i) => (
-                <StepCardView
-                  key={step.index}
-                  step={step}
-                  position={positionFor(i, activeIndex)}
-                  onClick={() => handleStepClick(step)}
-                  cardRef={step.index === activeIndex ? activeCardRef : undefined}
-                />
-              ))}
+              {groups.map((group, gi) => {
+                const position = positionFor(gi, activeGroupIndex);
+                const isParallel = group.length > 1;
+                return (
+                  <div
+                    key={`g-${gi}`}
+                    className={`sim-group${isParallel ? " sim-group-parallel" : ""}`}
+                    ref={gi === activeGroupIndex ? activeGroupRef : undefined}
+                  >
+                    {isParallel && (
+                      <div className="sim-group-caption" aria-hidden="true">
+                        ⑂ 병렬 실행 · {group.length}개 동시
+                      </div>
+                    )}
+                    <div className="sim-group-cards">
+                      {group.map((step) => (
+                        <StepCardView
+                          key={step.index}
+                          step={step}
+                          position={position}
+                          onClick={() => handleStepClick(step)}
+                          rate={rate}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -260,17 +317,20 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
           header={<Header variant="h3" description="현재까지 실행된 단계의 라이브 로그입니다. 줄을 클릭하면 해당 단계로 이동합니다.">실행 로그</Header>}
         >
           <div ref={logRef} className="sim-log">
-            {activeIndex < 0 ? (
+            {visibleStepsEndIndex < 0 ? (
               <div className="sim-log-empty">재생을 시작하면 여기에 로그가 스트리밍됩니다.</div>
             ) : (
-              scenario.steps.slice(0, activeIndex + 1).map((s) => (
-                <LogLine
-                  key={s.index}
-                  step={s}
-                  isCurrent={s.index === activeIndex}
-                  onClick={() => handleStepClick(s)}
-                />
-              ))
+              scenario.steps.slice(0, visibleStepsEndIndex + 1).map((s) => {
+                const isCurrent = !!activeGroup && activeGroup.some((g) => g.index === s.index);
+                return (
+                  <LogLine
+                    key={s.index}
+                    step={s}
+                    isCurrent={isCurrent}
+                    onClick={() => handleStepClick(s)}
+                  />
+                );
+              })
             )}
           </div>
         </Container>
@@ -298,6 +358,74 @@ const StoryHeader = memo(function StoryHeader({ userInput }: { userInput: string
   );
 });
 
+interface InputPickerProps {
+  presets: InputPreset[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+  customDraft: string;
+  onCustomDraftChange: (v: string) => void;
+  onApplyCustom: () => void;
+  appliedCustom: string;
+}
+
+const InputPicker = memo(function InputPicker({
+  presets,
+  selectedId,
+  onSelect,
+  customDraft,
+  onCustomDraftChange,
+  onApplyCustom,
+  appliedCustom,
+}: InputPickerProps) {
+  const isCustom = selectedId === "custom";
+  return (
+    <div className="sim-picker">
+      <div className="sim-picker-label">입력 바꿔보기</div>
+      <div className="sim-picker-chips">
+        {presets.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className={`sim-chip${selectedId === p.id ? " sim-chip-active" : ""}`}
+            onClick={() => onSelect(p.id)}
+            title={p.text}
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={`sim-chip sim-chip-custom${isCustom ? " sim-chip-active" : ""}`}
+          onClick={() => onSelect("custom")}
+        >
+          ✎ 직접 입력
+        </button>
+      </div>
+      {isCustom && (
+        <div className="sim-picker-custom">
+          <div style={{ flex: 1 }}>
+            <Input
+              value={customDraft}
+              onChange={({ detail }) => onCustomDraftChange(detail.value)}
+              placeholder="예: 지난 주 환불 건 중 5만원 이상인 것만 보여줘"
+              onKeyDown={({ detail }) => {
+                if (detail.key === "Enter") onApplyCustom();
+              }}
+            />
+          </div>
+          <Button
+            variant="primary"
+            onClick={onApplyCustom}
+            disabled={!customDraft.trim() || customDraft.trim() === appliedCustom.trim()}
+          >
+            적용
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+});
+
 type CardPosition = "past" | "active" | "upcoming" | "far";
 
 function positionFor(i: number, active: number): CardPosition {
@@ -312,15 +440,17 @@ interface StepCardProps {
   step: SimStep;
   position: CardPosition;
   onClick: () => void;
-  cardRef?: React.RefObject<HTMLDivElement | null>;
+  rate: number;
 }
 
-const StepCardView = memo(function StepCardView({ step, position, onClick, cardRef }: StepCardProps) {
+const StepCardView = memo(function StepCardView({ step, position, onClick, rate }: StepCardProps) {
   const style = KIND_STYLE[step.kind];
   const Icon = style.icon;
+  const isActive = position === "active";
+  const spoken = step.spokenLines ?? [];
+  const typed = useTypedLines(spoken, isActive, rate);
   return (
     <div
-      ref={cardRef}
       className={`sim-card sim-card-${position}`}
       onClick={onClick}
       role="button"
@@ -343,16 +473,77 @@ const StepCardView = memo(function StepCardView({ step, position, onClick, cardR
       </div>
       <div className="sim-card-title">{step.summary}</div>
       {step.detail && <div className="sim-card-detail">{truncate(step.detail, 140)}</div>}
+      {spoken.length > 0 && (
+        <div className="sim-card-bubble" aria-live={isActive ? "polite" : "off"}>
+          {typed.map((line, i) => (
+            <div key={i} className="sim-bubble-line">
+              {line}
+              {isActive && i === typed.length - 1 && line.length < spoken[i]!.length && (
+                <span className="sim-caret" aria-hidden="true" />
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {step.promptExcerpt && (
         <div className="sim-card-prompt">
           <span className="sim-card-prompt-tag">PROMPT</span>
           {truncate(step.promptExcerpt, 120)}
         </div>
       )}
-      {position === "active" && <div className="sim-pulse-ring" aria-hidden="true" />}
+      {isActive && <div className="sim-pulse-ring" aria-hidden="true" />}
     </div>
   );
 });
+
+/**
+ * 활성 카드에 한해 라인별 타이핑 애니메이션. rate >= 4면 즉시 표시.
+ */
+function useTypedLines(lines: string[], active: boolean, rate: number): string[] {
+  const fullKey = lines.join("");
+  const [typed, setTyped] = useState<string[]>(() => (active && rate < 4 ? lines.map(() => "") : lines));
+
+  useEffect(() => {
+    if (!active || rate >= 4 || lines.length === 0) {
+      setTyped(lines);
+      return;
+    }
+    setTyped(lines.map(() => ""));
+    const perChar = Math.max(10, 38 / Math.max(0.5, rate));
+    let lineIdx = 0;
+    let charIdx = 0;
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      if (lineIdx >= lines.length) return;
+      charIdx++;
+      setTyped((prev) => {
+        const copy = prev.slice();
+        copy[lineIdx] = lines[lineIdx].slice(0, charIdx);
+        return copy;
+      });
+      if (charIdx >= lines[lineIdx].length) {
+        lineIdx++;
+        charIdx = 0;
+        if (lineIdx < lines.length) {
+          setTimeout(tick, perChar * 6); // 라인 사이 잠깐 쉬기
+          return;
+        }
+        return;
+      }
+      setTimeout(tick, perChar);
+    };
+    const t = setTimeout(tick, perChar);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
+    // fullKey로 동일 라인 재생 방지
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullKey, active, rate]);
+
+  return typed;
+}
 
 const LogLine = memo(function LogLine({
   step,
@@ -388,6 +579,52 @@ const LogLine = memo(function LogLine({
 const SimStyles = memo(function SimStyles() {
   return (
     <style>{`
+      .sim-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .sim-picker-label {
+        font-size: 11px;
+        letter-spacing: 1.5px;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: 600;
+      }
+      .sim-picker-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .sim-chip {
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        background: #f8fafc;
+        color: #334155;
+        font-size: 12.5px;
+        cursor: pointer;
+        transition: all 160ms ease;
+      }
+      .sim-chip:hover {
+        border-color: #6c3ad6;
+        color: #6c3ad6;
+      }
+      .sim-chip-active {
+        background: #6c3ad6;
+        color: #fff;
+        border-color: #6c3ad6;
+        box-shadow: 0 4px 10px -4px rgba(108, 58, 214, 0.5);
+      }
+      .sim-chip-custom {
+        font-style: italic;
+      }
+      .sim-picker-custom {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+
       .sim-hero {
         padding: 20px 24px;
         border-radius: 12px;
@@ -425,10 +662,46 @@ const SimStyles = memo(function SimStyles() {
       }
       .sim-story-cards {
         display: flex;
-        gap: 16px;
+        gap: 24px;
         align-items: stretch;
         min-height: 200px;
         padding: 8px 4px;
+      }
+
+      .sim-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .sim-group-cards {
+        display: flex;
+        gap: 12px;
+        align-items: stretch;
+      }
+      .sim-group-parallel {
+        position: relative;
+        padding: 6px 10px 6px 14px;
+        border-radius: 12px;
+        background: rgba(108, 58, 214, 0.04);
+        border: 1px dashed rgba(108, 58, 214, 0.35);
+      }
+      .sim-group-parallel::before {
+        content: "";
+        position: absolute;
+        left: 4px;
+        top: 10%;
+        bottom: 10%;
+        width: 3px;
+        border-radius: 3px;
+        background: linear-gradient(180deg, #a78bfa, #6c3ad6);
+      }
+      .sim-group-caption {
+        font-size: 10.5px;
+        letter-spacing: 1px;
+        font-weight: 700;
+        color: #6c3ad6;
+        text-transform: uppercase;
+        padding: 0 4px;
       }
 
       .sim-card {
@@ -521,6 +794,49 @@ const SimStyles = memo(function SimStyles() {
         font-weight: 700;
         letter-spacing: 0.5px;
         vertical-align: 1px;
+      }
+
+      .sim-card-bubble {
+        margin-top: 10px;
+        padding: 10px 12px;
+        background: rgba(255, 255, 255, 0.92);
+        color: #0f172a;
+        border-radius: 12px;
+        border-top-left-radius: 4px;
+        font-size: 12.5px;
+        line-height: 1.55;
+        box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+        position: relative;
+      }
+      .sim-card-bubble::before {
+        content: "";
+        position: absolute;
+        left: -6px;
+        top: 6px;
+        width: 0;
+        height: 0;
+        border-top: 8px solid transparent;
+        border-bottom: 8px solid transparent;
+        border-right: 8px solid rgba(255, 255, 255, 0.92);
+      }
+      .sim-bubble-line {
+        white-space: pre-wrap;
+      }
+      .sim-bubble-line + .sim-bubble-line {
+        margin-top: 4px;
+      }
+      .sim-caret {
+        display: inline-block;
+        width: 2px;
+        height: 1em;
+        margin-left: 1px;
+        background: currentColor;
+        vertical-align: -2px;
+        animation: sim-caret-blink 0.9s steps(2) infinite;
+      }
+      @keyframes sim-caret-blink {
+        0%, 49% { opacity: 1; }
+        50%, 100% { opacity: 0; }
       }
 
       @keyframes sim-pulse {
