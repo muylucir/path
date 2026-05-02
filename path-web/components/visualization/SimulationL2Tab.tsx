@@ -499,44 +499,55 @@ const StepCardView = memo(function StepCardView({ step, position, onClick, rate 
 /**
  * 활성 카드에 한해 라인별 타이핑 애니메이션. rate >= 4면 즉시 표시.
  */
-function useTypedLines(lines: string[], active: boolean, rate: number): string[] {
-  const fullKey = lines.join("");
-  const [typed, setTyped] = useState<string[]>(() => (active && rate < 4 ? lines.map(() => "") : lines));
+function useTypedLines(lines: string[] | undefined, active: boolean, rate: number): string[] {
+  // lines는 step.spokenLines ?? [] 형태로 들어오지만, 예기치 않게 undefined 원소가 섞여
+  // 들어올 수 있어 방어적으로 한 번 더 필터링한다. 과거 렌더 주기에서 lines 배열이
+  // 짧아진 뒤 setTimeout으로 지연된 setState가 발화하면 lines[lineIdx]가 undefined가
+  // 되어 .slice() 호출이 터지는 문제가 있었다.
+  const safeLines = Array.isArray(lines) ? lines.filter((l): l is string => typeof l === "string") : [];
+  const fullKey = safeLines.join(" ");
+  const [typed, setTyped] = useState<string[]>(() =>
+    active && rate < 4 ? safeLines.map(() => "") : safeLines.slice(),
+  );
 
   useEffect(() => {
-    if (!active || rate >= 4 || lines.length === 0) {
-      setTyped(lines);
+    if (!active || rate >= 4 || safeLines.length === 0) {
+      setTyped(safeLines.slice());
       return;
     }
-    setTyped(lines.map(() => ""));
+    setTyped(safeLines.map(() => ""));
     const perChar = Math.max(10, 38 / Math.max(0.5, rate));
     let lineIdx = 0;
     let charIdx = 0;
     let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
     const tick = () => {
       if (cancelled) return;
-      if (lineIdx >= lines.length) return;
+      if (lineIdx >= safeLines.length) return;
+      const currentLine = safeLines[lineIdx];
+      if (typeof currentLine !== "string") return;
       charIdx++;
       setTyped((prev) => {
-        const copy = prev.slice();
-        copy[lineIdx] = lines[lineIdx].slice(0, charIdx);
+        const base = prev.length === safeLines.length ? prev : safeLines.map(() => "");
+        const copy = base.slice();
+        copy[lineIdx] = currentLine.slice(0, charIdx);
         return copy;
       });
-      if (charIdx >= lines[lineIdx].length) {
+      if (charIdx >= currentLine.length) {
         lineIdx++;
         charIdx = 0;
-        if (lineIdx < lines.length) {
-          setTimeout(tick, perChar * 6); // 라인 사이 잠깐 쉬기
+        if (lineIdx < safeLines.length) {
+          timerId = setTimeout(tick, perChar * 6);
           return;
         }
         return;
       }
-      setTimeout(tick, perChar);
+      timerId = setTimeout(tick, perChar);
     };
-    const t = setTimeout(tick, perChar);
+    timerId = setTimeout(tick, perChar);
     return () => {
       cancelled = true;
-      clearTimeout(t);
+      if (timerId) clearTimeout(timerId);
     };
     // fullKey로 동일 라인 재생 방지
     // eslint-disable-next-line react-hooks/exhaustive-deps
