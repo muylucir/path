@@ -30,10 +30,11 @@ interface SimulationL2TabProps {
 }
 
 const SPEED_OPTIONS = [
-  { label: "0.5x", value: "0.5" },
-  { label: "1x", value: "1" },
+  { label: "0.25x (아주 느림)", value: "0.25" },
+  { label: "0.5x (느림)", value: "0.5" },
+  { label: "1x (기본)", value: "1" },
   { label: "2x", value: "2" },
-  { label: "4x", value: "4" },
+  { label: "4x (빠름)", value: "4" },
 ];
 
 const KIND_STYLE: Record<
@@ -100,7 +101,8 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
 
   const [activeGroupIndex, setActiveGroupIndex] = useState(-1);
   const [playing, setPlaying] = useState(false);
-  const [rate, setRate] = useState(1);
+  // 비개발자가 카드를 읽을 시간을 확보하기 위해 기본 속도를 0.5x로 낮춘다.
+  const [rate, setRate] = useState(0.5);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [inspectedActorId, setInspectedActorId] = useState<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -184,6 +186,23 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
     setActiveGroupIndex(-1);
     setInspectedActorId(null);
   };
+  // 한 단계씩 앞/뒤 수동 이동. 자동 재생 중이면 먼저 일시정지한다.
+  const handlePrev = () => {
+    clearTimer();
+    setPlaying(false);
+    setActiveGroupIndex((idx) => Math.max(0, (idx < 0 ? 0 : idx) - 1));
+  };
+  const handleNext = () => {
+    clearTimer();
+    setPlaying(false);
+    setActiveGroupIndex((idx) => {
+      if (groups.length === 0) return idx;
+      const curr = idx < 0 ? -1 : idx;
+      return Math.min(groups.length - 1, curr + 1);
+    });
+  };
+  const canPrev = activeGroupIndex > 0;
+  const canNext = activeGroupIndex < groups.length - 1;
   const handleStepClick = (step: SimStep) => {
     clearTimer();
     setPlaying(false);
@@ -221,19 +240,30 @@ export function SimulationL2Tab({ specMeta, analysis }: SimulationL2TabProps) {
         <SpaceBetween direction="horizontal" size="xs">
           {!playing ? (
             <Button variant="primary" iconName="caret-right-filled" onClick={handlePlay}>
-              {activeGroupIndex < 0 ? "스토리 시작" : "계속 재생"}
+              {activeGroupIndex < 0 ? "자동 재생" : "계속 재생"}
             </Button>
           ) : (
             <Button iconName="status-stopped" onClick={handlePause}>
               일시정지
             </Button>
           )}
+          <Button iconName="angle-left" onClick={handlePrev} disabled={!canPrev}>
+            이전 단계
+          </Button>
+          <Button iconName="angle-right" onClick={handleNext} disabled={!canNext}>
+            다음 단계
+          </Button>
           <Button iconName="refresh" onClick={handleReset}>
             처음부터
           </Button>
           <Box padding={{ left: "xs" }}>
             <Select
-              selectedOption={{ label: `${rate}x`, value: String(rate) }}
+              selectedOption={
+                SPEED_OPTIONS.find((o) => o.value === String(rate)) ?? {
+                  label: `${rate}x`,
+                  value: String(rate),
+                }
+              }
               onChange={({ detail }) => setRate(parseFloat(detail.selectedOption.value ?? "1"))}
               options={SPEED_OPTIONS}
               expandToViewport
@@ -475,14 +505,17 @@ const StepCardView = memo(function StepCardView({ step, position, onClick, rate 
       {step.detail && <div className="sim-card-detail">{truncate(step.detail, 140)}</div>}
       {spoken.length > 0 && (
         <div className="sim-card-bubble" aria-live={isActive ? "polite" : "off"}>
-          {typed.map((line, i) => (
-            <div key={i} className="sim-bubble-line">
-              {line}
-              {isActive && i === typed.length - 1 && line.length < spoken[i]!.length && (
-                <span className="sim-caret" aria-hidden="true" />
-              )}
-            </div>
-          ))}
+          {typed.map((line, i) => {
+            // spoken과 typed의 길이가 일시적으로 다를 수 있으므로 방어적으로 조회
+            const target = typeof spoken[i] === "string" ? spoken[i] : "";
+            const showCaret = isActive && i === typed.length - 1 && line.length < target.length;
+            return (
+              <div key={i} className="sim-bubble-line">
+                {line}
+                {showCaret && <span className="sim-caret" aria-hidden="true" />}
+              </div>
+            );
+          })}
         </div>
       )}
       {step.promptExcerpt && (

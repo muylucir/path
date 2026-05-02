@@ -33,9 +33,11 @@ export interface Scenario {
   primaryDiagram?: SpecMetaDiagram;
 }
 
-const DEFAULT_STEP_MS = 1400;
-const DEFAULT_TOOL_MS = 1100;
-const DEFAULT_DATA_MS = 900;
+// 비개발자가 읽을 시간을 주도록 기본 스텝 지속 시간을 늘린다.
+// rate 1x 기준. rate로 속도 조절 가능.
+const DEFAULT_STEP_MS = 3200;
+const DEFAULT_TOOL_MS = 2400;
+const DEFAULT_DATA_MS = 2000;
 
 /**
  * 스펙 메타데이터와 분석 결과로부터 결정적 시나리오를 빌드.
